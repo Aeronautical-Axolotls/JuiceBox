@@ -1,5 +1,8 @@
 use bevy::prelude::*;
+pub mod test;
 
 fn main() {
-    App::new().run();
+    let mut juicebox: App = App::new();
+	juicebox.add_plugins((DefaultPlugins, test::HelloWorld));
+	juicebox.run();
 }
