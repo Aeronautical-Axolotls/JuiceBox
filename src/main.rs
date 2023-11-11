@@ -6,3 +6,5 @@ fn main() {
 	juicebox.add_plugins((DefaultPlugins, test::HelloWorld));
 	juicebox.run();
 }
+
+// comment

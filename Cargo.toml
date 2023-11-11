@@ -19,4 +19,4 @@ opt-level = 1
 [profile.dev.package."*"]
 opt-level = 3
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# See more keys and also their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

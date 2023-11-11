@@ -20,3 +20,5 @@ fn hello_world(time: Res<Time>, mut timer: ResMut<GreetingTimer>)
 		println!("Hello, world!");
 	}
 }
+
+// comment
