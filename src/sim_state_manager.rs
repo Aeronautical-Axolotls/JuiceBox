@@ -42,12 +42,27 @@ fn update(
 	// TODO: Check for and handle tool usage.
 }
 
-fn _add_particles(_positions: Vec<Vec2>) {
-	// TODO: Add each position to the state manager's list of particle positions.
+fn _add_particles(sim: &mut SimParticles, positions: &mut Vec<Vec2>, velocities: &mut Vec<Vec2>) {
+	if positions.len() != velocities.len() {
+		println!("Mismatched vector lengths; could not add particles!");
+		return;
+	}
+	
+	sim._particle_count += positions.len();
+	sim.particle_position.append(positions);
+	sim.particle_velocity.append(velocities);
 }
 
-fn _delete_particles(_indices: Vec<u64>) {
-	// TODO: Delete each particle whose index corresponds with a value in indices.
+fn _delete_particles(sim: &mut SimParticles, indices: Vec<usize>) {
+	for i in 0..indices.len() {
+		
+		let particle_index: usize = indices[i];
+		if particle_index >= sim.particle_position.len() {
+			println!("Index out of range; particle {} not deleted!", i);
+			continue;
+		}
+		sim.particle_position.remove(particle_index);
+	}
 }
 
 fn _select_particles(_indices: Vec<u64>) {
@@ -77,7 +92,7 @@ enum SimGridCellType	{ Air, _Fluid, _Solid, }
 struct SimGrid {
 	_dimensions:	[u16; 2], 			// Number of grid cells as [x, y].
 	_cell_size:		u8, 				// Grid cell size (lower size -> higher precision).
-	_cell_type:		SimGridCellType,
+	_cell_type:		SimGridCellType, 
 	_velocity:		Vec<[Vec2; 4]>, 	// Velocities for each grid cell at all 4 edges.
 }
 impl Default for SimGrid {
@@ -95,16 +110,16 @@ impl Default for SimGrid {
 
 #[derive(Resource)]
 struct SimParticles {
-	_particle_count:	u64, 		// Current number of particles.
-	_position:			Vec<Vec2>, 	// Each particle's [x, y] position.
-	_velocity:			Vec<Vec2>, 	// Each particle's [x, y] velocity.
+	_particle_count:	usize, 		// Current number of particles.
+	particle_position:	Vec<Vec2>, 	// Each particle's [x, y] position.
+	particle_velocity:	Vec<Vec2>, 	// Each particle's [x, y] velocity.
 }
 impl Default for SimParticles {
 	fn default() -> SimParticles {
 		SimParticles {
 			_particle_count:	0, 
-			_position:			Vec::new(), 
-			_velocity:			Vec::new(), 
+			particle_position:	Vec::new(), 
+			particle_velocity:	Vec::new(), 
 		}
 	}
 }
