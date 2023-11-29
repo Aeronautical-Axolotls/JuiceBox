@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::math::Vec2;
+use anyhow::Result;
 
 pub struct SimStateManager;
 impl Plugin for SimStateManager {
@@ -55,18 +56,30 @@ fn _add_particles(sim: &mut SimParticles, positions: &mut Vec<Vec2>, velocities:
 
 fn _delete_particles(sim: &mut SimParticles, indices: Vec<usize>) {
 	for i in 0..indices.len() {
-		
 		let particle_index: usize = indices[i];
+		
 		if particle_index >= sim.particle_position.len() {
 			println!("Index out of range; particle {} not deleted!", i);
 			continue;
 		}
+		
 		sim.particle_position.remove(particle_index);
 	}
 }
 
-fn _select_particles(_indices: Vec<u64>) {
-	// TODO: Select each particle whose index corresponds with a value in indices.
+/* Returns a vector of indices of the particles within a circle centered at "position" with radius 
+	"radius." */
+fn _select_particles(sim: &mut SimParticles, position: Vec2, radius: u32) -> Result<Vec<usize>> {
+	let mut selected_particles: Vec<usize> = Vec::new();
+	
+	for i in 0..sim.particle_position.len() {
+		let distance: f32 = position.distance(sim.particle_position[i]);
+		if distance <= (radius as f32) {
+			selected_particles.push(i);
+		}
+	}
+	
+	Ok(selected_particles)
 }
 
 #[derive(Resource)]
