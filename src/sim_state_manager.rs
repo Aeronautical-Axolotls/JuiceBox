@@ -82,20 +82,26 @@ fn _select_particles(sim: &mut SimParticles, position: Vec2, radius: u32) -> Res
 	Ok(selected_particles)
 }
 
+fn _change_gravity(sim: &mut SimConstraints, direction: u16, strength: f32)
+{
+	sim.gravity_direction = direction;
+	sim.gravity_strength = strength;
+}
+
 #[derive(Resource)]
 struct SimConstraints {
 	_grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
 	_iterations_per_frame:	u8, 	// Simulation iterations per frame.
-	_gravity_direction:		u16, 	// Gravity direction in degrees.
-	_gravity_strength:		f32, 	// Gravity strength in m/s^2.
+	gravity_direction:		u16, 	// Gravity direction in degrees.
+	gravity_strength:		f32, 	// Gravity strength in m/s^2.
 }
 impl Default for SimConstraints {
 	fn default() -> SimConstraints {
 		SimConstraints {
 			_grid_particle_ratio:	0.1, 
 			_iterations_per_frame:	5, 
-			_gravity_direction:		270, 
-			_gravity_strength:		9.81, 
+			gravity_direction:		270, 
+			gravity_strength:		9.81, 
 		}
 	}
 }
