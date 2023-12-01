@@ -18,9 +18,12 @@ fn update(mut _commands: Commands) {
 	
 }
 
-fn _polar_to_cartesian(direction: u16, magnitude: f32) -> Vec2
+/** Converts a polar vector with direction and magnitude into a cartesian vector with x and y 
+	components; returns said cartesian vector.  This function intended for use with the gravity 
+	system, hence the seemingly odd choice of parameters. */
+fn _polar_to_cartesian(direction_degrees: u16, magnitude: f32) -> Vec2
 {
-	let direction_rads: f32 = (direction as f32) * (PI / 180.0);
+	let direction_rads: f32 = (direction_degrees as f32) * (PI / 180.0);
 	
 	let result: Vec2 = Vec2 {
 		x: direction_rads.cos() * magnitude, 

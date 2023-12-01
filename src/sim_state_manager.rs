@@ -14,7 +14,7 @@ impl Plugin for SimStateManager {
 	}
 }
 
-// Simulation state manager initialization code.
+/// Simulation state manager initialization.
 fn setup(
 	mut _commands:		Commands, 
 	mut _constraints:	ResMut<SimConstraints>, 
@@ -29,7 +29,7 @@ fn setup(
 	println!("State manager initialized!");
 }
 
-// Simulation state manager update; handles user interactions with the simulation.
+/// Simulation state manager update; handles user interactions with the simulation.
 fn update(
 	mut _commands:		Commands, 
 	mut _constraints:	ResMut<SimConstraints>, 
@@ -43,6 +43,9 @@ fn update(
 	// TODO: Check for and handle tool usage.
 }
 
+/** Add particles into the simulation, each with a position of positions[i] and velocities[i].  If 
+	the list lengths do not match, the function will not add the particles to avoid unwanted 
+	behavior. */
 fn _add_particles(sim: &mut SimParticles, positions: &mut Vec<Vec2>, velocities: &mut Vec<Vec2>) {
 	if positions.len() != velocities.len() {
 		println!("Mismatched vector lengths; could not add particles!");
@@ -54,6 +57,9 @@ fn _add_particles(sim: &mut SimParticles, positions: &mut Vec<Vec2>, velocities:
 	sim.particle_velocity.append(velocities);
 }
 
+/** Remove particles from the simulation, each with a particle index of indices[i].  If a value 
+	within indices is out of range of the number of particles, the function will skip that 
+	particle and continue on. */
 fn _delete_particles(sim: &mut SimParticles, indices: Vec<usize>) {
 	for i in 0..indices.len() {
 		let particle_index: usize = indices[i];
@@ -67,7 +73,7 @@ fn _delete_particles(sim: &mut SimParticles, indices: Vec<usize>) {
 	}
 }
 
-/* Returns a vector of indices of the particles within a circle centered at "position" with radius 
+/** Returns a vector of indices of the particles within a circle centered at "position" with radius 
 	"radius." */
 fn _select_particles(sim: &mut SimParticles, position: Vec2, radius: u32) -> Result<Vec<usize>> {
 	let mut selected_particles: Vec<usize> = Vec::new();
@@ -82,6 +88,7 @@ fn _select_particles(sim: &mut SimParticles, position: Vec2, radius: u32) -> Res
 	Ok(selected_particles)
 }
 
+/// Change the gravity direction and strength constraints within the simulation.
 fn _change_gravity(sim: &mut SimConstraints, direction: u16, strength: f32)
 {
 	sim.gravity_direction = direction;
