@@ -3,5 +3,8 @@ pub enum Error {
 
     #[error("Grid layout invalidly set: `{0}`")]
     GridSizeError(&'static str),
+	
+	#[error("Mismatched vector lengths: `{0}`")]
+	VectorLengthMismatch(&'static str), 
 
 }
