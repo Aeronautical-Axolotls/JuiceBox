@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
+use crate::juice_math::{polar_to_cartesian, cartesian_to_polar};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -27,6 +28,14 @@ fn setup(
 
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
+	
+	let p0: Vec2 = cartesian_to_polar(Vec2 { x: 12.0, y: 99.0, });
+	let c0: Vec2 = polar_to_cartesian(p0);
+	let p1: Vec2 = cartesian_to_polar(c0);
+	
+	println!("{:?}", p0);
+	println!("{:?}", c0);
+	println!("{:?}", p1);
 
 	println!("State manager initialized!");
 }
@@ -45,73 +54,28 @@ fn update(
 	// TODO: Check for and handle tool usage.
 }
 
-/** Add particles into the simulation, each with a position of positions[i] and velocities[i].  If
-	the list lengths do not match, the function will not add the particles to avoid unwanted
-	behavior. */
-fn _add_particles(sim: &mut SimParticles, positions: &mut Vec<Vec2>, velocities: &mut Vec<Vec2>) {
-	if positions.len() != velocities.len() {
-		println!("Mismatched vector lengths; could not add particles!");
-		return;
-	}
-
-	sim._particle_count += positions.len();
-	sim.particle_position.append(positions);
-	sim.particle_velocity.append(velocities);
-}
-
-/** Remove particles from the simulation, each with a particle index of indices[i].  If a value
-	within indices is out of range of the number of particles, the function will skip that
-	particle and continue on. */
-fn _delete_particles(sim: &mut SimParticles, indices: Vec<usize>) {
-	for i in 0..indices.len() {
-		let particle_index: usize = indices[i];
-
-		if particle_index >= sim.particle_position.len() {
-			println!("Index out of range; particle {} not deleted!", i);
-			continue;
-		}
-
-		sim.particle_position.remove(particle_index);
-	}
-}
-
-/** Returns a vector of indices of the particles within a circle centered at "position" with radius
-	"radius." */
-fn _select_particles(sim: &mut SimParticles, position: Vec2, radius: u32) -> Result<Vec<usize>> {
-	let mut selected_particles: Vec<usize> = Vec::new();
-
-	for i in 0..sim.particle_position.len() {
-		let distance: f32 = position.distance(sim.particle_position[i]);
-		if distance <= (radius as f32) {
-			selected_particles.push(i);
-		}
-	}
-
-	Ok(selected_particles)
-}
-
-/// Change the gravity direction and strength constraints within the simulation.
-fn _change_gravity(sim: &mut SimConstraints, direction: u16, strength: f32)
-{
-	sim.gravity_direction = direction;
-	sim.gravity_strength = strength;
-}
-
 #[derive(Resource)]
 struct SimConstraints {
-	_grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
-	_iterations_per_frame:	u8, 	// Simulation iterations per frame.
-	gravity_direction:		u16, 	// Gravity direction in degrees.
-	gravity_strength:		f32, 	// Gravity strength in m/s^2.
+	grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
+	iterations_per_frame:	u8, 	// Simulation iterations per frame.
+	gravity:				Vec2,	// Cartesian gravity vector.
 }
+
 impl Default for SimConstraints {
 	fn default() -> SimConstraints {
 		SimConstraints {
-			_grid_particle_ratio:	0.1,
-			_iterations_per_frame:	5,
-			gravity_direction:		270,
-			gravity_strength:		9.81,
+			grid_particle_ratio:	0.1,
+			iterations_per_frame:	5,
+			gravity:				Vec2 { x: 0.0, y: -9.81 }, 
 		}
+	}
+}
+
+impl SimConstraints {
+	/// Change the gravity direction and strength constraints within the simulation.
+	fn change_gravity(sim: &mut SimConstraints, gravity: Vec2)
+	{
+		sim.gravity = gravity;
 	}
 }
 
@@ -161,16 +125,69 @@ impl SimGrid {
 
 #[derive(Resource)]
 struct SimParticles {
-	_particle_count:	usize, 		// Current number of particles.
+	particle_count:	usize, 		// Current number of particles.
 	particle_position:	Vec<Vec2>, 	// Each particle's [x, y] position.
 	particle_velocity:	Vec<Vec2>, 	// Each particle's [x, y] velocity.
 }
+
 impl Default for SimParticles {
 	fn default() -> SimParticles {
 		SimParticles {
-			_particle_count:	0,
+			particle_count:	0,
 			particle_position:	Vec::new(),
 			particle_velocity:	Vec::new(),
 		}
+	}
+}
+
+impl SimParticles {
+	/** Add particles into the simulation, each with a position of positions[i] and velocities[i].  If
+		the list lengths do not match, the function will not add the particles to avoid unwanted
+		behavior. */
+	fn add_particles(
+		&mut self, 
+		positions: &mut Vec<Vec2>, 
+		velocities: &mut Vec<Vec2>) -> Result<()> {
+		
+		if positions.len() != velocities.len() {
+			return Err(Error::VectorLengthMismatch("Could not add particles!"));
+		}
+
+		self.particle_count += positions.len();
+		self.particle_position.append(positions);
+		self.particle_velocity.append(velocities);
+		
+		Ok(())
+	}
+
+	/** Remove particles from the simulation, each with a particle index of indices[i].  If a value
+		within indices is out of range of the number of particles, the function will skip that
+		particle and continue on. */
+	fn delete_particles(&mut self, indices: Vec<usize>) {
+		for i in 0..indices.len() {
+			let particle_index: usize = indices[i];
+
+			if particle_index >= self.particle_position.len() {
+				println!("Index out of range; particle {} not deleted!", i);
+				continue;
+			}
+
+			self.particle_position.remove(particle_index);
+		}
+	}
+
+	/** Returns a vector of indices of the particles within a circle centered at "position" with radius
+		"radius." */
+	fn select_particles(&mut self, position: Vec2, radius: u32) -> Result<Vec<usize>> {
+		let mut selected_particles: Vec<usize> = Vec::new();
+
+		for i in 0..self.particle_position.len() {
+			let distance: f32 = position.distance(self.particle_position[i]);
+			if distance <= (radius as f32) {
+				selected_particles.push(i);
+			}
+		}
+
+		Ok(selected_particles)
 	}
 }
