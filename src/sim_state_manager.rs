@@ -29,14 +29,6 @@ fn setup(
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 	
-	let p0: Vec2 = cartesian_to_polar(Vec2 { x: 12.0, y: 99.0, });
-	let c0: Vec2 = polar_to_cartesian(p0);
-	let p1: Vec2 = cartesian_to_polar(c0);
-	
-	println!("{:?}", p0);
-	println!("{:?}", c0);
-	println!("{:?}", p1);
-
 	println!("State manager initialized!");
 }
 
@@ -76,6 +68,21 @@ impl SimConstraints {
 	fn change_gravity(sim: &mut SimConstraints, gravity: Vec2)
 	{
 		sim.gravity = gravity;
+	}
+
+	// Toggle Timestep from defualt and zero value
+	fn toggle_simulation_pause(sim: &mut SimConstraints){
+		if sim.iterations_per_frame != 0 {
+			sim.iterations_per_frame = 0;
+		}
+		else{
+			sim.iterations_per_frame = 5;// we should create a variable to represent current sped set by user
+		}
+	}
+
+	// Changes timestep of simulation
+	fn change_timestep(sim: &mut SimConstraints, new_timstep: u8){
+		sim.iterations_per_frame = new_timstep;
 	}
 }
 
