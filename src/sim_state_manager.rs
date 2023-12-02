@@ -8,7 +8,7 @@ impl Plugin for SimStateManager {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimParticles::default());
 		app.insert_resource(SimGrid::default());
-		
+
 		app.add_systems(Startup, setup);
 		app.add_systems(Update, update);
 	}
@@ -16,26 +16,26 @@ impl Plugin for SimStateManager {
 
 /// Simulation state manager initialization.
 fn setup(
-	mut _commands:		Commands, 
-	mut _constraints:	ResMut<SimConstraints>, 
-	mut _grid:			ResMut<SimGrid>, 
+	mut _commands:		Commands,
+	mut _constraints:	ResMut<SimConstraints>,
+	mut _grid:			ResMut<SimGrid>,
 	mut _particles:		ResMut<SimParticles>) {
-	
+
 	println!("Initializing state manager...");
-	
+
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
-	
+
 	println!("State manager initialized!");
 }
 
 /// Simulation state manager update; handles user interactions with the simulation.
 fn update(
-	mut _commands:		Commands, 
-	mut _constraints:	ResMut<SimConstraints>, 
-	mut _grid:			ResMut<SimGrid>, 
+	mut _commands:		Commands,
+	mut _constraints:	ResMut<SimConstraints>,
+	mut _grid:			ResMut<SimGrid>,
 	mut _particles:		ResMut<SimParticles>) {
-	
+
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
 	// TODO: Check for and handle changes to simulation grid.
@@ -113,25 +113,33 @@ impl Default for SimConstraints {
 	}
 }
 
-enum SimGridCellType	{ Air, _Fluid, _Solid, }
+#[derive(Clone)]
+enum SimGridCellType	{ Air, Fluid, Solid, }
+
 #[derive(Resource)]
 struct SimGrid {
-	_dimensions:	[u16; 2], 			// Number of grid cells as [x, y].
-	_cell_size:		u8, 				// Grid cell size (lower size -> higher precision).
-	_cell_type:		SimGridCellType, 
-	_velocity:		Vec<[Vec2; 4]>, 	// Velocities for each grid cell at all 4 edges.
+	dimensions:	    [u16; 2],
+	cell_size:		u8,
+	cell_type:		Vec<SimGridCellType>,
+	velocity:		Vec<[Vec2; 4]>,
 }
+
 impl Default for SimGrid {
 	fn default() -> SimGrid {
 		SimGrid {
-			_dimensions:	[250, 250], 
-			_cell_size:		10, 
-			_cell_type:		SimGridCellType::Air, 
-			
-			// BUG: Not sure if this is correct.
-			_velocity:		Vec::new(), 
+			dimensions:	[250, 250],
+			cell_size:		10,
+			cell_type:		vec![SimGridCellType::Air; 625],
+			velocity:		vec![[Vec2::new(0.0, 0.0); 4]; 625],
 		}
 	}
+}
+
+impl SimGrid {
+    pub fn _set_grid_cell_type(&mut self, cell_index: usize, cell_type: SimGridCellType) -> Result<()> {
+        self.cell_type[cell_index] = cell_type;
+        Ok(())
+    }
 }
 
 #[derive(Resource)]
