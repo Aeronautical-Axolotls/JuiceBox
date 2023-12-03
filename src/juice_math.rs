@@ -39,7 +39,7 @@ pub fn cartesian_to_polar(cartesian_vector: Vec2) -> Vec2 {
 	
 	let result: Vec2 = Vec2 {
 		x: sum_of_squares.sqrt(),	// r = sqrt(x^2 + y^2)
-		y: (cy / cx).atan(),		// theta = arctan(y / x)
+		y: cy.atan2(cx),			// theta = arctan(y / x)
 	};
 	
 	result
