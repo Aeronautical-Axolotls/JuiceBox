@@ -24,12 +24,8 @@ fn setup(
 	mut _grid:			ResMut<SimGrid>,
 	mut _particles:		ResMut<SimParticles>) {
 
-	println!("Initializing state manager...");
-
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
-	
-	println!("State manager initialized!");
 }
 
 /// Simulation state manager update; handles user interactions with the simulation.
@@ -58,7 +54,7 @@ impl Default for SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:	0.1,
 			iterations_per_frame:	5,
-			gravity:				Vec2 { x: 0.0, y: -9.81 }, 
+			gravity:				Vec2 { x: 0.0, y: -9.81 },
 		}
 	}
 }
@@ -110,12 +106,20 @@ impl Default for SimGrid {
 
 impl SimGrid {
 
-    pub fn set_grid_cell_type(&mut self, cell_index: usize, cell_type: SimGridCellType) -> Result<()> {
+    pub fn set_grid_cell_type(
+        &mut self,
+        cell_index: usize,
+        cell_type: SimGridCellType) -> Result<()> {
+
         self.cell_type[cell_index] = cell_type;
         Ok(())
     }
 
-    pub fn set_grid_dimensions(&mut self, width: u16, height: u16) -> Result<()> {
+    pub fn set_grid_dimensions(
+        &mut self,
+        width: u16,
+        height: u16) -> Result<()> {
+
         if width % self.cell_size != 0 {
             return Err(Error::GridSizeError("Width not evenly divisible by cell size."));
         }
@@ -125,6 +129,23 @@ impl SimGrid {
         }
 
         self.dimensions = (width, height);
+
+        Ok(())
+    }
+
+    pub fn set_grid_cell_size(
+        &mut self,
+        cell_size: u16) -> Result<()> {
+
+        if self.dimensions.0 % cell_size != 0 {
+            return Err(Error::GridSizeError("Grid cell size doesn't fit dimensions."))
+        }
+
+        if self.dimensions.1 % cell_size != 0 {
+            return Err(Error::GridSizeError("Grid cell size doesn't fit dimensions."))
+        }
+
+        self.cell_size = cell_size;
 
         Ok(())
     }
@@ -152,10 +173,10 @@ impl SimParticles {
 		the list lengths do not match, the function will not add the particles to avoid unwanted
 		behavior. */
 	fn add_particles(
-		&mut self, 
-		positions: &mut Vec<Vec2>, 
+		&mut self,
+		positions: &mut Vec<Vec2>,
 		velocities: &mut Vec<Vec2>) -> Result<()> {
-		
+
 		if positions.len() != velocities.len() {
 			return Err(Error::VectorLengthMismatch("Could not add particles!"));
 		}
@@ -163,7 +184,7 @@ impl SimParticles {
 		self.particle_count += positions.len();
 		self.particle_position.append(positions);
 		self.particle_velocity.append(velocities);
-		
+
 		Ok(())
 	}
 
