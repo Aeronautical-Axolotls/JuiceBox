@@ -1,5 +1,39 @@
 use bevy::math::Vec2;
 use std::f32::consts::PI;
+use std::time::SystemTime;
+
+/// Gets system time in milliseconds since January 1st, 1970.
+pub fn get_millis_since_epoch() -> u128 {
+	match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+		Ok(n)	=> n.as_millis(), 
+		Err(_)	=> {
+			eprintln!("Your system time is before the epoch!  RNG will not work!");
+			12345678900987654321
+		}, 
+	}
+}
+
+/// Generates a pseudorandom usize; based on theory found in "Xorshift RNGs" by George Marsaglia.
+pub fn generate_random_usize(seed: usize) -> usize {
+	let mut rand: usize = get_millis_since_epoch() as usize;
+	rand += seed;
+	
+	rand ^= rand << 13;
+	rand ^= rand >> 7;
+	rand ^= rand << 17;
+	rand
+}
+
+/// Generates a pseudorandom u32; based on theory found in "Xorshift RNGs" by George Marsaglia.
+pub fn generate_random_u32(seed: u32) -> u32 {
+	let mut rand: u32 = get_millis_since_epoch() as u32;
+	rand += seed;
+	
+	rand ^= rand << 13;
+	rand ^= rand >> 17;
+	rand ^= rand << 5;
+	rand
+}
 
 /// Converts degrees to radians; returns radians.
 pub fn degrees_to_radians(degrees: f32) -> f32 {
