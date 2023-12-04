@@ -6,6 +6,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 pub struct SimStateManager;
 impl Plugin for SimStateManager {
+	
 	fn build(&self, app: &mut App) {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimParticles::default());
@@ -49,6 +50,7 @@ struct SimConstraints {
 }
 
 impl Default for SimConstraints {
+	
 	fn default() -> SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:	0.1,
@@ -93,6 +95,7 @@ struct SimGrid {
 }
 
 impl Default for SimGrid {
+	
 	fn default() -> SimGrid {
 		SimGrid {
 			dimensions:	    (250, 250),
@@ -104,7 +107,7 @@ impl Default for SimGrid {
 }
 
 impl SimGrid {
-
+	/// Set simulation grid cell type.
     pub fn set_grid_cell_type(
         &mut self,
         cell_index: usize,
@@ -113,7 +116,8 @@ impl SimGrid {
         self.cell_type[cell_index] = cell_type;
         Ok(())
     }
-
+	
+	/// Set simulation grid dimensions.
     pub fn set_grid_dimensions(
         &mut self,
         width: u16,
@@ -131,7 +135,8 @@ impl SimGrid {
 
         Ok(())
     }
-
+	
+	// Set simulation grid cell size.
     pub fn set_grid_cell_size(
         &mut self,
         cell_size: u16) -> Result<()> {
@@ -158,6 +163,7 @@ struct SimParticles {
 }
 
 impl Default for SimParticles {
+	
 	fn default() -> SimParticles {
 		SimParticles {
 			particle_count:	0,
