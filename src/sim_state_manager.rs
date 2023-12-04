@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::juice_math::{polar_to_cartesian, cartesian_to_polar};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
