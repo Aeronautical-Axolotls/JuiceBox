@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
-mod sim_state_manager;
-mod sim_physics_engine;
-mod juice_math;
+mod simulation;
+mod util;
 mod juice_renderer;
 mod error;
 // pub mod test;
