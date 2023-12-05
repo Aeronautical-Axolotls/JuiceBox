@@ -31,8 +31,7 @@ impl Plugin for JuiceRenderer {
 fn setup_renderer(
 	mut commands:	Commands,
 	mut meshes:		ResMut<Assets<Mesh>>,
-	mut materials:	ResMut<Assets<ColorMaterial>>,
-	mut particles:	ResMut<SimParticles>) {
+	mut materials:	ResMut<Assets<ColorMaterial>>) {
 
 	// Spawn a camera to view our simulation world!
 	commands.spawn(Camera2dBundle::default());
