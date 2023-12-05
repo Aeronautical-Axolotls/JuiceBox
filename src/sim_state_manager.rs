@@ -174,10 +174,6 @@ impl Default for SimParticles {
 
 impl SimParticles {
 	
-	pub fn get_particle_count(&self) -> usize {
-		self.particle_count
-	}
-	
 	/** Add particles into the simulation, each with a position of positions[i] and velocities[i].  If
 		the list lengths do not match, the function will not add the particles to avoid unwanted
 		behavior. */
