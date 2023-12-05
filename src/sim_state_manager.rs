@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::juice_math::{polar_to_cartesian, cartesian_to_polar};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
 pub struct SimStateManager;
 impl Plugin for SimStateManager {
+	
 	fn build(&self, app: &mut App) {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimParticles::default());
@@ -50,6 +50,7 @@ struct SimConstraints {
 }
 
 impl Default for SimConstraints {
+	
 	fn default() -> SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:	0.1,
@@ -61,8 +62,7 @@ impl Default for SimConstraints {
 
 impl SimConstraints {
 	/// Change the gravity direction and strength constraints within the simulation.
-	fn change_gravity(sim: &mut SimConstraints, gravity: Vec2)
-	{
+	fn change_gravity(sim: &mut SimConstraints, gravity: Vec2) {
 		sim.gravity = gravity;
 	}
 
@@ -72,7 +72,7 @@ impl SimConstraints {
 			sim.iterations_per_frame = 0;
 		}
 		else{
-			sim.iterations_per_frame = 5;// we should create a variable to represent current sped set by user
+			sim.iterations_per_frame = 5;// TODO: Create a variable to represent last speed set by user
 		}
 	}
 
@@ -94,6 +94,7 @@ struct SimGrid {
 }
 
 impl Default for SimGrid {
+	
 	fn default() -> SimGrid {
 		SimGrid {
 			dimensions:	    (250, 250),
@@ -105,7 +106,7 @@ impl Default for SimGrid {
 }
 
 impl SimGrid {
-
+	/// Set simulation grid cell type.
     pub fn set_grid_cell_type(
         &mut self,
         cell_index: usize,
@@ -114,7 +115,8 @@ impl SimGrid {
         self.cell_type[cell_index] = cell_type;
         Ok(())
     }
-
+	
+	/// Set simulation grid dimensions.
     pub fn set_grid_dimensions(
         &mut self,
         width: u16,
@@ -132,7 +134,8 @@ impl SimGrid {
 
         Ok(())
     }
-
+	
+	// Set simulation grid cell size.
     pub fn set_grid_cell_size(
         &mut self,
         cell_size: u16) -> Result<()> {
@@ -152,13 +155,14 @@ impl SimGrid {
 }
 
 #[derive(Resource)]
-struct SimParticles {
-	particle_count:	usize, 		// Current number of particles.
+pub struct SimParticles {
+	particle_count:		usize, 		// Current number of particles.
 	particle_position:	Vec<Vec2>, 	// Each particle's [x, y] position.
 	particle_velocity:	Vec<Vec2>, 	// Each particle's [x, y] velocity.
 }
 
 impl Default for SimParticles {
+	
 	fn default() -> SimParticles {
 		SimParticles {
 			particle_count:	0,
@@ -169,6 +173,7 @@ impl Default for SimParticles {
 }
 
 impl SimParticles {
+	
 	/** Add particles into the simulation, each with a position of positions[i] and velocities[i].  If
 		the list lengths do not match, the function will not add the particles to avoid unwanted
 		behavior. */
