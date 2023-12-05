@@ -62,8 +62,7 @@ impl Default for SimConstraints {
 
 impl SimConstraints {
 	/// Change the gravity direction and strength constraints within the simulation.
-	fn change_gravity(sim: &mut SimConstraints, gravity: Vec2)
-	{
+	fn change_gravity(sim: &mut SimConstraints, gravity: Vec2) {
 		sim.gravity = gravity;
 	}
 
@@ -73,7 +72,7 @@ impl SimConstraints {
 			sim.iterations_per_frame = 0;
 		}
 		else{
-			sim.iterations_per_frame = 5;// we should create a variable to represent current sped set by user
+			sim.iterations_per_frame = 5;// TODO: Create a variable to represent last speed set by user
 		}
 	}
 
