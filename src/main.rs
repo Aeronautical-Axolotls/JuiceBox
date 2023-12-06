@@ -6,10 +6,8 @@ mod util;
 mod juice_renderer;
 mod error;
 
-use file_system::json_load;
 use simulation::sim_state_manager;
 use simulation::sim_physics_engine;
-mod file_system;
 // pub mod test;
 
 fn main() {
