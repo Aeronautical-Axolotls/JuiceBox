@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.75"
 bevy = { version = "0.12.0", features = ["dynamic_linking"] }
+thiserror = "1.0.50"
 
 # Required with Bevy/wgpu to use Cargo Workspaces.
 [workspace]
