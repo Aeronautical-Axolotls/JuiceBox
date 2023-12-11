@@ -18,6 +18,13 @@ pub const JUICE_YELLOW: Color	= Color::rgb(1.0, 0.73, 0.17);
 pub const JUICE_GREEN: Color	= Color::rgb(0.48, 1.0, 0.18);
 pub const JUICE_BLUE: Color		= Color::rgb(0.66, 0.91, 1.0);
 
+pub fn vector_magnitude(vector: Vec2) -> f32 {
+	let mut magnitude: f32 = (vector.x * vector.x) + (vector.y * vector.y);
+	magnitude = magnitude.sqrt();
+	
+	magnitude
+}
+
 /// Gets system time in milliseconds since January 1st, 1970.
 pub fn get_millis_since_epoch() -> u128 {
 	match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {

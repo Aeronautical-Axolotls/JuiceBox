@@ -23,7 +23,7 @@ fn setup(
 	mut _constraints:	ResMut<SimConstraints>,
 	mut _grid:			ResMut<SimGrid>,
 	mut _particles:		ResMut<SimParticles>) {
-
+	
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
@@ -156,9 +156,9 @@ impl SimGrid {
 
 #[derive(Resource)]
 pub struct SimParticles {
-	particle_count:		usize, 		// Current number of particles.
-	particle_position:	Vec<Vec2>, 	// Each particle's [x, y] position.
-	particle_velocity:	Vec<Vec2>, 	// Each particle's [x, y] velocity.
+	pub particle_count:		usize, 		// Current number of particles.
+	pub particle_position:	Vec<Vec2>, 	// Each particle's [x, y] position.
+	pub particle_velocity:	Vec<Vec2>, 	// Each particle's [x, y] velocity.
 }
 
 impl Default for SimParticles {
