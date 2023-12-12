@@ -26,10 +26,6 @@ fn setup(
 	
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
-	
-	_particles.particle_position.push(Vec2::ZERO);
-	_particles.particle_velocity.push(Vec2::ONE);
-	_particles.particle_count += 1;
 }
 
 /// Simulation state manager update; handles user interactions with the simulation.
