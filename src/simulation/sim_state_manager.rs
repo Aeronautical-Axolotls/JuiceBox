@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::juice_renderer;
+use crate::{juice_renderer, util};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -23,8 +23,7 @@ fn setup(
 	mut _constraints:	ResMut<SimConstraints>,
 	mut _grid:			ResMut<SimGrid>) {
 	
-	let _test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ONE);
-	// let _test_particle = add_particle(commands, Vec2 { x: 10.0, y: 94.0 }, Vec2::ONE);
+	let _test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
 	
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
@@ -35,7 +34,7 @@ fn update(
 	mut _commands:		Commands,
 	mut _constraints:	ResMut<SimConstraints>,
 	mut _grid:			ResMut<SimGrid>) {
-
+	
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
 	// TODO: Check for and handle changes to simulation grid.

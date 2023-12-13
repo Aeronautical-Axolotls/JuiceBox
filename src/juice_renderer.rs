@@ -8,7 +8,7 @@ pub struct JuiceRenderer;
 impl Plugin for JuiceRenderer {
 
 	fn build(&self, app: &mut App) {
-		app.insert_resource(ClearColor(util::JUICE_BLUE));
+		app.insert_resource(ClearColor(util::JUICE_SKY_BLUE));
 
 		app.add_systems(Startup, setup_renderer);
 		
@@ -51,9 +51,7 @@ fn update_particle_color(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 	
 	for (particle, mut sprite) in particles.iter_mut() {
 		let color: Color = util::generate_color_from_gradient(
-			util::JUICE_GREEN, 
-			util::JUICE_YELLOW, 
-			util::JUICE_RED, 
+			vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
 			util::vector_magnitude(particle.velocity)
 		);
 		
