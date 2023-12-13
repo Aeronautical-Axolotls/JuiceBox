@@ -1,7 +1,6 @@
 use bevy::{
 	prelude::*,
 	core_pipeline::prelude::ClearColor,
-	sprite::MaterialMesh2dBundle,
 };
 use crate::{util, simulation::sim_state_manager::SimParticle};
 
@@ -12,44 +11,42 @@ impl Plugin for JuiceRenderer {
 		app.insert_resource(ClearColor(util::JUICE_BLUE));
 
 		app.add_systems(Startup, setup_renderer);
+		
 		app.add_systems(Update, update_particle_position);
 		app.add_systems(Update, update_particle_color);
 		app.add_systems(Update, update_particle_size);
-		
-		// let mut render_app = app.sub_app_mut(RenderApp);
-		// TODO: Add custom pipeline features here.
 	}
 }
 
 /// Custom rendering pipeline initialization.
-fn setup_renderer(
-	mut commands:	Commands,
-	mut meshes:		ResMut<Assets<Mesh>>,
-	mut materials:	ResMut<Assets<ColorMaterial>>,
-	mut particles:	Query<&mut SimParticle>) {
+fn setup_renderer(mut commands: Commands) {
 
 	// Spawn a camera to view our simulation world!
 	commands.spawn(Camera2dBundle::default());
 }
 
-/// Creates and links the correct sprite to the specified particle.
-pub fn link_particle_sprite(mut commands: Commands, particle: Entity) {
+/** Creates and links a new sprite to the specified particle; **Must be called each time a new 
+	particle is added to the simulation!** */
+pub fn link_particle_sprite(mut commands: &mut Commands, particle: Entity) {
 	commands.entity(particle).insert(SpriteBundle::default());
 }
 
-/// Update the position of all particles.
-fn update_particle_position(mut particles: Query<(&SimParticle, &Sprite, &mut Transform)>) {
+/// Update the visual transform of all particles to be rendered.
+fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>) {
 	
-	for (particle, sprite, mut transform) in particles.iter_mut() {
+	for (particle, mut transform) in particles.iter_mut() {
 		transform.translation = Vec3 {
 			x: particle.position.x,
 			y: particle.position.y,
+			/* IMPORTANT: Keep this at the same z-value for all particles.  This allows Bevy to do 
+				sprite batching, cutting render costs by quite a bit.  If we change the z-index we 
+				will likely see a large performance drop. */
 			z: 0.0,
 		};
 	}
 }
 
-/// Update the color of all particles.
+/// Update the color of all particles to be rendered.
 fn update_particle_color(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 	
 	for (particle, mut sprite) in particles.iter_mut() {
@@ -64,7 +61,7 @@ fn update_particle_color(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 	}
 }
 
-/// Update the size of all particles.
+/// Update the size of all particles to be rendered.
 fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 	
 	for (_, mut sprite) in particles.iter_mut() {

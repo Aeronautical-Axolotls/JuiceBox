@@ -23,7 +23,8 @@ fn setup(
 	mut _constraints:	ResMut<SimConstraints>,
 	mut _grid:			ResMut<SimGrid>) {
 	
-	let _test_particle = add_particle(commands, Vec2::ZERO, Vec2::ONE);
+	let _test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ONE);
+	// let _test_particle = add_particle(commands, Vec2 { x: 10.0, y: 94.0 }, Vec2::ONE);
 	
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
@@ -162,7 +163,7 @@ pub struct SimParticle {
 
 /// Add particles into the simulation.
 fn add_particle(
-	mut commands:	Commands,
+	mut commands:	&mut Commands,
 	position:		Vec2,
 	velocity:		Vec2) -> Result<()> {
 	
@@ -181,7 +182,7 @@ fn add_particle(
 
 /// Remove a particle with ID particle_id from the simulation.
 fn delete_particles(
-	mut commands:	Commands,
+	mut commands:	&mut Commands,
 	mut particles:	Query<(Entity, &mut SimParticle)>,
 	particle_id:	Entity) -> Result<()> {
 	
