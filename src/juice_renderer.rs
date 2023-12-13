@@ -1,29 +1,22 @@
-use bevy::prelude::*;
-use bevy::sprite::MaterialMesh2dBundle;
-use bevy::window::{Window, WindowPlugin};
-use bevy::core_pipeline::prelude::ClearColor;
-use bevy::render::RenderApp;
-use crate::util::generate_random_usize;
-
-pub const WINDOW_WIDTH: f32		= 640.0;
-pub const WINDOW_HEIGHT: f32	= 480.0;
-
-/// Color definitions!
-pub const JUICE_RED: Color		= Color::rgb(0.93, 0.16, 0.07);
-pub const JUICE_YELLOW: Color	= Color::rgb(1.0, 0.73, 0.17);
-pub const JUICE_GREEN: Color	= Color::rgb(0.48, 1.0, 0.18);
-pub const JUICE_BLUE: Color		= Color::rgb(0.66, 0.91, 1.0);
+use bevy::{
+	prelude::*,
+	core_pipeline::prelude::ClearColor,
+	sprite::MaterialMesh2dBundle,
+};
+use crate::{util, simulation::sim_state_manager::SimParticles};
 
 pub struct JuiceRenderer;
 impl Plugin for JuiceRenderer {
 
 	fn build(&self, app: &mut App) {
-		app.insert_resource(ClearColor(JUICE_BLUE));
+		app.insert_resource(ClearColor(util::JUICE_BLUE));
 
 		app.add_systems(Startup, setup_renderer);
-
-		let mut render_app = app.sub_app_mut(RenderApp);
-		// render_app.add_systems(Render, something_probably_goes_here_but_idk_what_yet);
+		app.add_systems(Update, sync_particle_render_instances);
+		app.add_systems(Update, update_particle_render_data);
+		
+		// let mut render_app = app.sub_app_mut(RenderApp);
+		// TODO: Add custom pipeline features here.
 	}
 }
 
@@ -31,93 +24,116 @@ impl Plugin for JuiceRenderer {
 fn setup_renderer(
 	mut commands:	Commands,
 	mut meshes:		ResMut<Assets<Mesh>>,
-	mut materials:	ResMut<Assets<ColorMaterial>>) {
+	mut materials:	ResMut<Assets<ColorMaterial>>,
+	mut particles:	ResMut<SimParticles>) {
 
 	// Spawn a camera to view our simulation world!
 	commands.spawn(Camera2dBundle::default());
 
-	// Spawn test particle!
+	// Spawn test particle using a color gradient for material creation.
 	let particle_color_material: ColorMaterial = ColorMaterial::from(
-		generate_color_from_gradient(JUICE_GREEN, JUICE_YELLOW, JUICE_RED, 0.5)
+		util::generate_color_from_gradient(
+			util::JUICE_GREEN, 
+			util::JUICE_YELLOW, 
+			util::JUICE_RED, 
+			0.85
+		)
 	);
-	commands.spawn(MaterialMesh2dBundle {
-		mesh:		meshes.add(shape::Circle::new(10.0).into()).into(),
-		material:	materials.add(particle_color_material),
-		transform:	Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
-		..default()
-	});
+	
+	for _ in 0..2 {
+		commands.spawn(MaterialMesh2dBundle {
+			mesh:		meshes.add(shape::Circle::new(10.0).into()).into(),
+			material:	materials.add(particle_color_material.clone()),
+			transform:	Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+			..default()
+		});
+	}
 }
 
-/// Generate a color value from a gradient between 3 colors based on a value between 0.0 and 1.0.
-pub fn generate_color_from_gradient(
-	low_color:	Color,
-	mid_color:	Color,
-	high_color:	Color,
-	mut value:	f32) -> Color {
-
-	value = value.clamp(0.0, 1.0);
-	let mut weighted_color: Color;
-
-	/* We only need to blend between the colors whose range we are in (either low_color and
-		mid_color, or mid_color and high_color). */
-	if value < 0.5 {
-		let value_compliment: f32 = 0.5 - value;
-		weighted_color = mid_color * (value * 2.0);
-		weighted_color += low_color * (value_compliment * 2.0);
+// Ensure the renderer is attempting to draw the correct number of particles.
+fn sync_particle_render_instances(
+	mut commands:			Commands,
+	mut particles:			ResMut<SimParticles>, 
+	mut render_particles:	Query<(Entity, With<Transform>, With<Handle<ColorMaterial>>)>,
+	mut meshes:				ResMut<Assets<Mesh>>,
+	mut materials:			ResMut<Assets<ColorMaterial>>) {
+	
+	// We don't want to crash, now do we?
+	if particles.particle_count < 1 {
+		return;
+	}
+	
+	let particle_count: usize			= particles.particle_count;
+	let render_particle_count: usize	= render_particles.iter().count();
+	
+	// If we have the correct number of render particles.
+	if particle_count == render_particle_count {
+		return;
+		
+		// If we need to remove render particles.
+	} else if particle_count < render_particle_count {
+		// BUG/TODO: This removes all particles when we go over the correct number.  Fix that.
+		let particles_to_delete_count: usize	= render_particle_count - particle_count;
+		let mut i: usize						= 0;
+		
+		for (render_particle, _, _) in render_particles.iter() {
+			commands.entity(render_particle).despawn();
+			
+			// If we have deleted the correct number of particles.
+			if i == particles_to_delete_count {
+				return;
+			}
+			i += 1;
+		}
+		
+		// If we need more render particles.
 	} else {
-		value -= 0.5;
-		let value_compliment: f32 = 0.5 - value;
-		weighted_color = high_color * (value * 2.0);
-		weighted_color += mid_color * (value_compliment * 2.0);
+		for i in 0..(particle_count - render_particle_count) {
+			commands.spawn(MaterialMesh2dBundle {
+				mesh:		meshes.add(shape::Circle::new(10.0).into()).into(),
+				material:	materials.add(ColorMaterial::from(Color::WHITE)),
+				transform:	Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+				..default()
+			});
+		}
 	}
-
-	weighted_color
 }
 
-/// Create a window plugin to add into Bevy's default plugins suite.
-pub fn create_window_plugin() -> WindowPlugin {
-	let window_handle: Window = Window {
-		position:	WindowPosition::Centered(MonitorSelection::Primary),
-		resolution:	(WINDOW_WIDTH, WINDOW_HEIGHT).into(),
-		title:		create_window_title("JuiceBox"),
-		..default()
-	};
-
-	let window_plugin: WindowPlugin = WindowPlugin {
-		primary_window: Some(window_handle),
-		..default()
-	};
-
-	window_plugin
-}
-
-/// Create a window title with a fun message appended to the title parameter.
-pub fn create_window_title(title: &str) -> String {
-	// Strings to be appended to the window title parameter!
-	let silly_strings: [&str; 6]	= [
-		"Spilling encouraged!",
-		"Don't cry over spilled milk!",
-		"Drinking toilet water since 2023!",
-		"Rivers Cuomo loves it!",
-		"Domo Arigato, Mr. Roboto!",
-		"Hydrate or diedrate!",
-	];
-
-	let title_length: usize	= title.len();
-	let title_count: usize	= silly_strings.len();
-
-	// Choose a random tagline for the window title, but prefer the first option.
-	let mut random_index: i8 = (generate_random_usize(title_length) % (title_count * 2)) as i8;
-	random_index -= title_count as i8;
-	if random_index < 0 {
-		random_index = 0;
+/* Copy the position and velocity of each particle we need to draw via a Query to the ECS world.  
+	Directly copy the particle position, and translate the velocity into a color. */
+fn update_particle_render_data(
+	mut commands:			Commands,
+	mut particles:			ResMut<SimParticles>, 
+	mut render_particles:	Query<(&mut Transform, &mut Handle<ColorMaterial>)>,
+	mut materials:			ResMut<Assets<ColorMaterial>>) {
+	
+	// We don't want to crash, now do we?
+	if particles.particle_count < 1 || render_particles.iter().count() != particles.particle_count {
+		return;
 	}
-
-	// Append the randomely chosen tagline to the window title parameter.
-	let tagline: &str = silly_strings[random_index as usize];
-	let mut spruced_title: String = title.to_string().to_owned();
-	spruced_title.push_str(" ~ ");
-	spruced_title.push_str(tagline);
-
-	spruced_title
+	
+	/* For each particle that we have created to model a particle within our simulation, update 
+		its position on the screen and its ColorMaterial. */
+	let mut i = 0;
+	for mut render_particle in render_particles.iter_mut() {
+		// Copy translation.
+		render_particle.0.translation = Vec3 {
+			x: particles.particle_position[i].x,
+			y: particles.particle_position[i].y,
+			z: 0.0
+		};
+		
+		/* If the materials haven't loaded yet, then Bevy will bypass this.  Otherwise, create 
+			the appropriate ColorMaterial. */
+		if let Some(mut material) = materials.get_mut(render_particle.1.as_ref()) {
+			material.color = util::generate_color_from_gradient(
+				util::JUICE_GREEN, 
+				util::JUICE_YELLOW, 
+				util::JUICE_RED, 
+				util::vector_magnitude(particles.particle_velocity[i])
+			);
+		}
+		
+		i += 1;
+	}
 }
