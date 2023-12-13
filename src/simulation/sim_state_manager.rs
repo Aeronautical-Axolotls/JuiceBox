@@ -6,7 +6,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 pub struct SimStateManager;
 impl Plugin for SimStateManager {
-	
+
 	fn build(&self, app: &mut App) {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimParticles::default());
@@ -50,7 +50,7 @@ struct SimConstraints {
 }
 
 impl Default for SimConstraints {
-	
+
 	fn default() -> SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:	0.1,
@@ -72,7 +72,8 @@ impl SimConstraints {
 			sim.iterations_per_frame = 0;
 		}
 		else{
-			sim.iterations_per_frame = 5;// TODO: Create a variable to represent last speed set by user
+			sim.iterations_per_frame = 5;
+            // TODO: Create a variable to represent last speed set by user
 		}
 	}
 
@@ -90,17 +91,21 @@ struct SimGrid {
 	dimensions:	    (u16, u16),
 	cell_size:		u16,
 	cell_type:		Vec<SimGridCellType>,
-	velocity:		Vec<[Vec2; 4]>,
+    cell_center:    Vec<Vec<i32>>,
+	velocity_u:		Vec<Vec<i32>>,
+    velocity_v:     Vec<Vec<i32>>,
 }
 
 impl Default for SimGrid {
-	
+
 	fn default() -> SimGrid {
 		SimGrid {
 			dimensions:	    (250, 250),
 			cell_size:		10,
 			cell_type:		vec![SimGridCellType::Air; 625],
-			velocity:		vec![[Vec2::new(0.0, 0.0); 4]; 625],
+            cell_center:    vec![vec![0; 25]; 25],
+			velocity_u:		vec![vec![0; 26]; 25],
+            velocity_v:     vec![vec![0;25]; 26],
 		}
 	}
 }
@@ -115,7 +120,7 @@ impl SimGrid {
         self.cell_type[cell_index] = cell_type;
         Ok(())
     }
-	
+
 	/// Set simulation grid dimensions.
     pub fn set_grid_dimensions(
         &mut self,
@@ -123,34 +128,58 @@ impl SimGrid {
         height: u16) -> Result<()> {
 
         if width % self.cell_size != 0 {
-            return Err(Error::GridSizeError("Width not evenly divisible by cell size."));
+            return Err(Error::GridSizeError(
+                    "Width not evenly divisible by cell size."
+                    ));
         }
 
         if height % self.cell_size != 0 {
-            return Err(Error::GridSizeError("Height not evenly divisible by cell size."));
+            return Err(Error::GridSizeError(
+                    "Height not evenly divisible by cell size."
+                    ));
         }
 
         self.dimensions = (width, height);
 
         Ok(())
     }
-	
+
 	// Set simulation grid cell size.
     pub fn set_grid_cell_size(
         &mut self,
         cell_size: u16) -> Result<()> {
 
         if self.dimensions.0 % cell_size != 0 {
-            return Err(Error::GridSizeError("Grid cell size doesn't fit dimensions."))
+            return Err(Error::GridSizeError(
+                    "Grid cell size doesn't fit dimensions."
+                    ))
         }
 
         if self.dimensions.1 % cell_size != 0 {
-            return Err(Error::GridSizeError("Grid cell size doesn't fit dimensions."))
+            return Err(Error::GridSizeError(
+                    "Grid cell size doesn't fit dimensions."
+                    ))
         }
 
         self.cell_size = cell_size;
 
         Ok(())
+    }
+
+    fn get_particle_velocities(
+        &self,
+        cell_position: Vec2,
+        particles: &SimParticles) -> Result<Vec<Vec2>> {
+
+        let grabbed_particles = particles.select_particles(cell_position, self.cell_size);
+
+        let mut velocities = Vec::new();
+
+        for particle in grabbed_particles {
+            velocities.push(particle.)
+        }
+
+        Ok()
     }
 }
 
@@ -162,7 +191,7 @@ pub struct SimParticles {
 }
 
 impl Default for SimParticles {
-	
+
 	fn default() -> SimParticles {
 		SimParticles {
 			particle_count:	0,
@@ -173,7 +202,7 @@ impl Default for SimParticles {
 }
 
 impl SimParticles {
-	
+
 	/** Add particles into the simulation, each with a position of positions[i] and velocities[i].  If
 		the list lengths do not match, the function will not add the particles to avoid unwanted
 		behavior. */
