@@ -5,6 +5,8 @@ pub enum Error {
     GridSizeError(&'static str),
 	
 	#[error("Mismatched vector lengths: `{0}`")]
-	VectorLengthMismatch(&'static str), 
-
+	VectorLengthMismatch(&'static str),
+	
+	#[error("No particles found: `{0}`")]
+	NoParticlesFound(&'static str),
 }
