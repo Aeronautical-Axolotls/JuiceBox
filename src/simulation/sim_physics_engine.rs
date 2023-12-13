@@ -16,3 +16,7 @@ fn setup(mut _commands: Commands) {
 fn update(mut _commands: Commands) {
 	
 }
+
+fn step_particle_simulation_once(){
+
+}
