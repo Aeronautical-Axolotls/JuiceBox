@@ -1,5 +1,5 @@
 use bevy::{
-	math::Vec2,
+	math::{Vec2, Vec4},
 	window::{Window, WindowPlugin, MonitorSelection, WindowPosition},
 	prelude::Color,
 	utils::default,
@@ -16,7 +16,8 @@ pub const WINDOW_HEIGHT: f32	= 480.0;
 pub const JUICE_RED: Color		= Color::rgb(0.93, 0.16, 0.07);
 pub const JUICE_YELLOW: Color	= Color::rgb(1.0, 0.73, 0.17);
 pub const JUICE_GREEN: Color	= Color::rgb(0.48, 1.0, 0.18);
-pub const JUICE_BLUE: Color		= Color::rgb(0.66, 0.91, 1.0);
+pub const JUICE_BLUE: Color		= Color::rgb(0.0, 0.25, 1.0);
+pub const JUICE_SKY_BLUE: Color	= Color::rgb(0.66, 0.91, 1.0);
 
 pub fn vector_magnitude(vector: Vec2) -> f32 {
 	let mut magnitude: f32 = (vector.x * vector.x) + (vector.y * vector.y);
@@ -102,28 +103,27 @@ pub fn cartesian_to_polar(cartesian_vector: Vec2) -> Vec2 {
 	result
 }
 
-/// Generate a color value from a gradient between 3 colors based on a value between 0.0 and 1.0.
-pub fn generate_color_from_gradient(
-	low_color:	Color,
-	mid_color:	Color,
-	high_color:	Color,
-	mut value:	f32) -> Color {
+/** Generate a color value from a gradient between n colors based on a value between 0.0 and 1.0.  
+	**Color values should be provided in lowest value -> highest value order.** */
+pub fn generate_color_from_gradient(colors: Vec<Color>, mut value: f32) -> Color {
 
-	value = value.clamp(0.0, 1.0);
-	let mut weighted_color: Color;
-
-	/* We only need to blend between the colors whose range we are in (either low_color and
-		mid_color, or mid_color and high_color). */
-	if value < 0.5 {
-		let value_compliment: f32 = 0.5 - value;
-		weighted_color = mid_color * (value * 2.0);
-		weighted_color += low_color * (value_compliment * 2.0);
-	} else {
-		value -= 0.5;
-		let value_compliment: f32 = 0.5 - value;
-		weighted_color = high_color * (value * 2.0);
-		weighted_color += mid_color * (value_compliment * 2.0);
-	}
+	// Clamp value and get the total number of color zones we can interpolate between.
+	value						= value.clamp(0.0, 1.0);
+	let color_zone_count: usize	= colors.len() - 1;
+	
+	// Figure out which two colors we will be interpolating between.
+	let color_weight: f32		= (color_zone_count as f32) * value;
+	let low_color_index: usize	= color_weight.floor() as usize;
+	let high_color_index: usize	= color_weight.ceil() as usize;
+	
+	// Interpolate between these two colors based on value's "weight" between them.
+	let lerp_weight: f32		= color_weight % 1.0;
+	let weighted_color: Color = Color::from(
+		Vec4::from(colors[low_color_index]).lerp(
+			Vec4::from(colors[high_color_index]),
+			lerp_weight
+		)
+	);
 
 	weighted_color
 }
