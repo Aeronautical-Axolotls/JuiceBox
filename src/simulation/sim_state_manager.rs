@@ -23,7 +23,7 @@ fn setup(
 	mut _constraints:	ResMut<SimConstraints>,
 	mut _grid:			ResMut<SimGrid>,
 	mut _particles:		ResMut<SimParticles>) {
-	
+
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
@@ -87,13 +87,13 @@ impl SimConstraints {
 enum SimGridCellType	{ Air, Fluid, Solid, }
 
 #[derive(Resource)]
-struct SimGrid {
-	dimensions:	    (u16, u16),
-	cell_size:		u16,
-	cell_type:		Vec<SimGridCellType>,
-    cell_center:    Vec<Vec<i32>>,
-	velocity_u:		Vec<Vec<i32>>,
-    velocity_v:     Vec<Vec<i32>>,
+pub struct SimGrid {
+	pub	dimensions:	    (u16, u16),
+	pub	cell_size:		u16,
+	pub	cell_type:		Vec<SimGridCellType>,
+	pub cell_center:    Vec<Vec<i32>>,
+	pub	velocity_u:		Vec<Vec<i32>>,
+	pub velocity_v:     Vec<Vec<i32>>,
 }
 
 impl Default for SimGrid {
@@ -166,21 +166,6 @@ impl SimGrid {
         Ok(())
     }
 
-    fn get_particle_velocities(
-        &self,
-        cell_position: Vec2,
-        particles: &SimParticles) -> Result<Vec<Vec2>> {
-
-        let grabbed_particles = particles.select_particles(cell_position, self.cell_size);
-
-        let mut velocities = Vec::new();
-
-        for particle in grabbed_particles {
-            velocities.push(particle.)
-        }
-
-        Ok()
-    }
 }
 
 #[derive(Resource)]
