@@ -196,6 +196,11 @@ fn select_particles(
 	position:	Vec2,
 	radius:		u32) -> Result<Vec<Entity>> {
 	
+	/* TODO: Rework this function to use a spatial lookup based on SimGrid.  If a particle is 
+		outside of the nearest grid cells, then skip checking it.  We can accomplish this in a 
+		parallel-friendly way by sorting a list of spatial lookups for particles based on the grid, 
+		then choosing the nearest 1/9/25/49 grid cells (based on radius). */
+	
 	let mut selected_particles: Vec<Entity> = Vec::new();
 
 	for (entity_id, particle) in particles.iter() {
