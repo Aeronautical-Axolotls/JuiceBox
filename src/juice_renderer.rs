@@ -2,7 +2,13 @@ use bevy::{
 	prelude::*,
 	core_pipeline::prelude::ClearColor,
 };
-use crate::{util, simulation::sim_state_manager::SimParticle};
+use crate::{
+	util,
+	simulation::sim_state_manager::{
+		SimParticle,
+		SimGrid,
+	}
+};
 
 pub struct JuiceRenderer;
 impl Plugin for JuiceRenderer {
@@ -15,6 +21,8 @@ impl Plugin for JuiceRenderer {
 		app.add_systems(Update, update_particle_position);
 		app.add_systems(Update, update_particle_color);
 		app.add_systems(Update, update_particle_size);
+		
+		app.add_systems(Update, draw_grid_vectors);
 	}
 }
 
@@ -66,4 +74,42 @@ fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 		let size: f32 = 10.0;
 		sprite.custom_size = Some(Vec2::splat(size));
 	}
+}
+
+/// Draw velocity vectors based on SimGrid using Bevy's Gizmos!
+fn draw_grid_vectors(grid: Res<SimGrid>, mut gizmos: Gizmos) {
+	
+}
+
+/// Helper function to draw a vector arrow using Bevy's Gizmos.
+fn draw_vector_arrow(tail_position: Vec2, direction_degrees: f32, magnitude: f32, gizmos: &mut Gizmos) {
+	
+	// Construct main ray of arrow.
+	let direction_rads: f32	= util::degrees_to_radians(direction_degrees);
+	let head_position: Vec2	= Vec2 {
+		x: tail_position.x + direction_rads.cos() * magnitude,
+		y: tail_position.y + direction_rads.sin() * magnitude,
+	};
+	
+	// Grow or shrink the arrow head's angle depending on the magnitude (for aesthetic purposes).
+	let arrow_angle_offset_rads: f32	= 0.61 - (magnitude / 1000.0);
+	// Controls how large the arrow heads are relative to the arrow's body.
+	let arrow_scale_ratio: f32			= 0.25 * magnitude;
+	
+	// Construct left side of arrow.
+	let arrow_left_position: Vec2 = Vec2 {
+		x: head_position.x - ((direction_rads - arrow_angle_offset_rads).cos() * arrow_scale_ratio),
+		y: head_position.y - ((direction_rads - arrow_angle_offset_rads).sin() * arrow_scale_ratio),
+	};
+	
+	// Construct right side of arrow.
+	let arrow_right_position: Vec2 = Vec2 {
+		x: head_position.x - ((direction_rads + arrow_angle_offset_rads).cos() * arrow_scale_ratio),
+		y: head_position.y - ((direction_rads + arrow_angle_offset_rads).sin() * arrow_scale_ratio),
+	};
+	
+	// Draw arrows!
+	gizmos.line_2d(tail_position, head_position, Color::BLACK);
+	gizmos.line_2d(head_position, arrow_left_position, Color::BLACK);
+	gizmos.line_2d(head_position, arrow_right_position, Color::BLACK);
 }
