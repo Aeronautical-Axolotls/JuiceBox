@@ -86,7 +86,7 @@ impl SimConstraints {
 enum SimGridCellType	{ Air, Fluid, Solid, }
 
 #[derive(Resource)]
-struct SimGrid {
+pub struct SimGrid {
 	dimensions:	    (u16, u16),
 	cell_size:		u16,
 	cell_type:		Vec<SimGridCellType>,
