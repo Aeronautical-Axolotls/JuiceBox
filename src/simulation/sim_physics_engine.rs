@@ -5,7 +5,7 @@ use super::util::*;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-fn particles_to_grid(grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimParticle)>) {
+fn particles_to_grid(mut grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimParticle)>) {
 
     // for velocity_u points and velocity_v points,
     // add up all particle velocities nearby scaled
@@ -62,7 +62,7 @@ fn particles_to_grid(grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimPa
                     grid.cell_size);
 
                 scaled_influence_sum += influence;
-                scaled_velocity_sum += particle.velocity[0] * influence;
+                scaled_velocity_sum += particle.velocity[1] * influence;
             }
 
             grid.velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
