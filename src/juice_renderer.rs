@@ -93,44 +93,59 @@ fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 
 /// Draw grid cells based on SimGrid using Bevy's Gizmos!
 fn draw_grid_cells(grid: Res<SimGrid>, mut gizmos: Gizmos) {
-	let grid_dimensions_0	= 40.0;
-	let grid_dimensions_1	= 20.0;
-	let grid_cell_size		= 10;
-	
-	let grid_width: f32		= grid_dimensions_0 * (grid_cell_size as f32);
-	let grid_height: f32	= grid_dimensions_1 * (grid_cell_size as f32);
+	let grid_width: f32		= (grid.dimensions.0 * grid.cell_size) as f32;
+	let grid_height: f32	= (grid.dimensions.1 * grid.cell_size) as f32;
+	let grid_color: Color	= Color::WHITE;
 	
 	// Draw vertical grid lines.
-	for i in 0..((grid_dimensions_0 as usize) + 1) {
+	for i in 0..((grid.dimensions.0 as u16) + 1) {
 		let cell_bottom_position: Vec2 = Vec2 {
-			x: (i * grid_cell_size) as f32,
+			x: (i * grid.cell_size) as f32,
 			y: 0.0,
 		};
 		let cell_top_position: Vec2 = Vec2 {
-			x: (i * grid_cell_size) as f32,
+			x: (i * grid.cell_size) as f32,
 			y: 0.0 - grid_height,
 		};
-		gizmos.line_2d(cell_bottom_position, cell_top_position, Color::BLACK);
+		gizmos.line_2d(cell_bottom_position, cell_top_position, grid_color);
 	}
 	
 	// Draw horizontal grid lines.
-	for i in 0..((grid_dimensions_1 as usize) + 1) {
+	for i in 0..((grid.dimensions.1 as u16) + 1) {
 		let cell_left_position: Vec2 = Vec2 {
 			x: 0.0,
-			y: 0.0 - (i * grid_cell_size) as f32,
+			y: 0.0 - (i * grid.cell_size) as f32,
 		};
 		let cell_right_position: Vec2 = Vec2 {
 			x: grid_width,
-			y: 0.0 - (i * grid_cell_size) as f32,
+			y: 0.0 - (i * grid.cell_size) as f32,
 		};
-		gizmos.line_2d(cell_left_position, cell_right_position, Color::BLACK);
+		gizmos.line_2d(cell_left_position, cell_right_position, grid_color);
 	}
 }
 
 
 /// Draw velocity vectors based on SimGrid using Bevy's Gizmos!
-fn draw_grid_vectors(grid: Res<SimGrid>, mut gizmos: Gizmos, time: Res<Time>) {
-	
+fn draw_grid_vectors(grid: Res<SimGrid>, mut gizmos: Gizmos) {
+	for x in 0..grid.dimensions.0 {
+		for y in 0..grid.dimensions.1 {
+			
+			let half_cell_size: f32 = ((grid.cell_size as f32) / 2.0);
+			let cell_center_position: Vec2 = Vec2 {
+				x: (x as f32) * (grid.cell_size as f32) + half_cell_size,
+				y: 0.0 - ((y as f32) * (grid.cell_size as f32) + half_cell_size),
+			};
+			
+			let velocity_direction: f32 = 45.0;	// TODO: Make this also work.
+			let velocity_magnitude: f32 = 4.5;	// TODO: Make this work.
+			
+			draw_vector_arrow(
+				cell_center_position, 
+				velocity_direction,
+				velocity_magnitude,
+				&mut gizmos);
+		}
+	}
 }
 
 /// Helper function to draw a vector arrow using Bevy's Gizmos.
@@ -165,7 +180,8 @@ pub fn draw_vector_arrow(
 	};
 	
 	// Draw arrows!
-	gizmos.line_2d(tail_position, head_position, Color::BLACK);
-	gizmos.line_2d(head_position, arrow_left_position, Color::BLACK);
-	gizmos.line_2d(head_position, arrow_right_position, Color::BLACK);
+	let arrow_color: Color = Color::BLACK;
+	gizmos.line_2d(tail_position, head_position,		arrow_color);
+	gizmos.line_2d(head_position, arrow_left_position,	arrow_color);
+	gizmos.line_2d(head_position, arrow_right_position,	arrow_color);
 }

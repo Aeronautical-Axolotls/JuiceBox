@@ -46,7 +46,7 @@ pub fn control_camera(
 	
 	// Move and zoom each camera.
 	for (mut transform, mut projection, _) in cameras.iter_mut() {
-		let speed_modifier: f32	= ((keys.pressed(KeyCode::ShiftLeft) as u8) as f32);
+		let speed_modifier: f32	= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
 		let camera_speed: f32	= (150.0 + (150.0 * speed_modifier)) * projection.scale * delta_time;
 		let zoom_speed: f32		= (0.5 + speed_modifier) * delta_time;
 		
