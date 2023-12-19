@@ -28,10 +28,24 @@ impl Plugin for JuiceRenderer {
 }
 
 /// Custom rendering pipeline initialization.
-fn setup_renderer(mut commands: Commands) {
+fn setup_renderer(mut commands: Commands, grid: Res<SimGrid>) {
+	let grid_dimensions_0	= 40.0;
+	let grid_dimensions_1	= 20.0;
+	let grid_cell_size		= 10;
 
 	// Spawn a camera to view our simulation world!
-	commands.spawn(Camera2dBundle::default());
+	commands.spawn(Camera2dBundle {
+		transform: Transform {
+			translation:	Vec3 {
+				x: grid_dimensions_0 * (grid_cell_size as f32) / 2.0,
+				y: 0.0 - (grid_dimensions_1 * (grid_cell_size as f32) / 2.0),
+				z: 0.0,
+			},
+			rotation:		Quat::IDENTITY,
+			scale:			Vec3::ONE,
+		},
+		..default()
+	});
 }
 
 /** Creates and links a new sprite to the specified particle; **Must be called each time a new 
@@ -79,28 +93,15 @@ fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 
 /// Draw grid cells based on SimGrid using Bevy's Gizmos!
 fn draw_grid_cells(grid: Res<SimGrid>, mut gizmos: Gizmos) {
-	let grid_dimensions_0	= 64.0;
-	let grid_dimensions_1	= 48.0;
+	let grid_dimensions_0	= 40.0;
+	let grid_dimensions_1	= 20.0;
 	let grid_cell_size		= 10;
 	
 	let grid_width: f32		= grid_dimensions_0 * (grid_cell_size as f32);
 	let grid_height: f32	= grid_dimensions_1 * (grid_cell_size as f32);
 	
-	// Draw horizontal grid lines.
-	for i in 0..((grid_dimensions_0 as usize) + 1) {
-		let cell_left_position: Vec2 = Vec2 {
-			x: 0.0,
-			y: 0.0 - (i * grid_cell_size) as f32,
-		};
-		let cell_right_position: Vec2 = Vec2 {
-			x: grid_width,
-			y: 0.0 - (i * grid_cell_size) as f32,
-		};
-		gizmos.line_2d(cell_left_position, cell_right_position, Color::BLACK);
-	}
-	
 	// Draw vertical grid lines.
-	for i in 0..((grid_dimensions_1 as usize) + 1) {
+	for i in 0..((grid_dimensions_0 as usize) + 1) {
 		let cell_bottom_position: Vec2 = Vec2 {
 			x: (i * grid_cell_size) as f32,
 			y: 0.0,
@@ -110,6 +111,19 @@ fn draw_grid_cells(grid: Res<SimGrid>, mut gizmos: Gizmos) {
 			y: 0.0 - grid_height,
 		};
 		gizmos.line_2d(cell_bottom_position, cell_top_position, Color::BLACK);
+	}
+	
+	// Draw horizontal grid lines.
+	for i in 0..((grid_dimensions_1 as usize) + 1) {
+		let cell_left_position: Vec2 = Vec2 {
+			x: 0.0,
+			y: 0.0 - (i * grid_cell_size) as f32,
+		};
+		let cell_right_position: Vec2 = Vec2 {
+			x: grid_width,
+			y: 0.0 - (i * grid_cell_size) as f32,
+		};
+		gizmos.line_2d(cell_left_position, cell_right_position, Color::BLACK);
 	}
 }
 

@@ -1,8 +1,13 @@
 use bevy::{
-	math::{Vec2, Vec4},
-	window::{Window, WindowPlugin, MonitorSelection, WindowPosition},
+	math::{ Vec2, Vec4 },
+	window::{ Window, WindowPlugin, MonitorSelection, WindowPosition },
 	prelude::Color,
-	utils::default, input::{keyboard::KeyCode, Input}, time::Time, transform::components::Transform, render::camera::{OrthographicProjection, Camera}, ecs::{system::{Res, Query}, query::With},
+	utils::default,
+	input::{ keyboard::KeyCode, Input },
+	time::Time,
+	transform::components::Transform,
+	render::camera::{ OrthographicProjection, Camera },
+	ecs::{ system::{ Res, Query }, query::With },
 };
 use std::{
 	f32::consts::PI,
@@ -41,9 +46,9 @@ pub fn control_camera(
 	
 	// Move and zoom each camera.
 	for (mut transform, mut projection, _) in cameras.iter_mut() {
-		let speed_modifier: f32	= 150.0 * ((keys.pressed(KeyCode::ShiftLeft) as u8) as f32);
-		let camera_speed: f32	= (150.0 + speed_modifier) * projection.scale * delta_time;
-		let zoom_speed: f32		= 0.5 * delta_time;
+		let speed_modifier: f32	= ((keys.pressed(KeyCode::ShiftLeft) as u8) as f32);
+		let camera_speed: f32	= (150.0 + (150.0 * speed_modifier)) * projection.scale * delta_time;
+		let zoom_speed: f32		= (0.5 + speed_modifier) * delta_time;
 		
 		// Move up/down/left/right respectively.
 		if keys.pressed(KeyCode::W) {
@@ -61,10 +66,10 @@ pub fn control_camera(
 		
 		// Zoom in/out respectively.
 		if keys.pressed(KeyCode::Q) {
-			projection.scale -= zoom_speed;
+			projection.scale = f32::max(projection.scale - zoom_speed, 0.05);
 		}
 		if keys.pressed(KeyCode::E) {
-			projection.scale += zoom_speed;
+			projection.scale = f32::min(projection.scale + zoom_speed, 15.0);
 		}
 	}
 }
