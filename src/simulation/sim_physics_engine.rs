@@ -13,6 +13,8 @@ fn particles_to_grid(mut grid: ResMut<SimGrid>, particles: Query<(Entity, &mut S
     // then divide by the summation of all their
     // influences
 
+    let mut velocity_u = grid.velocity_u.clone();
+    let mut velocity_v = grid.velocity_v.clone();
 
     for (row_index, row) in grid.velocity_u.iter().enumerate() {
         for (col_index, column) in grid.velocity_u[row_index].iter().enumerate() {
@@ -37,9 +39,8 @@ fn particles_to_grid(mut grid: ResMut<SimGrid>, particles: Query<(Entity, &mut S
                 scaled_velocity_sum += particle.velocity[0] * influence;
             }
 
-            grid.velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
+            velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
         }
-
     }
 
     for (row_index, row) in grid.velocity_v.iter().enumerate() {
@@ -65,9 +66,11 @@ fn particles_to_grid(mut grid: ResMut<SimGrid>, particles: Query<(Entity, &mut S
                 scaled_velocity_sum += particle.velocity[1] * influence;
             }
 
-            grid.velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
+            velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
         }
-
     }
+
+    grid.velocity_u = velocity_u;
+    grid.velocity_v = velocity_v;
 
 }
