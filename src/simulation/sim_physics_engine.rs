@@ -1,18 +1,73 @@
 use bevy::prelude::*;
+use crate::error::Error;
+use super::sim_state_manager::{SimGrid, SimParticle};
+use super::util::*;
 
-pub struct SimPhysicsEngine;
-impl Plugin for SimPhysicsEngine {
-	
-	fn build(&self, app: &mut App) {
-		app.add_systems(Startup, setup);
-		app.add_systems(Update, update);
-	}
-}
+pub type Result<T> = core::result::Result<T, Error>;
 
-fn setup(mut _commands: Commands) {
-	
-}
+fn particles_to_grid(grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimParticle)>) {
 
-fn update(mut _commands: Commands) {
-	
+    // for velocity_u points and velocity_v points,
+    // add up all particle velocities nearby scaled
+    // by their distance / cell width (their influence)
+    // then divide by the summation of all their
+    // influences
+
+
+    for (row_index, row) in grid.velocity_u.iter().enumerate() {
+        for (col_index, column) in grid.velocity_u[row_index].iter().enumerate() {
+
+            let pos = grid.get_velocity_point_pos(
+                row_index,
+                col_index,
+                true);
+
+            let mut scaled_velocity_sum = 0.0;
+
+            let mut scaled_influence_sum = 0.0;
+
+            for (id, particle) in particles.iter() {
+
+                let influence = find_influence(
+                    particle.1.position[0],
+                    pos[0],
+                    grid.cell_size);
+
+                scaled_influence_sum += influence;
+                scaled_velocity_sum += particle.velocity[0] * influence;
+            }
+
+            grid.velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
+        }
+
+    }
+
+    for (row_index, row) in grid.velocity_v.iter().enumerate() {
+        for (col_index, column) in grid.velocity_v[row_index].iter().enumerate() {
+
+            let pos = grid.get_velocity_point_pos(
+                row_index,
+                col_index,
+                false);
+
+            let mut scaled_velocity_sum = 0.0;
+
+            let mut scaled_influence_sum = 0.0;
+
+            for (id, particle) in particles.iter() {
+
+                let influence = find_influence(
+                    particle.1.position[1],
+                    pos[1],
+                    grid.cell_size);
+
+                scaled_influence_sum += influence;
+                scaled_velocity_sum += particle.velocity[0] * influence;
+            }
+
+            grid.velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
+        }
+
+    }
+
 }
