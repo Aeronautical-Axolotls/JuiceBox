@@ -7,7 +7,7 @@ use crate::{
 	simulation::sim_state_manager::{
 		SimParticle,
 		SimGrid,
-	}
+	},
 };
 
 pub struct JuiceRenderer;
@@ -22,6 +22,7 @@ impl Plugin for JuiceRenderer {
 		app.add_systems(Update, update_particle_color);
 		app.add_systems(Update, update_particle_size);
 		
+		app.add_systems(Update, draw_grid_cells);
 		app.add_systems(Update, draw_grid_vectors);
 	}
 }
@@ -76,13 +77,54 @@ fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 	}
 }
 
+/// Draw grid cells based on SimGrid using Bevy's Gizmos!
+fn draw_grid_cells(grid: Res<SimGrid>, mut gizmos: Gizmos) {
+	let grid_dimensions_0	= 64.0;
+	let grid_dimensions_1	= 48.0;
+	let grid_cell_size		= 10;
+	
+	let grid_width: f32		= grid_dimensions_0 * (grid_cell_size as f32);
+	let grid_height: f32	= grid_dimensions_1 * (grid_cell_size as f32);
+	
+	// Draw horizontal grid lines.
+	for i in 0..((grid_dimensions_0 as usize) + 1) {
+		let cell_left_position: Vec2 = Vec2 {
+			x: 0.0,
+			y: 0.0 - (i * grid_cell_size) as f32,
+		};
+		let cell_right_position: Vec2 = Vec2 {
+			x: grid_width,
+			y: 0.0 - (i * grid_cell_size) as f32,
+		};
+		gizmos.line_2d(cell_left_position, cell_right_position, Color::BLACK);
+	}
+	
+	// Draw vertical grid lines.
+	for i in 0..((grid_dimensions_1 as usize) + 1) {
+		let cell_bottom_position: Vec2 = Vec2 {
+			x: (i * grid_cell_size) as f32,
+			y: 0.0,
+		};
+		let cell_top_position: Vec2 = Vec2 {
+			x: (i * grid_cell_size) as f32,
+			y: 0.0 - grid_height,
+		};
+		gizmos.line_2d(cell_bottom_position, cell_top_position, Color::BLACK);
+	}
+}
+
+
 /// Draw velocity vectors based on SimGrid using Bevy's Gizmos!
-fn draw_grid_vectors(grid: Res<SimGrid>, mut gizmos: Gizmos) {
+fn draw_grid_vectors(grid: Res<SimGrid>, mut gizmos: Gizmos, time: Res<Time>) {
 	
 }
 
 /// Helper function to draw a vector arrow using Bevy's Gizmos.
-fn draw_vector_arrow(tail_position: Vec2, direction_degrees: f32, magnitude: f32, gizmos: &mut Gizmos) {
+pub fn draw_vector_arrow(
+	tail_position:		Vec2,
+	direction_degrees:	f32,
+	magnitude:			f32,
+	gizmos:				&mut Gizmos) {
 	
 	// Construct main ray of arrow.
 	let direction_rads: f32	= util::degrees_to_radians(direction_degrees);

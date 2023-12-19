@@ -2,7 +2,7 @@ use bevy::{
 	math::{Vec2, Vec4},
 	window::{Window, WindowPlugin, MonitorSelection, WindowPosition},
 	prelude::Color,
-	utils::default,
+	utils::default, input::{keyboard::KeyCode, Input}, time::Time, transform::components::Transform, render::camera::{OrthographicProjection, Camera}, ecs::{system::{Res, Query}, query::With},
 };
 use std::{
 	f32::consts::PI,
@@ -24,6 +24,49 @@ pub fn vector_magnitude(vector: Vec2) -> f32 {
 	magnitude = magnitude.sqrt();
 	
 	magnitude
+}
+
+/// Basic camera controller.
+pub fn control_camera(
+	keys:			Res<Input<KeyCode>>,
+	time:			Res<Time>,
+	mut cameras:	Query<(
+		&mut Transform,
+		&mut OrthographicProjection,
+		With<Camera>
+	)>) {
+	
+	// Necessary for framerate-independent camera movement.
+	let delta_time: f32 = time.delta_seconds();
+	
+	// Move and zoom each camera.
+	for (mut transform, mut projection, _) in cameras.iter_mut() {
+		let speed_modifier: f32	= 150.0 * ((keys.pressed(KeyCode::ShiftLeft) as u8) as f32);
+		let camera_speed: f32	= (150.0 + speed_modifier) * projection.scale * delta_time;
+		let zoom_speed: f32		= 0.5 * delta_time;
+		
+		// Move up/down/left/right respectively.
+		if keys.pressed(KeyCode::W) {
+			transform.translation.y += camera_speed;
+		}
+		if keys.pressed(KeyCode::A) {
+			transform.translation.x -= camera_speed;
+		}
+		if keys.pressed(KeyCode::S) {
+			transform.translation.y -= camera_speed;
+		}
+		if keys.pressed(KeyCode::D) {
+			transform.translation.x += camera_speed;
+		}
+		
+		// Zoom in/out respectively.
+		if keys.pressed(KeyCode::Q) {
+			projection.scale -= zoom_speed;
+		}
+		if keys.pressed(KeyCode::E) {
+			projection.scale += zoom_speed;
+		}
+	}
 }
 
 /// Gets system time in milliseconds since January 1st, 1970.
