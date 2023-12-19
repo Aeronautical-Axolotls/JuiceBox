@@ -29,7 +29,7 @@ fn particles_to_grid(grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimPa
             for (id, particle) in particles.iter() {
 
                 let influence = find_influence(
-                    particle.1.position[0],
+                    particle.position[0],
                     pos[0],
                     grid.cell_size);
 
@@ -57,7 +57,7 @@ fn particles_to_grid(grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimPa
             for (id, particle) in particles.iter() {
 
                 let influence = find_influence(
-                    particle.1.position[1],
+                    particle.position[1],
                     pos[1],
                     grid.cell_size);
 
