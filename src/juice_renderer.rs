@@ -38,7 +38,7 @@ fn setup_renderer(
 
 	// Spawn test particle!
 	let particle_color_material: ColorMaterial = ColorMaterial::from(
-		generate_color_from_gradient(JUICE_GREEN, JUICE_YELLOW, JUICE_RED, 0.5)
+		generate_color_from_gradient(JUICE_GREEN, JUICE_GREEN, JUICE_RED, 0.5)
 	);
 	commands.spawn(MaterialMesh2dBundle {
 		mesh:		meshes.add(shape::Circle::new(10.0).into()).into(),
