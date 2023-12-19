@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::{juice_renderer, util};
+use crate::file_system;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -24,6 +25,17 @@ fn setup(
 	mut _grid:			ResMut<SimGrid>) {
 	
 	let _test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
+
+	/*let mut particles_data: SimParticles = SimParticles::default();
+		let mut constraints_data: SimConstraints = SimConstraints::default();
+		let mut grid_data: SimGrid = SimGrid::default();
+
+		file_system::json_load("save_1.json", &mut grid_data, &mut constraints_data, &mut particles_data);
+		file_system::json_save("save_2.json", &mut grid_data, &mut constraints_data, &mut particles_data); // TEMPORARY TEST CODE
+
+		app.insert_resource(particles_data);
+		app.insert_resource(constraints_data); // This code should probably be moved into setup. But idk best practice for accessing app when app calls an add_systems code.
+		app.insert_resource(grid_data);*/
 	
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
@@ -43,10 +55,10 @@ fn update(
 }
 
 #[derive(Resource)]
-struct SimConstraints {
-	grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
-	iterations_per_frame:	u8, 	// Simulation iterations per frame.
-	gravity:				Vec2,	// Cartesian gravity vector.
+pub struct SimConstraints {
+	pub grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
+	pub iterations_per_frame:	u8, 	// Simulation iterations per frame.
+	pub gravity:				Vec2,	// Cartesian gravity vector.
 }
 
 impl Default for SimConstraints {
@@ -83,14 +95,14 @@ impl SimConstraints {
 }
 
 #[derive(Clone)]
-enum SimGridCellType	{ Air, Fluid, Solid, }
+pub enum SimGridCellType	{ Air, Fluid, Solid, }
 
 #[derive(Resource)]
-struct SimGrid {
-	dimensions:	    (u16, u16),
-	cell_size:		u16,
-	cell_type:		Vec<SimGridCellType>,
-	velocity:		Vec<[Vec2; 4]>,
+pub struct SimGrid {
+	pub dimensions:	    (u16, u16),
+	pub cell_size:		u16,
+	pub cell_type:		Vec<SimGridCellType>,
+	pub velocity:		Vec<[Vec2; 4]>,
 }
 
 impl Default for SimGrid {

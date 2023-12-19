@@ -1,0 +1,12 @@
+{
+    "dimensions" : [10, 10],
+    "cell_size" : 60,
+    "cell_type" : ["Air", "Solid", "Solid", "Fluid", "Air", "Solid"],
+    "cell_velocity" : "TODO",
+    "grid_particle_ratio" : 0.6,
+    "iterations_per_frame" : 60,
+    "gravity" : [0.0, -77.5],
+    "particle_count" : 4,
+    "particle_position" : [[1.0,2.0],[3.0,4.0],[5.0,6.0],[7.0,8.0]],
+    "particle_velocity" : [[0.0,0.0],[1.0,1.0],[2.0,2.0],[3.0,3.0]]
+}

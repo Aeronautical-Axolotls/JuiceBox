@@ -1,6 +1,0 @@
-{
-    "gravity" : [0, -9.8],
-    "particle_count" : 4,
-    "particle_position" : [[1,2],[3,4],[5,6],[7,8]],
-    "particle_velocity" : [[0,0],[1,1],[2,2],[3,3]]
-}
