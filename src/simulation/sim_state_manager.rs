@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::{juice_renderer, util};
+use crate::{juice_renderer};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
