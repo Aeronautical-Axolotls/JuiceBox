@@ -1,25 +1,11 @@
 use bevy::prelude::*;
-use super::{SimParticle, SimGrid};
+use crate::error::Error;
+use super::sim_state_manager::{SimGrid, SimParticle};
 use super::util::*;
 
-pub struct SimPhysicsEngine;
-impl Plugin for SimPhysicsEngine {
+pub type Result<T> = core::result::Result<T, Error>;
 
-	fn build(&self, app: &mut App) {
-		app.add_systems(Startup, setup);
-		app.add_systems(Update, update);
-	}
-}
-
-fn setup(mut _commands: Commands) {
-
-}
-
-fn update(mut _commands: Commands) {
-
-}
-
-fn particles_to_grid(grid: SimGrid, query: Query<SimParticle>) -> Result<()> {
+fn particles_to_grid(grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimParticle)>) {
 
     // for velocity_u points and velocity_v points,
     // add up all particle velocities nearby scaled
@@ -27,14 +13,61 @@ fn particles_to_grid(grid: SimGrid, query: Query<SimParticle>) -> Result<()> {
     // then divide by the summation of all their
     // influences
 
-    for horizontal in grid.velocity_u {
-        let particles = todo!(); // Particle selecting function to be written by Kade
 
-        for particle in particles {
-            let influence = todo!(); // Influence determined by find_influence in util
+    for (row_index, row) in grid.velocity_u.iter().enumerate() {
+        for (col_index, column) in grid.velocity_u[row_index].iter().enumerate() {
 
+            let pos = grid.get_velocity_point_pos(
+                row_index,
+                col_index,
+                true);
+
+            let mut scaled_velocity_sum = 0.0;
+
+            let mut scaled_influence_sum = 0.0;
+
+            for (id, particle) in particles.iter() {
+
+                let influence = find_influence(
+                    particle.1.position[0],
+                    pos[0],
+                    grid.cell_size);
+
+                scaled_influence_sum += influence;
+                scaled_velocity_sum += particle.velocity[0] * influence;
+            }
+
+            grid.velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
         }
+
     }
 
-    Ok(())
+    for (row_index, row) in grid.velocity_v.iter().enumerate() {
+        for (col_index, column) in grid.velocity_v[row_index].iter().enumerate() {
+
+            let pos = grid.get_velocity_point_pos(
+                row_index,
+                col_index,
+                false);
+
+            let mut scaled_velocity_sum = 0.0;
+
+            let mut scaled_influence_sum = 0.0;
+
+            for (id, particle) in particles.iter() {
+
+                let influence = find_influence(
+                    particle.1.position[1],
+                    pos[1],
+                    grid.cell_size);
+
+                scaled_influence_sum += influence;
+                scaled_velocity_sum += particle.velocity[0] * influence;
+            }
+
+            grid.velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
+        }
+
+    }
+
 }

@@ -84,16 +84,20 @@ impl SimConstraints {
 }
 
 #[derive(Clone)]
-enum SimGridCellType	{ Air, Fluid, Solid, }
+pub enum SimGridCellType {
+    Air,
+    Fluid,
+    Solid,
+}
 
 #[derive(Resource)]
 pub struct SimGrid {
 	pub	dimensions:	    (u16, u16),
 	pub	cell_size:		u16,
 	pub	cell_type:		Vec<SimGridCellType>,
-	pub cell_center:    Vec<Vec<i32>>,
-	pub	velocity_u:		Vec<Vec<i32>>,
-	pub velocity_v:     Vec<Vec<i32>>,
+	pub cell_center:    Vec<Vec<f32>>,
+	pub	velocity_u:		Vec<Vec<f32>>,
+	pub velocity_v:     Vec<Vec<f32>>,
 }
 
 impl Default for SimGrid {
@@ -103,9 +107,9 @@ impl Default for SimGrid {
 			dimensions:	    (250, 250),
 			cell_size:		10,
 			cell_type:		vec![SimGridCellType::Air; 625],
-            cell_center:    vec![vec![0; 25]; 25],
-			velocity_u:		vec![vec![0; 26]; 25],
-            velocity_v:     vec![vec![0;25]; 26],
+            cell_center:    vec![vec![0.0; 25]; 25],
+			velocity_u:		vec![vec![0.0; 26]; 25],
+            velocity_v:     vec![vec![0.0;25]; 26],
 		}
 	}
 }
@@ -166,6 +170,24 @@ impl SimGrid {
         Ok(())
     }
 
+    pub fn get_velocity_point_pos(&self, row_index: usize, col_index: usize, horizontal: bool) -> Vec2 {
+        let (grid_length, grid_height) = self.dimensions;
+        let offset = (self.cell_size / 2) as f32;
+
+        if horizontal {
+            let pos_x = col_index as f32 * self.cell_size as f32;
+            let pos_y = grid_height as f32 - (row_index as f32 * self.cell_size as f32 + offset);
+
+            return Vec2::new(pos_x, pos_y);
+
+        } else {
+            let pos_x = col_index as f32 * self.cell_size as f32 + offset;
+            let pos_y = grid_height as f32 - (row_index as f32 * self.cell_size as f32);
+
+            return Vec2::new(pos_x, pos_y);
+        }
+
+    }
 }
 
 #[derive(Component)]
@@ -205,7 +227,7 @@ fn delete_particles(
 
 /** Returns a vector of ID's of the particles within a circle centered at "position" with radius
 	"radius." */
-fn select_particles(
+pub fn select_particles(
 	particles:	Query<(Entity, &mut SimParticle)>,
 	position:	Vec2,
 	radius:		u32) -> Result<Vec<Entity>> {

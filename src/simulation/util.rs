@@ -1,17 +1,19 @@
 use bevy::math::Vec2;
 
 pub fn find_influence(
-    particle_pos_component: i32,
-    grid_point_component: i32,
-    grid_scale: i32) -> i32 {
+    particle_pos_component: f32,
+    grid_point_component: f32,
+    grid_scale: u16) -> f32 {
 
-    let diff = particle_pos_u - grid_point_u;
+    let diff = particle_pos_component - grid_point_component;
 
-    if diff / grid_scale > 0 {
-        return 1 - diff;
-    } else if diff / grid_scale < 0 {
-        return 1 + diff;
+    let scaled_diff = (diff as f32 / grid_scale as f32);
+
+    if scaled_diff > 0.0 {
+        return 1.0 - scaled_diff;
+    } else if scaled_diff < 0.0 {
+        return 1.0 + scaled_diff;
     } else {
-        return 0;
+        return 0.0;
     }
 }
