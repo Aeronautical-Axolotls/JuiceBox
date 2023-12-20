@@ -124,7 +124,6 @@ fn draw_grid_cells(grid: Res<SimGrid>, mut gizmos: Gizmos) {
 	}
 }
 
-
 /// Draw velocity vectors based on SimGrid using Bevy's Gizmos!
 fn draw_grid_vectors(grid: Res<SimGrid>, mut gizmos: Gizmos) {
 	for x in 0..grid.dimensions.0 {
