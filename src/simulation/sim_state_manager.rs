@@ -122,10 +122,10 @@ impl SimGrid {
 		cell_y: usize,
         cell_type: SimGridCellType) -> Result<()> {
 		
-		if cell_x >= self.dimensions.0 as usize || cell_x < 0 {
+		if cell_x >= self.dimensions.0 as usize {
 			return Err(Error::OutOfGridBounds("X-coord. is out of bounds!"));
 		}
-		if cell_y >= self.dimensions.1 as usize || cell_y < 0 {
+		if cell_y >= self.dimensions.1 as usize {
 			return Err(Error::OutOfGridBounds("Y-coord. is out of bounds!"));
 		}
 		

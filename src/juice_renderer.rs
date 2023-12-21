@@ -3,7 +3,7 @@ use bevy::{
 	core_pipeline::prelude::ClearColor, render::color,
 };
 use crate::{
-	util,
+	util::{self, vector_magnitude},
 	simulation::sim_state_manager::{
 		SimParticle,
 		SimGrid,
@@ -221,19 +221,50 @@ fn draw_grid_vectors(
 	for x in 0..grid.dimensions.0 {
 		for y in 0..grid.dimensions.1 {
 			
+			// Find the center of each grid cell to draw the vector arrows.
 			let half_cell_size: f32 = (grid.cell_size as f32) / 2.0;
 			let cell_center_position: Vec2 = Vec2 {
 				x: (x as f32) * (grid.cell_size as f32) + half_cell_size,
 				y: 0.0 - ((y as f32) * (grid.cell_size as f32) + half_cell_size),
 			};
 			
-			let velocity_direction: f32 = 45.0;	// TODO: Make this also work.
-			let velocity_magnitude: f32 = 4.5;	// TODO: Make this work.
+			/* Indices for each column/row of each u/v velocity component on the grid.  Note that 
+				because each cell has two velocity components going in either direction, the 
+				vectors containing said components are one element larger in either rows or 
+				columns.  This fact prevents the following code from going out of bounds, so long 
+				as grid.velocity_u and grid.velocity_v are constructed properly. */
+			let column_u0: usize	= x as usize;
+			let column_u1: usize	= (x + 1) as usize;
+			let row_u: usize		= y as usize;
+			
+			let row_v0: usize		= y as usize;
+			let row_v1: usize		= (y + 1) as usize;
+			let column_v: usize		= x as usize;
+			
+			// Horizontal velocity components.
+			let velocities_u: [f32; 2]	= [
+				grid.velocity_u[row_u][column_u0],
+				grid.velocity_u[row_u][column_u1],
+			];
+			// Vertical velocity components.
+			let velocities_v: [f32; 2]	= [
+				grid.velocity_v[row_v0][column_v],
+				grid.velocity_v[row_v1][column_v],
+			];
+			
+			// Calculate magnitude of velocity within the call.
+			let velocity_vector_cartesian: Vec2 = Vec2 {
+				x: (velocities_u[0] + velocities_u[1]) / 2.0,
+				y: (velocities_v[0] + velocities_v[1]) / 2.0,
+			};
+			
+			// Calculate velocity direction and magnitude based on u and v components.		
+			let velocity_vector_polar: Vec2 = util::cartesian_to_polar(velocity_vector_cartesian);
 			
 			draw_vector_arrow(
 				cell_center_position, 
-				velocity_direction,
-				velocity_magnitude,
+				velocity_vector_polar[1],
+				velocity_vector_polar[0],
 				grid_render_data.grid_vector_color,
 				&mut gizmos);
 		}
@@ -243,13 +274,12 @@ fn draw_grid_vectors(
 /// Helper function to draw a vector arrow using Bevy's Gizmos.
 pub fn draw_vector_arrow(
 	tail_position:		Vec2,
-	direction_degrees:	f32,
+	direction_rads:		f32,
 	magnitude:			f32,
 	arrow_color:		Color,
 	gizmos:				&mut Gizmos) {
 	
 	// Construct main ray of arrow.
-	let direction_rads: f32	= util::degrees_to_radians(direction_degrees);
 	let head_position: Vec2	= Vec2 {
 		x: tail_position.x + direction_rads.cos() * magnitude,
 		y: tail_position.y + direction_rads.sin() * magnitude,
