@@ -74,16 +74,13 @@ impl Default for GridRenderData {
 
 /// Custom rendering pipeline initialization.
 fn setup_renderer(mut commands: Commands, grid: Res<SimGrid>) {
-	let grid_dimensions_0	= 40.0;
-	let grid_dimensions_1	= 20.0;
-	let grid_cell_size		= 10;
-
+	
 	// Spawn a camera to view our simulation world!
 	commands.spawn(Camera2dBundle {
 		transform: Transform {
 			translation:	Vec3 {
-				x: grid_dimensions_0 * (grid_cell_size as f32) / 3.33,
-				y: 0.0 - (grid_dimensions_1 * (grid_cell_size as f32) / 1.66),
+				x: ((grid.dimensions.0 * grid.cell_size) as f32) / 2.0,
+				y: 0.0 - ((grid.dimensions.1 * grid.cell_size) as f32) / 2.0,
 				z: 0.0,
 			},
 			rotation:		Quat::IDENTITY,
