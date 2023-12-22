@@ -74,3 +74,12 @@ fn particles_to_grid(mut grid: ResMut<SimGrid>, particles: Query<(Entity, &mut S
     grid.velocity_v = velocity_v;
 
 }
+
+/** Calculate the divergence (inflow/outflow) of a grid cell.  If this number is not zero, then 
+	the fluid must be made incompressible.  **A positive divergence indicates there is too much 
+	inflow, whereas a negative divergence indicates too much outflow.** */
+fn calculate_divergence(left_flow: f32, right_flow: f32, up_flow: f32, down_flow: f32) -> f32 {
+	
+	let divergence: f32 = (left_flow - right_flow) + (down_flow - up_flow);
+	divergence
+}
