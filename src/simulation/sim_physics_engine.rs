@@ -74,3 +74,10 @@ fn particles_to_grid(mut grid: ResMut<SimGrid>, particles: Query<(Entity, &mut S
     grid.velocity_v = velocity_v;
 
 }
+
+fn grid_to_particles(grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimParticle)>, flip_pic_coef: f32) -> Result<()> {
+
+
+
+    Ok(())
+}
