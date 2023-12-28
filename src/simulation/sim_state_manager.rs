@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::{juice_renderer, util};
+use crate::{juice_renderer};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -92,24 +92,24 @@ pub enum SimGridCellType {
 
 #[derive(Resource)]
 pub struct SimGrid {
-	pub	dimensions:	    (u16, u16),
-	pub	cell_size:		u16,
-	pub	cell_type:		Vec<SimGridCellType>,
-	pub cell_center:    Vec<Vec<f32>>,
-	pub	velocity_u:		Vec<Vec<f32>>,
-	pub velocity_v:     Vec<Vec<f32>>,
+	pub	dimensions:	    (u16, u16),				// # of Hor. and Vert. cells in the simulation.
+	pub	cell_size:		u16, 
+	pub	cell_type:		Vec<Vec<SimGridCellType>>,
+	pub cell_center:    Vec<Vec<f32>>,			// Magnitude of pressure at center of cell.
+	pub	velocity_u:		Vec<Vec<f32>>,			// Hor. magnitude as row<column<>>; left -> right.
+	pub velocity_v:     Vec<Vec<f32>>,			// Vert. magnitude as row<column<>>; up -> down.
 }
 
 impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (250, 250),
+			dimensions:	    (25, 25),
 			cell_size:		10,
-			cell_type:		vec![SimGridCellType::Air; 625],
+			cell_type:		vec![vec![SimGridCellType::Air; 25]; 25],
             cell_center:    vec![vec![0.0; 25]; 25],
 			velocity_u:		vec![vec![0.0; 26]; 25],
-            velocity_v:     vec![vec![0.0;25]; 26],
+            velocity_v:     vec![vec![0.0; 25]; 26],
 		}
 	}
 }
@@ -118,10 +118,19 @@ impl SimGrid {
 	/// Set simulation grid cell type.
     pub fn set_grid_cell_type(
         &mut self,
-        cell_index: usize,
+        cell_x: usize,
+		cell_y: usize,
         cell_type: SimGridCellType) -> Result<()> {
-
-        self.cell_type[cell_index] = cell_type;
+		
+		if cell_x >= self.dimensions.0 as usize {
+			return Err(Error::OutOfGridBounds("X-coord. is out of bounds!"));
+		}
+		if cell_y >= self.dimensions.1 as usize {
+			return Err(Error::OutOfGridBounds("Y-coord. is out of bounds!"));
+		}
+		
+        self.cell_type[cell_x][cell_y] = cell_type;
+		
         Ok(())
     }
 
@@ -130,18 +139,6 @@ impl SimGrid {
         &mut self,
         width: u16,
         height: u16) -> Result<()> {
-
-        if width % self.cell_size != 0 {
-            return Err(Error::GridSizeError(
-                    "Width not evenly divisible by cell size."
-                    ));
-        }
-
-        if height % self.cell_size != 0 {
-            return Err(Error::GridSizeError(
-                    "Height not evenly divisible by cell size."
-                    ));
-        }
 
         self.dimensions = (width, height);
 
@@ -153,23 +150,13 @@ impl SimGrid {
         &mut self,
         cell_size: u16) -> Result<()> {
 
-        if self.dimensions.0 % cell_size != 0 {
-            return Err(Error::GridSizeError(
-                    "Grid cell size doesn't fit dimensions."
-                    ))
-        }
-
-        if self.dimensions.1 % cell_size != 0 {
-            return Err(Error::GridSizeError(
-                    "Grid cell size doesn't fit dimensions."
-                    ))
-        }
-
         self.cell_size = cell_size;
 
         Ok(())
     }
-
+	
+	/* BUG: This might have been messed up when grid_dimensions changed meaning from "size in 
+		units" to "size in grid cells". */
     pub fn get_velocity_point_pos(&self, row_index: usize, col_index: usize, horizontal: bool) -> Vec2 {
         let (grid_length, grid_height) = self.dimensions;
         let offset = (self.cell_size / 2) as f32;
