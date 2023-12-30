@@ -3,6 +3,8 @@ use bevy::math::Vec2;
 use crate::error::Error;
 use crate::{juice_renderer};
 
+use super::sim_physics_engine::make_grid_velocities_incompressible;
+
 pub type Result<T> = core::result::Result<T, Error>;
 
 pub struct SimStateManager;
@@ -21,7 +23,7 @@ impl Plugin for SimStateManager {
 fn setup(
 	mut commands:		Commands,
 	mut _constraints:	ResMut<SimConstraints>,
-	mut _grid:			ResMut<SimGrid>) {
+	mut grid:			ResMut<SimGrid>) {
 
 	let _test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
 
@@ -31,22 +33,22 @@ fn setup(
 
 /// Simulation state manager update; handles user interactions with the simulation.
 fn update(
-	mut _commands:		Commands,
-	mut _constraints:	ResMut<SimConstraints>,
-	mut _grid:			ResMut<SimGrid>) {
+	mut constraints:	ResMut<SimConstraints>,
+	mut grid:			ResMut<SimGrid>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
 	// TODO: Check for and handle changes to simulation grid.
+	make_grid_velocities_incompressible(grid.as_mut(), constraints.as_ref());
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
 }
 
 #[derive(Resource)]
-struct SimConstraints {
-	grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
-	iterations_per_frame:	u8, 	// Simulation iterations per frame.
-	gravity:				Vec2,	// Cartesian gravity vector.
+pub struct SimConstraints {
+	pub grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
+	pub iterations_per_frame:	u8, 	// Simulation iterations per frame.
+	pub gravity:				Vec2,	// Cartesian gravity vector.
 }
 
 impl Default for SimConstraints {
@@ -85,9 +87,9 @@ impl SimConstraints {
 
 #[derive(Clone)]
 pub enum SimGridCellType {
-    Air,
+	Solid,
     Fluid,
-    Solid,
+	Air,
 }
 
 #[derive(Resource)]
@@ -175,6 +177,26 @@ impl SimGrid {
         }
 
     }
+	
+	/** Get the collision value of a cell; returns 0 if SimGridCellType::Solid OR if cell_x or 
+		cell_y are out of bounds.  Returns 1 if SimGridCellType::Fluid or SimGridCellType::Air. */
+	pub fn get_cell_value(&self, cell_row: usize, cell_col: usize) -> u8 {
+	
+		// Because cell_x and cell_y are unsigned, we do not need an underflow check.
+		if cell_row >= self.dimensions.0 as usize || 
+			cell_col >= self.dimensions.1 as usize {
+			return 0;
+		}
+		
+		/* When modifying flow out of a cell, we need to modify said flow by 0 if the 
+			cell the flow is going into is solid.  If the cell is not solid, we leave flow 
+			unmodified. */
+		match self.cell_type[cell_row][cell_col] {
+			SimGridCellType::Solid	=> 0,
+			SimGridCellType::Fluid	=> 1,
+			SimGridCellType::Air	=> 1,
+		}
+	}
 }
 
 #[derive(Component)]

@@ -24,8 +24,8 @@ impl Plugin for JuiceRenderer {
 		app.add_systems(Update, update_particle_color);
 		app.add_systems(Update, update_particle_size);
 		
-		app.add_systems(Update, draw_grid_cells);
 		app.add_systems(Update, draw_grid_vectors);
+		app.add_systems(Update, draw_grid_cells);
 	}
 }
 
@@ -152,10 +152,9 @@ fn color_particles_by_velocity(mut particles: Query<(&SimParticle, &mut Sprite)>
 /// Color all particles in the simulation by their pressures.
 fn color_particles_by_pressure(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 	
-	for (particle, mut sprite) in particles.iter_mut() {
+	for (_, mut sprite) in particles.iter_mut() {
 		
 		let color: Color = Color::PINK;	// TODO: Make this work!
-		
 		sprite.color = color;
 	}
 }
