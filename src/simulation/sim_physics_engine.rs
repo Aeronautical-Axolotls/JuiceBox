@@ -5,7 +5,7 @@ use super::util::*;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-fn particles_to_grid(mut grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimParticle)>) {
+pub fn particles_to_grid(grid: &mut SimGrid, particles: Query<(Entity, &mut SimParticle)>) {
 
     // for velocity_u points and velocity_v points,
     // add up all particle velocities nearby scaled
@@ -79,8 +79,7 @@ fn particles_to_grid(mut grid: ResMut<SimGrid>, particles: Query<(Entity, &mut S
 	Gauss-Seidel method. */
 pub fn make_grid_velocities_incompressible(
 	grid: &mut SimGrid,
-	constraints: &SimConstraints
-) {
+	constraints: &SimConstraints) {
 	
 	
 	

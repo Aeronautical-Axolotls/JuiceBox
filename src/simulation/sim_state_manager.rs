@@ -3,7 +3,10 @@ use bevy::math::Vec2;
 use crate::error::Error;
 use crate::{juice_renderer};
 
-use super::sim_physics_engine::make_grid_velocities_incompressible;
+use super::sim_physics_engine::{
+	particles_to_grid,
+	make_grid_velocities_incompressible,
+};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -13,7 +16,7 @@ impl Plugin for SimStateManager {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimGrid::default());
-
+		
 		app.add_systems(Startup, setup);
 		app.add_systems(Update, update);
 	}
@@ -25,7 +28,7 @@ fn setup(
 	mut _constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	let _test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
+	let test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
 
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
