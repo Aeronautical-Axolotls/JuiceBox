@@ -94,7 +94,7 @@ pub enum SimGridCellType {
 
 #[derive(Resource)]
 pub struct SimGrid {
-	pub	dimensions:	    (u16, u16),				// # of Hor. and Vert. cells in the simulation.
+	pub	dimensions:	    (u16, u16),				// # of rows and columns in the simulation grid.
 	pub	cell_size:		u16, 
 	pub	cell_type:		Vec<Vec<SimGridCellType>>,
 	pub cell_center:    Vec<Vec<f32>>,			// Magnitude of pressure at center of cell.
@@ -180,7 +180,7 @@ impl SimGrid {
 	
 	/** Get the collision value of a cell; returns 0 if SimGridCellType::Solid OR if cell_x or 
 		cell_y are out of bounds.  Returns 1 if SimGridCellType::Fluid or SimGridCellType::Air. */
-	pub fn get_cell_value(&self, cell_row: usize, cell_col: usize) -> u8 {
+	pub fn get_cell_type_value(&self, cell_row: usize, cell_col: usize) -> u8 {
 	
 		// Because cell_x and cell_y are unsigned, we do not need an underflow check.
 		if cell_row >= self.dimensions.0 as usize || 
@@ -196,6 +196,22 @@ impl SimGrid {
 			SimGridCellType::Fluid	=> 1,
 			SimGridCellType::Air	=> 1,
 		}
+	}
+	
+	/** Convert the Vec2 coordinates (row, column) from a position (x, y).  **Does not guarantee 
+		that the requested position for the cell is valid; only that if a cell were to exist 
+		at the given position, it would have the returned Vec2 as its (row, column) 
+		coordinates.** */
+	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
+		
+		let cell_size: f32 = self.cell_size as f32;
+		
+		let coordinates: Vec2 = Vec2 {
+			x: -1.0 * (position[1] / cell_size),
+			y: position[0] / cell_size,
+		};
+		
+		coordinates
 	}
 }
 

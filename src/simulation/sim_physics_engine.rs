@@ -164,10 +164,10 @@ fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u
 
 	/* Calculate collision modifiers for each cell face.  Note that we must perform a wrapping 
 		subtraction to prevent an underflow for our usize types. */
-	let collision_left: u8	= grid.get_cell_value(usize::wrapping_sub(cell_col, 1), cell_col);
-	let collision_right: u8	= grid.get_cell_value(cell_row, cell_col + 1);
-	let collision_up: u8	= grid.get_cell_value(cell_row, usize::wrapping_sub(cell_row, 1));
-	let collision_down: u8	= grid.get_cell_value(cell_row + 1, cell_col);
+	let collision_left: u8	= grid.get_cell_type_value(usize::wrapping_sub(cell_col, 1), cell_col);
+	let collision_right: u8	= grid.get_cell_type_value(cell_row, cell_col + 1);
+	let collision_up: u8	= grid.get_cell_type_value(cell_row, usize::wrapping_sub(cell_row, 1));
+	let collision_down: u8	= grid.get_cell_type_value(cell_row + 1, cell_col);
 	
 	[collision_left, collision_right, collision_up, collision_down]
 }

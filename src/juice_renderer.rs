@@ -36,14 +36,18 @@ enum FluidGridVectorType	{ Velocity }
 struct FluidRenderData {
 	color_render_type:	FluidColorRenderType,
 	arbitrary_color:	Color,
+	velocity_magnitude_color_scale:	f32,
+	pressure_magnitude_color_scale:	f32,
 }
 
 impl Default for FluidRenderData {
 	
 	fn default() -> Self {
 		Self {
-			color_render_type:	FluidColorRenderType::Arbitrary,
+			color_render_type:	FluidColorRenderType::Pressure,
 			arbitrary_color:	util::JUICE_YELLOW,
+			velocity_magnitude_color_scale:	10.0,
+			pressure_magnitude_color_scale:	10.0,
 		}
 	}
 }
@@ -123,11 +127,19 @@ fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 /// Update the color of all particles to be rendered.
 fn update_particle_color(
 	mut particles: Query<(&SimParticle, &mut Sprite)>,
+	grid: Res<SimGrid>,
 	particle_render_data: Res<FluidRenderData>) {
 	
 	match particle_render_data.color_render_type {
-		FluidColorRenderType::Velocity	=> color_particles_by_velocity(particles),
-		FluidColorRenderType::Pressure	=> color_particles_by_pressure(particles),
+		FluidColorRenderType::Velocity	=> color_particles_by_velocity(
+			particles,
+			particle_render_data.velocity_magnitude_color_scale
+		),
+		FluidColorRenderType::Pressure	=> color_particles_by_pressure(
+			particles,
+			grid.as_ref(),
+			particle_render_data.pressure_magnitude_color_scale
+		),
 		FluidColorRenderType::Arbitrary	=> color_particles(
 			particles, 
 			particle_render_data.arbitrary_color
@@ -136,13 +148,15 @@ fn update_particle_color(
 }
 
 /// Color all particles in the simulation by their velocities.
-fn color_particles_by_velocity(mut particles: Query<(&SimParticle, &mut Sprite)>) {
+fn color_particles_by_velocity(
+	mut particles: Query<(&SimParticle, &mut Sprite)>,
+	velocity_magnitude_color_scale: f32) {
 
 	for (particle, mut sprite) in particles.iter_mut() {
 		
 		let color: Color = util::generate_color_from_gradient(
 			vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
-			util::vector_magnitude(particle.velocity)
+			util::vector_magnitude(particle.velocity) / velocity_magnitude_color_scale,
 		);
 		
 		sprite.color = color;
@@ -150,11 +164,21 @@ fn color_particles_by_velocity(mut particles: Query<(&SimParticle, &mut Sprite)>
 }
 
 /// Color all particles in the simulation by their pressures.
-fn color_particles_by_pressure(mut particles: Query<(&SimParticle, &mut Sprite)>) {
+fn color_particles_by_pressure(
+	mut particles: Query<(&SimParticle, &mut Sprite)>,
+	grid: &SimGrid,
+	pressure_magnitude_color_scale: f32) {
 	
-	for (_, mut sprite) in particles.iter_mut() {
+	for (particle, mut sprite) in particles.iter_mut() {
 		
-		let color: Color = Color::PINK;	// TODO: Make this work!
+		let cell_pos: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
+		let cell_row: usize	= cell_pos[1] as usize;
+		let cell_col: usize	= cell_pos[0] as usize;
+		
+		let color: Color = util::generate_color_from_gradient(
+			vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
+			grid.cell_center[cell_row][cell_col] / pressure_magnitude_color_scale,
+		);
 		sprite.color = color;
 	}
 }
