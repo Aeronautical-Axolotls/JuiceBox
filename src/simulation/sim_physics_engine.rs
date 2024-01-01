@@ -77,7 +77,18 @@ fn particles_to_grid(mut grid: ResMut<SimGrid>, particles: Query<(Entity, &mut S
 
 fn grid_to_particles(grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimParticle)>, flip_pic_coef: f32) -> Result<()> {
 
+    // Go cell by cell, only updating the particles within the cell.
 
+    let cell_dim = grid.cell_size;
+    let sim_length = cell_dim * grid.dimensions.0;
+    let sim_height = cell_dim * grid.dimensions.1;
+    // let mut cell_floor =
+
+    for (id, particle) in particles.iter() {
+
+
+
+    }
 
     Ok(())
 }

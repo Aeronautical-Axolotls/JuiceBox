@@ -93,7 +93,7 @@ pub enum SimGridCellType {
 #[derive(Resource)]
 pub struct SimGrid {
 	pub	dimensions:	    (u16, u16),				// # of Hor. and Vert. cells in the simulation.
-	pub	cell_size:		u16, 
+	pub	cell_size:		u16,
 	pub	cell_type:		Vec<Vec<SimGridCellType>>,
 	pub cell_center:    Vec<Vec<f32>>,			// Magnitude of pressure at center of cell.
 	pub	velocity_u:		Vec<Vec<f32>>,			// Hor. magnitude as row<column<>>; left -> right.
@@ -121,16 +121,16 @@ impl SimGrid {
         cell_x: usize,
 		cell_y: usize,
         cell_type: SimGridCellType) -> Result<()> {
-		
+
 		if cell_x >= self.dimensions.0 as usize {
 			return Err(Error::OutOfGridBounds("X-coord. is out of bounds!"));
 		}
 		if cell_y >= self.dimensions.1 as usize {
 			return Err(Error::OutOfGridBounds("Y-coord. is out of bounds!"));
 		}
-		
+
         self.cell_type[cell_x][cell_y] = cell_type;
-		
+
         Ok(())
     }
 
@@ -154,11 +154,20 @@ impl SimGrid {
 
         Ok(())
     }
-	
-	/* BUG: This might have been messed up when grid_dimensions changed meaning from "size in 
-		units" to "size in grid cells". */
+
     pub fn get_velocity_point_pos(&self, row_index: usize, col_index: usize, horizontal: bool) -> Vec2 {
-        let (grid_length, grid_height) = self.dimensions;
+        // This function receives a row and column to index the point in either
+        // `self.velocity_u` or `self.velocity_v` and find where their (x, y)
+        // coords are.
+
+        // Since the horizontal velocity points (u) have one more horizontally
+        // and the vertical velocity points (v) have one more vertically,
+        // the `horizontal` parameter is needed to differentiate between
+        // `self.velocity_u` and `self.velocity_v`.
+
+        let grid_length = self.dimensions.0 * self.cell_size;
+        let grid_height = self.dimensions.1 * self.cell_size;
+
         let offset = (self.cell_size / 2) as f32;
 
         if horizontal {
