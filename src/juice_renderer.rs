@@ -84,7 +84,7 @@ fn setup_renderer(mut commands: Commands, grid: Res<SimGrid>) {
 		transform: Transform {
 			translation:	Vec3 {
 				x: ((grid.dimensions.0 * grid.cell_size) as f32) / 2.0,
-				y: 0.0 - ((grid.dimensions.1 * grid.cell_size) as f32) / 2.0,
+				y: ((grid.dimensions.1 * grid.cell_size) as f32) / 2.0,
 				z: 0.0,
 			},
 			rotation:		Quat::IDENTITY,
@@ -209,7 +209,7 @@ fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mu
 		};
 		let cell_top_position: Vec2 = Vec2 {
 			x: (i * grid.cell_size) as f32,
-			y: 0.0 - grid_height,
+			y: grid_height,
 		};
 		gizmos.line_2d(cell_bottom_position, cell_top_position, grid_render_data.grid_color);
 	}
@@ -218,11 +218,11 @@ fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mu
 	for i in 0..((grid.dimensions.1 as u16) + 1) {
 		let cell_left_position: Vec2 = Vec2 {
 			x: 0.0,
-			y: 0.0 - (i * grid.cell_size) as f32,
+			y: (i * grid.cell_size) as f32,
 		};
 		let cell_right_position: Vec2 = Vec2 {
 			x: grid_width,
-			y: 0.0 - (i * grid.cell_size) as f32,
+			y: (i * grid.cell_size) as f32,
 		};
 		gizmos.line_2d(cell_left_position, cell_right_position, grid_render_data.grid_color);
 	}
@@ -245,7 +245,7 @@ fn draw_grid_vectors(
 			let half_cell_size: f32 = (grid.cell_size as f32) / 2.0;
 			let cell_center_position: Vec2 = Vec2 {
 				x: (x as f32) * (grid.cell_size as f32) + half_cell_size,
-				y: 0.0 - ((y as f32) * (grid.cell_size as f32) + half_cell_size),
+				y: (y as f32) * (grid.cell_size as f32) + half_cell_size,
 			};
 			
 			/* Indices for each column/row of each u/v velocity component on the grid.  Note that 

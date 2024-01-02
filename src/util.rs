@@ -49,9 +49,9 @@ pub fn control_camera(
 	let delta_time: f32 = time.delta_seconds();
 	
 	let min_x_position: f32	= 0.0 - ((grid.dimensions.0 / 2) * grid.cell_size) as f32;
-	let min_y_position: f32	= 0.0 - ((grid.dimensions.1 * grid.cell_size) as f32) * 1.5;
+	let min_y_position: f32	= 0.0 - ((grid.dimensions.1 / 2) * grid.cell_size) as f32;
 	let max_x_position: f32	= ((grid.dimensions.0 * grid.cell_size) as f32) * 1.5;
-	let max_y_position: f32	= ((grid.dimensions.1 / 2) * grid.cell_size) as f32;
+	let max_y_position: f32	= ((grid.dimensions.1 * grid.cell_size) as f32) * 1.5;
 	
 	// TODO: Factor in the number of grid cells with this calculation.
 	let min_zoom: f32		= (grid.cell_size as f32) * 0.0075;

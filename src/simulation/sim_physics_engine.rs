@@ -124,8 +124,8 @@ pub fn make_grid_velocities_incompressible(
 				// BUG: These signs might be backwards...
 				grid.velocity_u[row as usize][col as usize]			+= divergence * left_solid;
 				grid.velocity_u[row as usize][(col + 1) as usize]	-= divergence * right_solid;
-				grid.velocity_v[row as usize][col as usize]			-= divergence * up_solid;
-				grid.velocity_v[(row + 1) as usize][col as usize]	+= divergence * down_solid;
+				grid.velocity_v[row as usize][col as usize]			+= divergence * up_solid;
+				grid.velocity_v[(row + 1) as usize][col as usize]	-= divergence * down_solid;
 			}
 		}
 	}
@@ -153,7 +153,7 @@ fn calculate_cell_divergence(
 	
 	// BUG: The up and down flows may need to be reversed.
 	let x_divergence: f32	= right_velocity - left_velocity;
-	let y_divergence: f32	= up_velocity - down_velocity;
+	let y_divergence: f32	= down_velocity - up_velocity;
 	let divergence: f32		= overrelaxation * (x_divergence + y_divergence);
 	divergence
 }
