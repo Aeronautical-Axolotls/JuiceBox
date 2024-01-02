@@ -24,8 +24,8 @@ impl Plugin for JuiceRenderer {
 		app.add_systems(Update, update_particle_color);
 		app.add_systems(Update, update_particle_size);
 		
-		app.add_systems(Update, draw_grid_cells);
 		app.add_systems(Update, draw_grid_vectors);
+		app.add_systems(Update, draw_grid_cells);
 	}
 }
 
@@ -36,14 +36,18 @@ enum FluidGridVectorType	{ Velocity }
 struct FluidRenderData {
 	color_render_type:	FluidColorRenderType,
 	arbitrary_color:	Color,
+	velocity_magnitude_color_scale:	f32,
+	pressure_magnitude_color_scale:	f32,
 }
 
 impl Default for FluidRenderData {
 	
 	fn default() -> Self {
 		Self {
-			color_render_type:	FluidColorRenderType::Arbitrary,
+			color_render_type:	FluidColorRenderType::Velocity,
 			arbitrary_color:	util::JUICE_YELLOW,
+			velocity_magnitude_color_scale:	10.0,
+			pressure_magnitude_color_scale:	10.0,
 		}
 	}
 }
@@ -80,7 +84,7 @@ fn setup_renderer(mut commands: Commands, grid: Res<SimGrid>) {
 		transform: Transform {
 			translation:	Vec3 {
 				x: ((grid.dimensions.0 * grid.cell_size) as f32) / 2.0,
-				y: 0.0 - ((grid.dimensions.1 * grid.cell_size) as f32) / 2.0,
+				y: ((grid.dimensions.1 * grid.cell_size) as f32) / 2.0,
 				z: 0.0,
 			},
 			rotation:		Quat::IDENTITY,
@@ -123,11 +127,19 @@ fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 /// Update the color of all particles to be rendered.
 fn update_particle_color(
 	mut particles: Query<(&SimParticle, &mut Sprite)>,
+	grid: Res<SimGrid>,
 	particle_render_data: Res<FluidRenderData>) {
 	
 	match particle_render_data.color_render_type {
-		FluidColorRenderType::Velocity	=> color_particles_by_velocity(particles),
-		FluidColorRenderType::Pressure	=> color_particles_by_pressure(particles),
+		FluidColorRenderType::Velocity	=> color_particles_by_velocity(
+			particles,
+			particle_render_data.velocity_magnitude_color_scale
+		),
+		FluidColorRenderType::Pressure	=> color_particles_by_pressure(
+			particles,
+			grid.as_ref(),
+			particle_render_data.pressure_magnitude_color_scale
+		),
 		FluidColorRenderType::Arbitrary	=> color_particles(
 			particles, 
 			particle_render_data.arbitrary_color
@@ -136,13 +148,15 @@ fn update_particle_color(
 }
 
 /// Color all particles in the simulation by their velocities.
-fn color_particles_by_velocity(mut particles: Query<(&SimParticle, &mut Sprite)>) {
+fn color_particles_by_velocity(
+	mut particles: Query<(&SimParticle, &mut Sprite)>,
+	velocity_magnitude_color_scale: f32) {
 
 	for (particle, mut sprite) in particles.iter_mut() {
 		
 		let color: Color = util::generate_color_from_gradient(
 			vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
-			util::vector_magnitude(particle.velocity)
+			util::vector_magnitude(particle.velocity) / velocity_magnitude_color_scale,
 		);
 		
 		sprite.color = color;
@@ -150,12 +164,21 @@ fn color_particles_by_velocity(mut particles: Query<(&SimParticle, &mut Sprite)>
 }
 
 /// Color all particles in the simulation by their pressures.
-fn color_particles_by_pressure(mut particles: Query<(&SimParticle, &mut Sprite)>) {
+fn color_particles_by_pressure(
+	mut particles: Query<(&SimParticle, &mut Sprite)>,
+	grid: &SimGrid,
+	pressure_magnitude_color_scale: f32) {
 	
 	for (particle, mut sprite) in particles.iter_mut() {
 		
-		let color: Color = Color::PINK;	// TODO: Make this work!
+		let cell_pos: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
+		let cell_row: usize	= cell_pos[1] as usize;
+		let cell_col: usize	= cell_pos[0] as usize;
 		
+		let color: Color = util::generate_color_from_gradient(
+			vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
+			grid.cell_center[cell_row][cell_col] / pressure_magnitude_color_scale,
+		);
 		sprite.color = color;
 	}
 }
@@ -186,7 +209,7 @@ fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mu
 		};
 		let cell_top_position: Vec2 = Vec2 {
 			x: (i * grid.cell_size) as f32,
-			y: 0.0 - grid_height,
+			y: grid_height,
 		};
 		gizmos.line_2d(cell_bottom_position, cell_top_position, grid_render_data.grid_color);
 	}
@@ -195,11 +218,11 @@ fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mu
 	for i in 0..((grid.dimensions.1 as u16) + 1) {
 		let cell_left_position: Vec2 = Vec2 {
 			x: 0.0,
-			y: 0.0 - (i * grid.cell_size) as f32,
+			y: (i * grid.cell_size) as f32,
 		};
 		let cell_right_position: Vec2 = Vec2 {
 			x: grid_width,
-			y: 0.0 - (i * grid.cell_size) as f32,
+			y: (i * grid.cell_size) as f32,
 		};
 		gizmos.line_2d(cell_left_position, cell_right_position, grid_render_data.grid_color);
 	}
@@ -222,7 +245,7 @@ fn draw_grid_vectors(
 			let half_cell_size: f32 = (grid.cell_size as f32) / 2.0;
 			let cell_center_position: Vec2 = Vec2 {
 				x: (x as f32) * (grid.cell_size as f32) + half_cell_size,
-				y: 0.0 - ((y as f32) * (grid.cell_size as f32) + half_cell_size),
+				y: (y as f32) * (grid.cell_size as f32) + half_cell_size,
 			};
 			
 			/* Indices for each column/row of each u/v velocity component on the grid.  Note that 
