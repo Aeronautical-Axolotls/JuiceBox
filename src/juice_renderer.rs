@@ -119,7 +119,7 @@ fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>
 fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
 	
 	for (_, mut sprite) in particles.iter_mut() {
-		let size: f32 = 10.0;
+		let size: f32 = 1.0;
 		sprite.custom_size = Some(Vec2::splat(size));
 	}
 }

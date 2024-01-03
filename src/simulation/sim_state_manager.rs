@@ -1,3 +1,5 @@
+use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
+
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
@@ -27,8 +29,14 @@ fn setup(
 	mut commands:		Commands,
 	mut _constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
-
-	let test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
+	
+	let _test_particles = add_particles_in_radius(
+		&mut commands,
+		grid.as_ref(),
+		10.0,
+		Vec2 { x: 100.0, y: 100.0 },
+		Vec2::ZERO
+	);
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
@@ -224,12 +232,67 @@ pub struct SimParticle {
 	pub velocity:	Vec2, 	// This particle's [x, y] velocity.
 }
 
+/** Add many particles into the simulation within a radius.  Note that particle_density is 
+	the number of particles per unit radius. */
+fn add_particles_in_radius(
+	commands:			&mut Commands,
+	grid:				&SimGrid,
+	radius:				f32,
+	center_position:	Vec2,
+	velocity:			Vec2) {
+	
+	// Arbitrary radius value.
+	let particle_density: f32 = radius / 10.0;
+	
+	// Create center particle.
+	let _center_particle = add_particle(commands, grid, center_position, velocity);
+	
+	// Create ring_index concentric rings of particles which move from the radius to the center.
+	let ring_count: usize = 1 + radius as usize;
+	for ring_index in 1..ring_count
+	{
+		/* Loop through each particle to create around the current ring; circumference scales 1:1 
+			with an increase in radius, therefore we need to multiply our particle count by 
+			ring_index for each additional ring. */
+		let particle_count: usize = (particle_density * ring_index as f32) as usize;
+		for particle_index in 0..particle_count
+		{
+			// Offset the particles positionally and rotationally created within the ring.
+			let ring_offset: f32		= radius / (ring_count as f32);
+			let rotation_offset: f32	= ring_index as f32 + particle_index as f32;
+			
+			// Find the angle around the circle so we can correctly position this particle.
+			let angle: f32 = ((particle_index as f32) / radius) * (PI * 2.0) + rotation_offset;
+			
+			// Find the position of the particle at the desired position around the ring.
+			let particle_position: Vec2 = Vec2 {
+				x: center_position[0] + (f32::cos(angle) * (ring_offset * ring_index as f32)),
+				y: center_position[1] + (f32::sin(angle) * (ring_offset * ring_index as f32)),
+			};
+			
+			// If particle_position is outside the grid bounds, this will not create a particle: 
+			let _particle = add_particle(commands, grid, particle_position, velocity);
+		}
+	}
+}
+
 /// Add particles into the simulation.
 fn add_particle(
 	mut commands:	&mut Commands,
+	grid:			&SimGrid,
 	position:		Vec2,
 	velocity:		Vec2) -> Result<()> {
-
+	
+	// Don't allow the user to create particles out of the simulation grid's bounds!
+	if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32
+	{
+		return Err(Error::OutOfGridBounds("X-coordinate for particle creation is out of grid bounds!"));
+	}
+	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32
+	{
+		return Err(Error::OutOfGridBounds("Y-coordinate for particle creation is out of grid bounds!"));
+	}
+	
 	let particle: Entity = commands.spawn(
 		SimParticle {
 			position:	position,
