@@ -29,6 +29,8 @@ fn setup(
 	mut grid:			ResMut<SimGrid>) {
 
 	let test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
+	grid.velocity_u[10][15] = 7.0;
+	grid.velocity_v[10][15] = 7.0;
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
@@ -206,11 +208,12 @@ impl SimGrid {
 		coordinates.** */
 	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
 		
-		let cell_size: f32 = self.cell_size as f32;
+		let cell_size: f32			= self.cell_size as f32;
+		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
 		
 		let coordinates: Vec2 = Vec2 {
-			x: position[1] / cell_size,
-			y: position[0] / cell_size,
+			x: (grid_upper_bound - position[1]) / cell_size,	// Row
+			y: position[0] / cell_size,							// Column
 		};
 		
 		coordinates
