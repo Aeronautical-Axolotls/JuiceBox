@@ -206,11 +206,12 @@ impl SimGrid {
 		coordinates.** */
 	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
 		
-		let cell_size: f32 = self.cell_size as f32;
+		let cell_size: f32			= self.cell_size as f32;
+		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
 		
 		let coordinates: Vec2 = Vec2 {
-			x: position[1] / cell_size,
-			y: position[0] / cell_size,
+			x: (grid_upper_bound - position[1]) / cell_size,	// Row
+			y: position[0] / cell_size,							// Column
 		};
 		
 		coordinates
