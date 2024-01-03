@@ -29,8 +29,6 @@ fn setup(
 	mut grid:			ResMut<SimGrid>) {
 
 	let test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
-	grid.velocity_u[10][15] = 7.0;
-	grid.velocity_v[10][15] = 7.0;
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
