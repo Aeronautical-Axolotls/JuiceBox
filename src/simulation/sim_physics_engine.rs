@@ -166,12 +166,11 @@ fn calculate_cell_divergence(
 		to index like this. */
 	let left_velocity: f32	= grid.velocity_u[cell_row][cell_col];
 	let right_velocity: f32	= grid.velocity_u[cell_row][cell_col + 1];
-	let up_velocity: f32	= grid.velocity_v[cell_row][cell_col];
-	let down_velocity: f32	= grid.velocity_v[cell_row + 1][cell_col];
-
+	let up_velocity: f32	= grid.velocity_v[cell_row + 1][cell_col];
+	let down_velocity: f32	= grid.velocity_v[cell_row][cell_col];
 	// BUG: The up and down flows may need to be reversed.
 	let x_divergence: f32	= right_velocity - left_velocity;
-	let y_divergence: f32	= down_velocity - up_velocity;
+	let y_divergence: f32	= up_velocity - down_velocity;
 	let divergence: f32		= overrelaxation * (x_divergence + y_divergence);
 	divergence
 }
