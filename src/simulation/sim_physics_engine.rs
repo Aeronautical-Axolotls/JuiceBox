@@ -75,21 +75,72 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: Query<(Entity, &mut SimP
 
 }
 
-fn grid_to_particles(grid: ResMut<SimGrid>, particles: Query<(Entity, &mut SimParticle)>, flip_pic_coef: f32) -> Result<()> {
-
-    // Go cell by cell, only updating the particles within the cell.
+fn collect_particles(
+        grid: &SimGrid,
+        center: Vec2,
+        particles: Vec<(Entity, &mut SimParticle)>
+    ) -> Vec<(Entity, &mut SimParticle)> {
 
     let cell_dim = grid.cell_size;
-    let sim_length = cell_dim * grid.dimensions.0;
-    let sim_height = cell_dim * grid.dimensions.1;
-    // let mut cell_floor =
 
-    for (id, particle) in particles.iter() {
+    let collection_radius = 2.5;
 
+    let particle_bag = Vec::new();
 
-
+    for particle in particles {
+        let pos = Vec2::from((particle.1.position[0], particle.1.position[1]));
+        let distance = center.distance(pos);
+        if distance < cell_dim / collection_radius {
+            particle_bag.push(particle);
+        }
     }
 
+    particle_bag
+
+}
+
+fn apply_grid(
+        grid: &SimGrid,
+        particles: Vec<(Entity, &mut SimParticle)>,
+        velocities: Vec<f32>
+    ) {
+
+    // do math on given particles
+
+}
+
+fn grid_to_particles(
+        grid: &SimGrid,
+        particles: Vec<(Entity, &mut SimParticle)>,
+        flip_pic_coef: f32
+    ) -> Result<()> {
+
+    // Basic idea right now is to go through each cell,
+    // figure out which particles are 'within' that cell,
+    // then apply the grid transformation
+
+    let half_cell = grid.cell_size as f32 / 2.0;
+    let height = (grid.dimensions.1 * grid.cell_size) as f32;
+
+    for row_index in 0..grid.dimensions.1 {
+        for col_index in 0..grid.dimensions.0 {
+
+            let pos = Vec2::new((col_index * grid.cell_size as f32) + half_cell, height - (row_index * grid.cell_size as f32 + half_cell));
+
+            let particles_in_cell = collect_particles(grid, pos, particles);
+
+            let velocities = vec![
+                grid.velocity_u[row_index][col_index],
+                grid.velocity_v[row_index][col_index],
+                grid.velocity_u[row_index][col_index + 1],
+                grid.velocity_v[row_index+1][col_index]
+            ];
+
+            apply_grid(grid, particles_in_cell, velocities);
+        }
+    }
+
+    // Go cell by cell, only updating the particles within the cell.
     Ok(())
 }
 
@@ -187,4 +238,3 @@ fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u
 
 	[collision_left, collision_right, collision_up, collision_down]
 }
->>>>>>> f7331c5ededbee4456097da50fa854125de8c772
