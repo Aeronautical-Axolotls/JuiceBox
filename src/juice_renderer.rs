@@ -6,7 +6,7 @@ use crate::{
 	util::{self, vector_magnitude},
 	simulation::sim_state_manager::{
 		SimParticle,
-		SimGrid,
+		SimGrid, SimGridCellType,
 	},
 };
 
@@ -26,6 +26,7 @@ impl Plugin for JuiceRenderer {
 		
 		app.add_systems(Update, draw_grid_vectors);
 		app.add_systems(Update, draw_grid_cells);
+		app.add_systems(Update, draw_grid_solids);
 	}
 }
 
@@ -56,6 +57,7 @@ impl Default for FluidRenderData {
 struct GridRenderData {
 	draw_grid:			bool,
 	grid_color:			Color,
+	solid_cell_color:	Color,
 	
 	draw_grid_vectors:	bool,
 	grid_vector_type:	FluidGridVectorType,
@@ -68,6 +70,7 @@ impl Default for GridRenderData {
 		Self {
 			draw_grid:			true,
 			grid_color:			Color::WHITE,
+			solid_cell_color:	Color::BLACK,
 			
 			draw_grid_vectors:	true,
 			grid_vector_type:	FluidGridVectorType::Velocity,
@@ -189,6 +192,47 @@ fn color_particles(mut particles: Query<(&SimParticle, &mut Sprite)>, color: Col
 	for (_, mut sprite) in particles.iter_mut() {
 		sprite.color = color;
 	}
+}
+
+/// Draw the solid grid cells within the grid.
+fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mut gizmos: Gizmos) {
+
+	for row in 0..grid.dimensions.0 {
+		for col in 0..grid.dimensions.1 {
+			
+			match grid.cell_type[row as usize][col as usize] {
+				SimGridCellType::Fluid	=> continue,
+				SimGridCellType::Air	=> continue,
+				SimGridCellType::Solid	=> draw_solid_cell(
+					grid.as_ref(),
+					Vec2 { x: row as f32, y: col as f32 },
+					grid_render_data.solid_cell_color,
+					&mut gizmos
+				),
+				_						=> continue,
+			}
+		}
+	}
+}
+
+/// Draw a solid grid cell using cell_coordinates (row, column).
+fn draw_solid_cell(grid: &SimGrid, cell_coordinates: Vec2, color: Color, gizmos: &mut Gizmos) {
+	
+	// Get cell position.
+	let grid_height: f32	= (grid.dimensions.1 * grid.cell_size) as f32;
+	let half_cell_size: f32	= grid.cell_size as f32 * 0.5;
+	let position: Vec2 = Vec2 {
+		x: cell_coordinates[1] * (grid.cell_size as f32) + half_cell_size,
+		y: grid_height - cell_coordinates[0] * (grid.cell_size as f32) - half_cell_size,
+	};
+	
+	// Draw the cell.
+	gizmos.rect_2d(
+		position,
+		0.0,
+		Vec2::splat(grid.cell_size as f32),
+		color
+	);
 }
 
 /// Draw grid cells based on SimGrid using Bevy's Gizmos!

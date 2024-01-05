@@ -3,7 +3,8 @@ use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::{juice_renderer};
+use crate::juice_renderer;
+use crate::test;
 
 use super::sim_physics_engine::{
 	particles_to_grid,
@@ -27,21 +28,10 @@ impl Plugin for SimStateManager {
 /// Simulation state manager initialization.
 fn setup(
 	mut commands:		Commands,
-	mut _constraints:	ResMut<SimConstraints>,
+	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 	
-	let grid_center: Vec2 = Vec2 {
-		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
-		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
-	};
-	let _test_particles = add_particles_in_radius(
-		&mut commands,
-		grid.as_ref(),
-		3.5,
-		100.0,
-		Vec2 { x: grid_center[0], y: grid_center[1] },
-		Vec2::ZERO
-	);
+	test::construct_test_simulation_layout(grid.as_mut(), commands);
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
@@ -245,7 +235,7 @@ pub struct SimParticle {
 
 /** Add many particles into the simulation within a radius.  Note that particle_density is 
 	the number of particles per unit radius. */
-fn add_particles_in_radius(
+pub fn add_particles_in_radius(
 	commands:			&mut Commands,
 	grid:				&SimGrid,
 	particle_density:	f32,
