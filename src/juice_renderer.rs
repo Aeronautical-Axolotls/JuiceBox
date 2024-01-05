@@ -197,19 +197,19 @@ fn color_particles(mut particles: Query<(&SimParticle, &mut Sprite)>, color: Col
 /// Draw the solid grid cells within the grid.
 fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mut gizmos: Gizmos) {
 
+	// For each column in each row, determine each cell's type.
 	for row in 0..grid.dimensions.0 {
 		for col in 0..grid.dimensions.1 {
 			
 			match grid.cell_type[row as usize][col as usize] {
-				SimGridCellType::Fluid	=> continue,
-				SimGridCellType::Air	=> continue,
-				SimGridCellType::Solid	=> draw_solid_cell(
+				SimGridCellType::Fluid	=> continue,			// Do nothing if fluid.
+				SimGridCellType::Air	=> continue,			// Do nothing if air.
+				SimGridCellType::Solid	=> draw_solid_cell(		// Draw something if solid.
 					grid.as_ref(),
 					Vec2 { x: row as f32, y: col as f32 },
 					grid_render_data.solid_cell_color,
 					&mut gizmos
 				),
-				_						=> continue,
 			}
 		}
 	}

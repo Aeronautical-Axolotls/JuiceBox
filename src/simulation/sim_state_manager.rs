@@ -91,7 +91,7 @@ impl SimConstraints {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum SimGridCellType {
 	Solid,
     Fluid,
@@ -281,13 +281,18 @@ fn add_particle(
 	velocity:		Vec2) -> Result<()> {
 	
 	// Don't allow the user to create particles out of the simulation grid's bounds!
-	if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32
-	{
+	if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
 		return Err(Error::OutOfGridBounds("X-coordinate for particle creation is out of grid bounds!"));
 	}
-	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32
-	{
+	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
 		return Err(Error::OutOfGridBounds("Y-coordinate for particle creation is out of grid bounds!"));
+	}
+	// If the cell we are inside of is a solid, don't create the particle!
+	let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&position);
+	if matches!(
+		grid.cell_type[cell_coordinates[0] as usize][cell_coordinates[1] as usize],
+		SimGridCellType::Solid) {
+		return Err(Error::InvalidCellParticleCreation("Chosen cell is solid!"));
 	}
 	
 	let particle: Entity = commands.spawn(
