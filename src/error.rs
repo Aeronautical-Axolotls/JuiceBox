@@ -12,4 +12,7 @@ pub enum Error {
 	
 	#[error("Out of grid bounds: `{0}`")]
 	OutOfGridBounds(&'static str),
+	
+	#[error("Invalid cell to create particles: `{0}`")]
+	InvalidCellParticleCreation(&'static str),
 }

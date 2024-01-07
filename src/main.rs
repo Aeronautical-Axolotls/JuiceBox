@@ -5,6 +5,7 @@ mod simulation;
 mod util;
 mod juice_renderer;
 mod error;
+mod test;
 
 use simulation::sim_state_manager;
 use simulation::sim_physics_engine;
