@@ -7,6 +7,8 @@ edition = "2021"
 anyhow = "1.0.75"
 bevy = { version = "0.12.0", features = ["dynamic_linking"] }
 thiserror = "1.0.50"
+bevy_egui = "0.24.0"
+
 
 # Required with Bevy/wgpu to use Cargo Workspaces.
 [workspace]
@@ -19,5 +21,6 @@ opt-level = 1
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
+
 
 # See more keys and also their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
