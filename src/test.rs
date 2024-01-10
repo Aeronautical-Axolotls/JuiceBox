@@ -1,65 +1,61 @@
-use bevy::prelude::*;
-use bevy::sprite::{Mesh2dHandle, MaterialMesh2dBundle};
+use bevy::{
+	prelude::*,
+};
+use crate::simulation::sim_state_manager::{
+	SimGridCellType,
+	SimGrid,
+	add_particles_in_radius
+};
+use crate::juice_renderer::draw_vector_arrow;
 
-pub struct HelloWorld;
-impl Plugin for HelloWorld
+/// Create a simulation layout for testing.
+pub fn construct_test_simulation_layout(grid: &mut SimGrid, mut commands: Commands)
 {
-	fn build(&self, app: &mut App)
-	{
-		app.insert_resource(GreetingTimer(Timer::from_seconds(2.0, TimerMode::Repeating)));
-		app.add_systems(Update, hello_world);
-		app.add_systems(Startup, test_setup);
-	}
-}
-
-#[derive(Resource)]
-struct GreetingTimer(Timer);
-
-fn hello_world(time: Res<Time>, mut timer: ResMut<GreetingTimer>)
-{
-	if timer.0.tick(time.delta()).just_finished()
-	{
-		println!("Hello, world!");
-	}
-}
-
-fn test_setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<ColorMaterial>>, asset_server: Res<AssetServer>)
-{
-	// Set up triangle mesh.
-	let texture_handle				= asset_server.load("test.png");
-	let quad_mesh: Mesh				= create_quad();
-	let mesh_handle: Mesh2dHandle	= meshes.add(quad_mesh).into();
-
-	// Spawn camera and triangle.
-	commands.spawn(Camera2dBundle::default());
-	commands.spawn(MaterialMesh2dBundle
-	{
-		mesh:		mesh_handle.clone(),
-		transform:	Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)).with_scale(Vec3::splat(512.0)),
-		material:	materials.add(ColorMaterial::from(texture_handle)),
-		..default()
-	});
-}
-
-fn create_quad() -> Mesh
-{
-	// Create default quad mesh with vertex positions & vertex indices.
-	let mut mesh = Mesh::from(shape::Quad::default());
-
-	// Insert vertex color attributes for each of the 4 vertices of the mesh.
-	mesh.insert_attribute
-	(
-		Mesh::ATTRIBUTE_COLOR,
-		vec!
-		[
-			Color::RED.as_rgba_f32(),
-        	Color::GREEN.as_rgba_f32(),
-        	Color::BLUE.as_rgba_f32(),
-        	Color::WHITE.as_rgba_f32(),
-		],
+	// Create a bunch of solid cells.
+	grid.cell_type[19][12] = SimGridCellType::Solid;
+	grid.cell_type[20][12] = SimGridCellType::Solid;
+	grid.cell_type[20][13] = SimGridCellType::Solid;
+	grid.cell_type[20][14] = SimGridCellType::Solid;
+	grid.cell_type[20][15] = SimGridCellType::Solid;
+	grid.cell_type[19][15] = SimGridCellType::Solid;
+	
+	// Spawn a group of particles at the center of the screen.
+	let grid_center: Vec2 = Vec2 {
+		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
+		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
+	};
+	let _test_particles = add_particles_in_radius(
+		&mut commands,
+		grid,
+		3.5,
+		100.0,
+		Vec2 { x: grid_center[0], y: grid_center[1] },
+		Vec2::ZERO
 	);
+	
+	/*// Spawn more particles to test spawning inside solids is rejected.
+	let _moar_test_particles = add_particles_in_radius(
+		&mut commands,
+		grid,
+		2.35,
+		50.0,
+		Vec2 { x: 140.0, y: 45.0 },
+		Vec2::ZERO
+	);
+	
+	// Spawn even MOAR particles to test spawning inside solids is rejected.  ~~UwU~~
+	let _moar_test_particles = add_particles_in_radius(
+		&mut commands,
+		grid,
+		10.0,
+		20.0,
+		Vec2 { x: 100.0, y: 100.0 },
+		Vec2::ZERO
+	);*/
+}
 
-	println!("Quad created!");
-
-	mesh
+pub fn test_draw_vector_arrow(time: Res<Time>, gizmos: &mut Gizmos) {
+	let dir: f32 = time.elapsed().as_secs_f32() * 16.0;
+	let mag: f32 = (time.elapsed().as_secs_f32().sin() + 1.1) * 100.0;
+	draw_vector_arrow(Vec2::ZERO, dir, mag, Color::PINK, gizmos);
 }

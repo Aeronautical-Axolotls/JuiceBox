@@ -1,7 +1,15 @@
+use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
+
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::{juice_renderer, util};
+use crate::juice_renderer;
+use crate::test;
+
+use super::sim_physics_engine::{
+	particles_to_grid,
+	make_grid_velocities_incompressible,
+};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -11,7 +19,7 @@ impl Plugin for SimStateManager {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimGrid::default());
-
+		
 		app.add_systems(Startup, setup);
 		app.add_systems(Update, update);
 	}
@@ -20,33 +28,33 @@ impl Plugin for SimStateManager {
 /// Simulation state manager initialization.
 fn setup(
 	mut commands:		Commands,
-	mut _constraints:	ResMut<SimConstraints>,
-	mut _grid:			ResMut<SimGrid>) {
-
-	let _test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
-
+	mut constraints:	ResMut<SimConstraints>,
+	mut grid:			ResMut<SimGrid>) {
+	
+	test::construct_test_simulation_layout(grid.as_mut(), commands);
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
 
 /// Simulation state manager update; handles user interactions with the simulation.
 fn update(
-	mut _commands:		Commands,
-	mut _constraints:	ResMut<SimConstraints>,
-	mut _grid:			ResMut<SimGrid>) {
+	mut constraints:	ResMut<SimConstraints>,
+	mut grid:			ResMut<SimGrid>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
 	// TODO: Check for and handle changes to simulation grid.
+	let grid_velocities: [Vec<Vec<f32>>; 2] = grid.clone_grid_velocities();
+	make_grid_velocities_incompressible(grid.as_mut(), constraints.as_ref());
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
 }
 
 #[derive(Resource)]
-struct SimConstraints {
-	grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
-	iterations_per_frame:	u8, 	// Simulation iterations per frame.
-	gravity:				Vec2,	// Cartesian gravity vector.
+pub struct SimConstraints {
+	pub grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
+	pub iterations_per_frame:	u8, 	// Simulation iterations per frame.
+	pub gravity:				Vec2,	// Cartesian gravity vector.
 }
 
 impl Default for SimConstraints {
@@ -83,33 +91,33 @@ impl SimConstraints {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum SimGridCellType {
-    Air,
+	Solid,
     Fluid,
-    Solid,
+	Air,
 }
 
 #[derive(Resource)]
 pub struct SimGrid {
-	pub	dimensions:	    (u16, u16),
-	pub	cell_size:		u16,
-	pub	cell_type:		Vec<SimGridCellType>,
-	pub cell_center:    Vec<Vec<f32>>,
-	pub	velocity_u:		Vec<Vec<f32>>,
-	pub velocity_v:     Vec<Vec<f32>>,
+	pub	dimensions:	    (u16, u16),				// # of rows and columns in the simulation grid.
+	pub	cell_size:		u16, 
+	pub	cell_type:		Vec<Vec<SimGridCellType>>,
+	pub cell_center:    Vec<Vec<f32>>,			// Magnitude of pressure at center of cell.
+	pub	velocity_u:		Vec<Vec<f32>>,			// Hor. magnitude as row<column<>>; left -> right.
+	pub velocity_v:     Vec<Vec<f32>>,			// Vert. magnitude as row<column<>>; up -> down.
 }
 
 impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (250, 250),
+			dimensions:	    (25, 25),
 			cell_size:		10,
-			cell_type:		vec![SimGridCellType::Air; 625],
+			cell_type:		vec![vec![SimGridCellType::Air; 25]; 25],
             cell_center:    vec![vec![0.0; 25]; 25],
 			velocity_u:		vec![vec![0.0; 26]; 25],
-            velocity_v:     vec![vec![0.0;25]; 26],
+            velocity_v:     vec![vec![0.0; 25]; 26],
 		}
 	}
 }
@@ -118,10 +126,19 @@ impl SimGrid {
 	/// Set simulation grid cell type.
     pub fn set_grid_cell_type(
         &mut self,
-        cell_index: usize,
+        cell_x: usize,
+		cell_y: usize,
         cell_type: SimGridCellType) -> Result<()> {
-
-        self.cell_type[cell_index] = cell_type;
+		
+		if cell_x >= self.dimensions.0 as usize {
+			return Err(Error::OutOfGridBounds("X-coord. is out of bounds!"));
+		}
+		if cell_y >= self.dimensions.1 as usize {
+			return Err(Error::OutOfGridBounds("Y-coord. is out of bounds!"));
+		}
+		
+        self.cell_type[cell_x][cell_y] = cell_type;
+		
         Ok(())
     }
 
@@ -130,18 +147,6 @@ impl SimGrid {
         &mut self,
         width: u16,
         height: u16) -> Result<()> {
-
-        if width % self.cell_size != 0 {
-            return Err(Error::GridSizeError(
-                    "Width not evenly divisible by cell size."
-                    ));
-        }
-
-        if height % self.cell_size != 0 {
-            return Err(Error::GridSizeError(
-                    "Height not evenly divisible by cell size."
-                    ));
-        }
 
         self.dimensions = (width, height);
 
@@ -153,23 +158,13 @@ impl SimGrid {
         &mut self,
         cell_size: u16) -> Result<()> {
 
-        if self.dimensions.0 % cell_size != 0 {
-            return Err(Error::GridSizeError(
-                    "Grid cell size doesn't fit dimensions."
-                    ))
-        }
-
-        if self.dimensions.1 % cell_size != 0 {
-            return Err(Error::GridSizeError(
-                    "Grid cell size doesn't fit dimensions."
-                    ))
-        }
-
         self.cell_size = cell_size;
 
         Ok(())
     }
-
+	
+	/* BUG: This might have been messed up when grid_dimensions changed meaning from "size in 
+		units" to "size in grid cells". */
     pub fn get_velocity_point_pos(&self, row_index: usize, col_index: usize, horizontal: bool) -> Vec2 {
         let (grid_length, grid_height) = self.dimensions;
         let offset = (self.cell_size / 2) as f32;
@@ -188,6 +183,48 @@ impl SimGrid {
         }
 
     }
+	
+	/** Get the collision value of a cell; returns 0 if SimGridCellType::Solid OR if cell_x or 
+		cell_y are out of bounds.  Returns 1 if SimGridCellType::Fluid or SimGridCellType::Air. */
+	pub fn get_cell_type_value(&self, cell_row: usize, cell_col: usize) -> u8 {
+	
+		// Because cell_x and cell_y are unsigned, we do not need an underflow check.
+		if cell_row >= self.dimensions.0 as usize || 
+			cell_col >= self.dimensions.1 as usize {
+			return 0;
+		}
+		
+		/* When modifying flow out of a cell, we need to modify said flow by 0 if the 
+			cell the flow is going into is solid.  If the cell is not solid, we leave flow 
+			unmodified. */
+		match self.cell_type[cell_row][cell_col] {
+			SimGridCellType::Solid	=> 0,
+			SimGridCellType::Fluid	=> 1,
+			SimGridCellType::Air	=> 1,
+		}
+	}
+	
+	/** Convert the Vec2 coordinates (row, column) from a position (x, y).  **Does not guarantee 
+		that the requested position for the cell is valid; only that if a cell were to exist 
+		at the given position, it would have the returned Vec2 as its (row, column) 
+		coordinates.** */
+	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
+		
+		let cell_size: f32			= self.cell_size as f32;
+		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
+		
+		let coordinates: Vec2 = Vec2 {
+			x: (grid_upper_bound - position[1]) / cell_size,	// Row
+			y: position[0] / cell_size,							// Column
+		};
+		
+		coordinates
+	}
+	
+	/// Returns a clone of the grid's velocity Vectors as: (velocity_u, velocity_v).
+	pub fn clone_grid_velocities(&self) -> [Vec<Vec<f32>>; 2] {
+		[self.velocity_u.clone(), self.velocity_v.clone()]
+	}
 }
 
 #[derive(Component)]
@@ -196,12 +233,68 @@ pub struct SimParticle {
 	pub velocity:	Vec2, 	// This particle's [x, y] velocity.
 }
 
+/** Add many particles into the simulation within a radius.  Note that particle_density is 
+	the number of particles per unit radius. */
+pub fn add_particles_in_radius(
+	commands:			&mut Commands,
+	grid:				&SimGrid,
+	particle_density:	f32,
+	radius:				f32,
+	center_position:	Vec2,
+	velocity:			Vec2) {
+	
+	// Create center particle.
+	let _center_particle = add_particle(commands, grid, center_position, velocity);
+	
+	// Density for the rings inside the circle.
+	let ring_density: f32		= particle_density * 2.0;
+	
+	// Create concentric rings of particles that evenly space themselves out to form a circle!
+	let ring_count: usize = 1 + (radius * ring_density / 20.0) as usize;
+	for ring_index in 1..ring_count {
+		
+		/* Create each particle around the current ring. */
+		let ring_radius: f32		= ring_index as f32 / ring_density * 10.0;
+		let particle_count: usize	= (ring_radius as f32 * particle_density) as usize;
+		for particle_index in 0..particle_count as usize {
+			
+			// Find the angle around the circle so we can correctly position this particle.
+			let angle: f32 = particle_index as f32 * ((2.0 * PI) / particle_count as f32);
+			
+			// Find the position of the particle at the desired position around the ring.
+			let particle_position: Vec2 = Vec2 {
+				x: center_position[0] + (f32::cos(angle) * ring_radius),
+				y: center_position[1] + (f32::sin(angle) * ring_radius),
+			};
+// 			
+			// If particle_position is outside the grid bounds, this will not create a particle: 
+			let _particle = add_particle(commands, grid, particle_position, velocity);
+		}
+	}
+}
+
 /// Add particles into the simulation.
 fn add_particle(
-	mut commands:	&mut Commands,
+	commands:	&mut Commands,
+	grid:			&SimGrid,
 	position:		Vec2,
 	velocity:		Vec2) -> Result<()> {
-
+	
+	// Don't allow the user to create particles out of the simulation grid's bounds!
+	if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds("X-coordinate for particle creation is out of grid bounds!"));
+	}
+	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds("Y-coordinate for particle creation is out of grid bounds!"));
+	}
+	// If the cell we are inside of is a solid, don't create the particle!
+	let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&position);
+	if matches!(
+		grid.cell_type[cell_coordinates[0] as usize][cell_coordinates[1] as usize],
+		SimGridCellType::Solid) {
+		return Err(Error::InvalidCellParticleCreation("Chosen cell is solid!"));
+	}
+	
 	let particle: Entity = commands.spawn(
 		SimParticle {
 			position:	position,

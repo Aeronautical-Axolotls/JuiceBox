@@ -9,4 +9,10 @@ pub enum Error {
 	
 	#[error("No particles found: `{0}`")]
 	NoParticlesFound(&'static str),
+	
+	#[error("Out of grid bounds: `{0}`")]
+	OutOfGridBounds(&'static str),
+	
+	#[error("Invalid cell to create particles: `{0}`")]
+	InvalidCellParticleCreation(&'static str),
 }

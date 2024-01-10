@@ -1,13 +1,20 @@
 use bevy::{
-	math::{Vec2, Vec4},
-	window::{Window, WindowPlugin, MonitorSelection, WindowPosition},
+	math::{ Vec2, Vec4 },
+	window::{ Window, WindowPlugin, MonitorSelection, WindowPosition },
 	prelude::Color,
 	utils::default,
+	input::{ keyboard::KeyCode, Input },
+	time::Time,
+	transform::components::Transform,
+	render::camera::{ OrthographicProjection, Camera },
+	ecs::{ system::{ Res, Query }, query::With },
 };
 use std::{
 	f32::consts::PI,
 	time::SystemTime,
 };
+
+use crate::simulation::sim_state_manager::SimGrid;
 
 pub const WINDOW_WIDTH: f32		= 640.0;
 pub const WINDOW_HEIGHT: f32	= 480.0;
@@ -19,11 +26,77 @@ pub const JUICE_GREEN: Color	= Color::rgb(0.48, 1.0, 0.18);
 pub const JUICE_BLUE: Color		= Color::rgb(0.0, 0.25, 1.0);
 pub const JUICE_SKY_BLUE: Color	= Color::rgb(0.66, 0.91, 1.0);
 
+/// Get the magnitude of a vector.
 pub fn vector_magnitude(vector: Vec2) -> f32 {
 	let mut magnitude: f32 = (vector.x * vector.x) + (vector.y * vector.y);
 	magnitude = magnitude.sqrt();
 	
 	magnitude
+}
+
+/// Basic camera controller.
+pub fn control_camera(
+	keys:			Res<Input<KeyCode>>,
+	time:			Res<Time>,
+	grid:			Res<SimGrid>,
+	mut cameras:	Query<(
+		&mut Transform,
+		&mut OrthographicProjection,
+		With<Camera>
+	)>) {
+	
+	// Necessary for framerate-independent camera movement.
+	let delta_time: f32 = time.delta_seconds();
+	
+	let min_x_position: f32	= 0.0 - ((grid.dimensions.0 / 2) * grid.cell_size) as f32;
+	let min_y_position: f32	= 0.0 - ((grid.dimensions.1 / 2) * grid.cell_size) as f32;
+	let max_x_position: f32	= ((grid.dimensions.0 * grid.cell_size) as f32) * 1.5;
+	let max_y_position: f32	= ((grid.dimensions.1 * grid.cell_size) as f32) * 1.5;
+	
+	// TODO: Factor in the number of grid cells with this calculation.
+	let min_zoom: f32		= (grid.cell_size as f32) * 0.0075;
+	let max_zoom: f32		= (grid.cell_size as f32) / 2.0;
+	
+	// Move and zoom each camera.
+	for (mut transform, mut projection, _) in cameras.iter_mut() {
+		let speed_mod: f32		= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
+		let camera_speed: f32	= (150.0 + (150.0 * speed_mod)) * projection.scale * delta_time;
+		let zoom_speed: f32		= (0.5 + speed_mod) * delta_time;
+		
+		// Move up/down/left/right respectively.
+		if keys.pressed(KeyCode::W) {
+			transform.translation.y = f32::min(
+				transform.translation.y + camera_speed,
+				max_y_position
+			);
+		}
+		if keys.pressed(KeyCode::A) {
+			transform.translation.x = f32::max(
+				transform.translation.x - camera_speed,
+				min_x_position
+			);
+		}
+		if keys.pressed(KeyCode::S) {
+			transform.translation.y = f32::max(
+				transform.translation.y - camera_speed,
+				min_y_position
+			);
+		}
+		if keys.pressed(KeyCode::D) {
+			transform.translation.x = f32::min(
+				transform.translation.x + camera_speed,
+				max_x_position
+			);
+		}
+		
+		// Zoom in/out respectively.
+		if keys.pressed(KeyCode::Q) {
+			projection.scale = f32::max(projection.scale - zoom_speed, min_zoom);
+		}
+		if keys.pressed(KeyCode::E) {
+			projection.scale = f32::min(projection.scale + zoom_speed, max_zoom);
+		}
+	}
 }
 
 /// Gets system time in milliseconds since January 1st, 1970.
