@@ -7,7 +7,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 pub struct SimStateManager;
 impl Plugin for SimStateManager {
-	
+
 	fn build(&self, app: &mut App) {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimGrid::default());
@@ -22,9 +22,9 @@ fn setup(
 	mut commands:		Commands,
 	mut _constraints:	ResMut<SimConstraints>,
 	mut _grid:			ResMut<SimGrid>) {
-	
+
 	let _test_particle = add_particle(&mut commands, Vec2::ZERO, Vec2::ZERO);
-	
+
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
@@ -34,7 +34,7 @@ fn update(
 	mut _commands:		Commands,
 	mut _constraints:	ResMut<SimConstraints>,
 	mut _grid:			ResMut<SimGrid>) {
-	
+
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
 	// TODO: Check for and handle changes to simulation grid.
@@ -50,7 +50,7 @@ struct SimConstraints {
 }
 
 impl Default for SimConstraints {
-	
+
 	fn default() -> SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:	0.1,
@@ -72,7 +72,8 @@ impl SimConstraints {
 			sim.iterations_per_frame = 0;
 		}
 		else{
-			sim.iterations_per_frame = 5;// TODO: Create a variable to represent last speed set by user
+			sim.iterations_per_frame = 5;
+            // TODO: Create a variable to represent last speed set by user
 		}
 	}
 
@@ -83,24 +84,32 @@ impl SimConstraints {
 }
 
 #[derive(Clone)]
-enum SimGridCellType	{ Air, Fluid, Solid, }
+pub enum SimGridCellType {
+    Air,
+    Fluid,
+    Solid,
+}
 
 #[derive(Resource)]
-struct SimGrid {
-	dimensions:	    (u16, u16),
-	cell_size:		u16,
-	cell_type:		Vec<SimGridCellType>,
-	velocity:		Vec<[Vec2; 4]>,
+pub struct SimGrid {
+	pub	dimensions:	    (u16, u16),
+	pub	cell_size:		u16,
+	pub	cell_type:		Vec<SimGridCellType>,
+	pub cell_center:    Vec<Vec<f32>>,
+	pub	velocity_u:		Vec<Vec<f32>>,
+	pub velocity_v:     Vec<Vec<f32>>,
 }
 
 impl Default for SimGrid {
-	
+
 	fn default() -> SimGrid {
 		SimGrid {
 			dimensions:	    (250, 250),
 			cell_size:		10,
 			cell_type:		vec![SimGridCellType::Air; 625],
-			velocity:		vec![[Vec2::new(0.0, 0.0); 4]; 625],
+            cell_center:    vec![vec![0.0; 25]; 25],
+			velocity_u:		vec![vec![0.0; 26]; 25],
+            velocity_v:     vec![vec![0.0;25]; 26],
 		}
 	}
 }
@@ -115,7 +124,7 @@ impl SimGrid {
         self.cell_type[cell_index] = cell_type;
         Ok(())
     }
-	
+
 	/// Set simulation grid dimensions.
     pub fn set_grid_dimensions(
         &mut self,
@@ -123,34 +132,61 @@ impl SimGrid {
         height: u16) -> Result<()> {
 
         if width % self.cell_size != 0 {
-            return Err(Error::GridSizeError("Width not evenly divisible by cell size."));
+            return Err(Error::GridSizeError(
+                    "Width not evenly divisible by cell size."
+                    ));
         }
 
         if height % self.cell_size != 0 {
-            return Err(Error::GridSizeError("Height not evenly divisible by cell size."));
+            return Err(Error::GridSizeError(
+                    "Height not evenly divisible by cell size."
+                    ));
         }
 
         self.dimensions = (width, height);
 
         Ok(())
     }
-	
+
 	// Set simulation grid cell size.
     pub fn set_grid_cell_size(
         &mut self,
         cell_size: u16) -> Result<()> {
 
         if self.dimensions.0 % cell_size != 0 {
-            return Err(Error::GridSizeError("Grid cell size doesn't fit dimensions."))
+            return Err(Error::GridSizeError(
+                    "Grid cell size doesn't fit dimensions."
+                    ))
         }
 
         if self.dimensions.1 % cell_size != 0 {
-            return Err(Error::GridSizeError("Grid cell size doesn't fit dimensions."))
+            return Err(Error::GridSizeError(
+                    "Grid cell size doesn't fit dimensions."
+                    ))
         }
 
         self.cell_size = cell_size;
 
         Ok(())
+    }
+
+    pub fn get_velocity_point_pos(&self, row_index: usize, col_index: usize, horizontal: bool) -> Vec2 {
+        let (grid_length, grid_height) = self.dimensions;
+        let offset = (self.cell_size / 2) as f32;
+
+        if horizontal {
+            let pos_x = col_index as f32 * self.cell_size as f32;
+            let pos_y = grid_height as f32 - (row_index as f32 * self.cell_size as f32 + offset);
+
+            return Vec2::new(pos_x, pos_y);
+
+        } else {
+            let pos_x = col_index as f32 * self.cell_size as f32 + offset;
+            let pos_y = grid_height as f32 - (row_index as f32 * self.cell_size as f32);
+
+            return Vec2::new(pos_x, pos_y);
+        }
+
     }
 }
 
@@ -165,14 +201,14 @@ fn add_particle(
 	mut commands:	&mut Commands,
 	position:		Vec2,
 	velocity:		Vec2) -> Result<()> {
-	
+
 	let particle: Entity = commands.spawn(
 		SimParticle {
 			position:	position,
 			velocity:	velocity,
 		}
 	).id();
-	
+
 	// IMPORTANT: Links a sprite to each particle for rendering.
 	juice_renderer::link_particle_sprite(commands, particle);
 
@@ -184,23 +220,23 @@ fn delete_particles(
 	mut commands:	&mut Commands,
 	mut particles:	Query<(Entity, &mut SimParticle)>,
 	particle_id:	Entity) -> Result<()> {
-	
+
 	commands.entity(particle_id).despawn();
 	Ok(())
 }
 
 /** Returns a vector of ID's of the particles within a circle centered at "position" with radius
 	"radius." */
-fn select_particles(
+pub fn select_particles(
 	particles:	Query<(Entity, &mut SimParticle)>,
 	position:	Vec2,
 	radius:		u32) -> Result<Vec<Entity>> {
-	
-	/* TODO: Rework this function to use a spatial lookup based on SimGrid.  If a particle is 
-		outside of the nearest grid cells, then skip checking it.  We can accomplish this in a 
-		parallel-friendly way by sorting a list of spatial lookups for particles based on the grid, 
+
+	/* TODO: Rework this function to use a spatial lookup based on SimGrid.  If a particle is
+		outside of the nearest grid cells, then skip checking it.  We can accomplish this in a
+		parallel-friendly way by sorting a list of spatial lookups for particles based on the grid,
 		then choosing the nearest 1/9/25/49 grid cells (based on radius). */
-	
+
 	let mut selected_particles: Vec<Entity> = Vec::new();
 
 	for (entity_id, particle) in particles.iter() {
@@ -209,7 +245,7 @@ fn select_particles(
 			selected_particles.push(entity_id);
 		}
 	}
-	
+
 	if selected_particles.len() > 0 {
 		Ok(selected_particles)
 	} else {
