@@ -79,6 +79,26 @@ impl Default for GridRenderData {
 	}
 }
 
+// toggle draw grid
+fn toggle_draw_grid(grid: &mut GridRenderData) {
+	if grid.draw_grid == true {
+		grid.draw_grid = false;
+	}
+	else{
+		grid.draw_grid = true;
+	}
+}
+
+// toggle draw grid vectors
+fn toggle_draw_grid_vectors(grid: &mut GridRenderData) {
+	if grid.draw_grid_vectors == true {
+		grid.draw_grid_vectors = false;
+	}
+	else{
+		grid.draw_grid_vectors = true;
+	}
+}
+
 /// Custom rendering pipeline initialization.
 fn setup_renderer(mut commands: Commands, grid: Res<SimGrid>) {
 	
