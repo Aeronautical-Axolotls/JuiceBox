@@ -44,6 +44,7 @@ fn update(
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
 	// TODO: Check for and handle changes to simulation grid.
+	let grid_velocities: [Vec<Vec<f32>>; 2] = grid.clone_grid_velocities();
 	make_grid_velocities_incompressible(grid.as_mut(), constraints.as_ref());
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
@@ -218,6 +219,11 @@ impl SimGrid {
 		};
 		
 		coordinates
+	}
+	
+	/// Returns a clone of the grid's velocity Vectors as: (velocity_u, velocity_v).
+	pub fn clone_grid_velocities(&self) -> [Vec<Vec<f32>>; 2] {
+		[self.velocity_u.clone(), self.velocity_v.clone()]
 	}
 }
 
