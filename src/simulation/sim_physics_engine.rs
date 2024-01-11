@@ -12,10 +12,10 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: Query<(Entity, &mut SimP
     // by their distance / cell width (their influence)
     // then divide by the summation of all their
     // influences
-	
+
     let mut velocity_u = grid.velocity_u.clone();
     let mut velocity_v = grid.velocity_v.clone();
-	
+
     for (row_index, row) in grid.velocity_u.iter().enumerate() {
         for (col_index, column) in grid.velocity_u[row_index].iter().enumerate() {
 
