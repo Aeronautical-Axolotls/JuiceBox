@@ -11,8 +11,7 @@ mod error;
 mod test;
 mod ui;
 
-use simulation::sim_state_manager;
-use simulation::sim_physics_engine;
+use simulation::Simulation;
 use ui::ui_base;
 
 
@@ -22,7 +21,7 @@ fn main() {
 
 	juicebox.add_plugins((
 		DefaultPlugins.set(util::create_window_plugin()),
-		sim_state_manager::SimStateManager,
+		simulation::Simulation,
 		juice_renderer::JuiceRenderer,
 		EguiPlugin,
 
