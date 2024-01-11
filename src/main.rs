@@ -2,14 +2,14 @@ use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
-mod simulation;
-mod util;
-mod juice_renderer;
-mod error;
+pub mod simulation;
+pub mod util;
+pub mod juice_renderer;
+pub mod error;
 // pub mod test and ui;
 
-mod test;
-mod ui;
+pub mod test;
+pub mod ui;
 
 use simulation::Simulation;
 use ui::ui_base;

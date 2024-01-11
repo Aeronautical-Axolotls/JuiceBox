@@ -98,7 +98,7 @@ pub enum SimGridCellType {
 	Air,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct SimGrid {
 	pub	dimensions:	    (u16, u16),				// # of Hor. and Vert. cells in the simulation.
 	pub	cell_size:		u16,

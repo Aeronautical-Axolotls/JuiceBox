@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 use crate::error::Error;
-use super::sim_state_manager::{SimGrid, SimParticle, SimConstraints};
+use super::{SimGrid, SimParticle, SimConstraints};
 use super::util::*;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-pub fn particles_to_grid(grid: &mut SimGrid, particles: Query<(Entity, &mut SimParticle)>) {
+pub fn particles_to_grid(grid: &mut SimGrid, particles: Vec<(Entity, &mut SimParticle)>) -> SimGrid {
 
     // for velocity_u points and velocity_v points,
     // add up all particle velocities nearby scaled
@@ -13,11 +13,15 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: Query<(Entity, &mut SimP
     // then divide by the summation of all their
     // influences
 
+    // This function, after applying particle velocities
+    // to the grid, returns a copy of the grid, but the
+    // values are all "change in" values
+
     let mut velocity_u = grid.velocity_u.clone();
     let mut velocity_v = grid.velocity_v.clone();
 
-    for (row_index, row) in grid.velocity_u.iter().enumerate() {
-        for (col_index, column) in grid.velocity_u[row_index].iter().enumerate() {
+    for row_index in 0..grid.velocity_u.len() {
+        for col_index in 0..grid.velocity_u[row_index].len() {
 
             let pos = grid.get_velocity_point_pos(
                 row_index,
@@ -43,8 +47,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: Query<(Entity, &mut SimP
         }
     }
 
-    for (row_index, row) in grid.velocity_v.iter().enumerate() {
-        for (col_index, column) in grid.velocity_v[row_index].iter().enumerate() {
+    for row_index in 0..grid.velocity_v.len() {
+        for col_index in 0..grid.velocity_v[row_index].len() {
 
             let pos = grid.get_velocity_point_pos(
                 row_index,
@@ -66,12 +70,41 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: Query<(Entity, &mut SimP
                 scaled_velocity_sum += particle.velocity[1] * influence;
             }
 
-            velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
+            velocity_v[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
         }
     }
 
+    let old_grid = grid.clone();
+
     grid.velocity_u = velocity_u;
     grid.velocity_v = velocity_v;
+
+    create_change_grid(&old_grid, &grid)
+
+}
+
+fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
+
+    let mut change_grid = old_grid.clone();
+    let mut change_u: Vec<Vec<f32>> = Vec::new();
+    let mut change_v: Vec<Vec<f32>> = Vec::new();
+
+    for row_index in 0..change_grid.velocity_u.len() {
+        for col_index in 0..change_grid.velocity_u[row_index].len() {
+            change_u[row_index][col_index] = new_grid.velocity_u[row_index][col_index] - old_grid.velocity_u[row_index][col_index];
+        }
+    }
+
+    for row_index in 0..change_grid.velocity_v.len() {
+        for col_index in 0..change_grid.velocity_v[row_index].len() {
+            change_v[row_index][col_index] = new_grid.velocity_v[row_index][col_index] - old_grid.velocity_v[row_index][col_index];
+        }
+    }
+
+    change_grid.velocity_u = change_u;
+    change_grid.velocity_v = change_v;
+
+    change_grid
 
 }
 
@@ -81,16 +114,16 @@ fn collect_particles<'a>(
         particles: &'a Vec<(Entity, &mut SimParticle)>
     ) -> Vec<&'a (Entity, &'a mut SimParticle)> {
 
-    let cell_dim = grid.cell_size;
+    let cell_dim = grid.cell_size as f32;
 
-    let collection_radius: f32 = 2.5;
+    let collection_radius = cell_dim / 2.0;
 
     let mut particle_bag = Vec::new();
 
     for particle in particles {
         let pos = Vec2::from((particle.1.position[0], particle.1.position[1]));
         let distance = center.distance(pos);
-        if distance < cell_dim as f32 / collection_radius {
+        if distance < cell_dim / collection_radius {
             particle_bag.push(particle);
         }
     }
@@ -100,18 +133,71 @@ fn collect_particles<'a>(
 }
 
 fn apply_grid(
-        grid: &SimGrid,
+        cell_size: u16,
+        pos: Vec2,
         particles: Vec<&(Entity, &mut SimParticle)>,
         velocities: Vec<f32>,
+        changes: Vec<f32>,
         pic_coef: f32,
     ) {
 
-    // do math on given particles
+    let half_cell = cell_size as f32 / 2.0;
+    let left_u = Vec2::new(pos[0] - half_cell, pos[1]);
+    let right_u = Vec2::new(pos[0] + half_cell, pos[1]);
+    let top_v = Vec2::new(pos[0], pos[1] + half_cell);
+    let bottom_v = Vec2::new(pos[0], pos[1] - half_cell);
+
+    for particle in particles {
+        let new_velocity_u = (
+                pic_coef * linear_interpolate(
+                    left_u,
+                    right_u,
+                    velocities[0],
+                    velocities[2],
+                    particle.1.position,
+                    true
+                )
+            ) + (
+                (1.0 - pic_coef) * (
+                    particle.1.velocity[0] + linear_interpolate(
+                        left_u,
+                        right_u,
+                        changes[0],
+                        changes[2],
+                        particle.1.position,
+                        true
+                    )
+                )
+            );
+
+        let new_velocity_v =
+            (pic_coef * linear_interpolate(
+                    top_v,
+                    bottom_v,
+                    velocities[1],
+                    velocities[3],
+                    particle.1.position,
+                    false
+                )
+            ) + (
+                (1.0 - pic_coef) * (
+                    particle.1.velocity[1] + linear_interpolate(
+                        top_v,
+                        bottom_v,
+                        changes[1],
+                        changes[3],
+                        particle.1.position,
+                        false
+                    )
+                )
+            );
+    }
 
 }
 
 fn grid_to_particles(
         grid: &SimGrid,
+        change_grid: &SimGrid,
         particles: Vec<(Entity, &mut SimParticle)>,
         flip_pic_coef: f32
     ) -> Result<()> {
@@ -137,7 +223,14 @@ fn grid_to_particles(
                 grid.velocity_v[row_index+1][col_index]
             ];
 
-            apply_grid(grid, particles_in_cell, velocities, flip_pic_coef);
+            let changes = vec![
+                change_grid.velocity_u[row_index][col_index],
+                change_grid.velocity_v[row_index][col_index],
+                change_grid.velocity_u[row_index][col_index + 1],
+                change_grid.velocity_v[row_index+1][col_index]
+            ];
+
+            apply_grid(grid.cell_size, pos, particles_in_cell, velocities, changes, flip_pic_coef);
         }
     }
 
