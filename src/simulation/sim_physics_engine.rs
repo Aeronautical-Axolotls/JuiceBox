@@ -75,22 +75,22 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: Query<(Entity, &mut SimP
 
 }
 
-fn collect_particles(
+fn collect_particles<'a>(
         grid: &SimGrid,
         center: Vec2,
-        particles: Vec<(Entity, &mut SimParticle)>
-    ) -> Vec<(Entity, &mut SimParticle)> {
+        particles: &'a Vec<(Entity, &mut SimParticle)>
+    ) -> Vec<&'a (Entity, &'a mut SimParticle)> {
 
     let cell_dim = grid.cell_size;
 
-    let collection_radius = 2.5;
+    let collection_radius: f32 = 2.5;
 
-    let particle_bag = Vec::new();
+    let mut particle_bag = Vec::new();
 
     for particle in particles {
         let pos = Vec2::from((particle.1.position[0], particle.1.position[1]));
         let distance = center.distance(pos);
-        if distance < cell_dim / collection_radius {
+        if distance < cell_dim as f32 / collection_radius {
             particle_bag.push(particle);
         }
     }
@@ -101,8 +101,9 @@ fn collect_particles(
 
 fn apply_grid(
         grid: &SimGrid,
-        particles: Vec<(Entity, &mut SimParticle)>,
-        velocities: Vec<f32>
+        particles: Vec<&(Entity, &mut SimParticle)>,
+        velocities: Vec<f32>,
+        pic_coef: f32,
     ) {
 
     // do math on given particles
@@ -122,12 +123,12 @@ fn grid_to_particles(
     let half_cell = grid.cell_size as f32 / 2.0;
     let height = (grid.dimensions.1 * grid.cell_size) as f32;
 
-    for row_index in 0..grid.dimensions.1 {
-        for col_index in 0..grid.dimensions.0 {
+    for row_index in 0..grid.dimensions.1 as usize {
+        for col_index in 0..grid.dimensions.0 as usize {
 
-            let pos = Vec2::new((col_index * grid.cell_size as f32) + half_cell, height - (row_index * grid.cell_size as f32 + half_cell));
+            let pos = Vec2::new((col_index as f32 * grid.cell_size as f32) + half_cell, height - (row_index as f32 * grid.cell_size as f32 + half_cell));
 
-            let particles_in_cell = collect_particles(grid, pos, particles);
+            let particles_in_cell = collect_particles(grid, pos, &particles);
 
             let velocities = vec![
                 grid.velocity_u[row_index][col_index],
@@ -136,11 +137,10 @@ fn grid_to_particles(
                 grid.velocity_v[row_index+1][col_index]
             ];
 
-            apply_grid(grid, particles_in_cell, velocities);
+            apply_grid(grid, particles_in_cell, velocities, flip_pic_coef);
         }
     }
 
-    // Go cell by cell, only updating the particles within the cell.
     Ok(())
 }
 
