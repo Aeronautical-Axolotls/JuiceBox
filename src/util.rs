@@ -1,14 +1,16 @@
 use bevy::{
 	math::{ Vec2, Vec4 },
 	window::{ Window, WindowPlugin, MonitorSelection, WindowPosition },
+	winit::WinitWindows,
 	prelude::Color,
 	utils::default,
 	input::{ keyboard::KeyCode, Input },
 	time::Time,
 	transform::components::Transform,
 	render::camera::{ OrthographicProjection, Camera },
-	ecs::{ system::{ Res, Query }, query::With },
+	ecs::{ system::{ Res, Query, NonSend }, query::With },
 };
+use winit::window::Icon;
 use std::{
 	f32::consts::PI,
 	time::SystemTime,
@@ -247,4 +249,22 @@ pub fn create_window_title(title: &str) -> String {
 	spruced_title.push_str(tagline);
 
 	spruced_title
+}
+
+/// Sets the window icon for the app window(s).
+pub fn set_window_icon(windows: NonSend<WinitWindows>)
+{
+	let (icon_rgba, icon_width, icon_height) = {
+		let image = image::open("assets/juicebox_logo_sm.png")
+			.expect("Failed to open icon!")
+			.into_rgba8();
+		let (width, height)	= image.dimensions();
+		let rgba			= image.into_raw();
+		(rgba, width, height)
+	};
+	let icon = Icon::from_rgba(icon_rgba, icon_width, icon_height).unwrap();
+	
+	for window in windows.windows.values() {
+		window.set_window_icon(Some(icon.clone()));
+	}
 }

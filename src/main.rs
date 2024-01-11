@@ -30,9 +30,10 @@ fn main() {
 		// LogDiagnosticsPlugin::default(),
 		// FrameTimeDiagnosticsPlugin::default(),
 	));
-
-	juicebox.add_systems(Update,ui_base);
-
+	
+	juicebox.add_systems(Startup, util::set_window_icon);
+	
+	juicebox.add_systems(Update, ui_base);
 	juicebox.add_systems(Update, util::control_camera);
 	
 	juicebox.run();
