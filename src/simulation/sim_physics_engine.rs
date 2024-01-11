@@ -83,7 +83,13 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: Vec<(Entity, &mut SimPar
 
 }
 
+
 fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
+
+    // Here we are creating a SimGrid that holds the delta or change
+    // in values after applying the particle velocities to the grid.
+    // These values are needed when interpolating the velocity
+    // values transfered to the particles from the grid.
 
     let mut change_grid = old_grid.clone();
     let mut change_u: Vec<Vec<f32>> = Vec::new();
@@ -120,6 +126,9 @@ fn collect_particles<'a>(
 
     let mut particle_bag = Vec::new();
 
+    // Goes through all the particles and selects only
+    // particles within the search radius and adds them
+    // to the bag
     for particle in particles {
         let pos = Vec2::from((particle.1.position[0], particle.1.position[1]));
         let distance = center.distance(pos);
@@ -147,6 +156,9 @@ fn apply_grid(
     let top_v = Vec2::new(pos[0], pos[1] + half_cell);
     let bottom_v = Vec2::new(pos[0], pos[1] - half_cell);
 
+    // New velocity value using equation from section 7.6
+    // in Fluid Simulation for Computer Graphics, Second Edition
+    // (Bridson, Robert)
     for particle in particles {
         let new_velocity_u = (
                 pic_coef * linear_interpolate(
@@ -209,13 +221,17 @@ fn grid_to_particles(
     let half_cell = grid.cell_size as f32 / 2.0;
     let height = (grid.dimensions.1 * grid.cell_size) as f32;
 
+    // We go through each cell
     for row_index in 0..grid.dimensions.1 as usize {
         for col_index in 0..grid.dimensions.0 as usize {
 
+            // Grab the center postition of the cell
             let pos = Vec2::new((col_index as f32 * grid.cell_size as f32) + half_cell, height - (row_index as f32 * grid.cell_size as f32 + half_cell));
 
+            // Grab all the particles within this specific cell
             let particles_in_cell = collect_particles(grid, pos, &particles);
 
+            // Get the velocity values for each face of the cell
             let velocities = vec![
                 grid.velocity_u[row_index][col_index],
                 grid.velocity_v[row_index][col_index],
@@ -223,6 +239,8 @@ fn grid_to_particles(
                 grid.velocity_v[row_index+1][col_index]
             ];
 
+            // Get the change in velocity from applying the particle
+            // velocities to the grid
             let changes = vec![
                 change_grid.velocity_u[row_index][col_index],
                 change_grid.velocity_v[row_index][col_index],
@@ -230,6 +248,7 @@ fn grid_to_particles(
                 change_grid.velocity_v[row_index+1][col_index]
             ];
 
+            // Solve for the new velocities of the particles
             apply_grid(grid.cell_size, pos, particles_in_cell, velocities, changes, flip_pic_coef);
         }
     }
