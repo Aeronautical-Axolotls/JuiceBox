@@ -1,10 +1,10 @@
 use bevy::{
 	prelude::*,
 };
-use crate::simulation::sim_state_manager::{
+use crate::simulation::{
 	SimGridCellType,
 	SimGrid,
-	add_particles_in_radius
+	sim_state_manager::add_particles_in_radius
 };
 use crate::juice_renderer::draw_vector_arrow;
 
@@ -18,7 +18,7 @@ pub fn construct_test_simulation_layout(grid: &mut SimGrid, mut commands: Comman
 	grid.cell_type[20][14] = SimGridCellType::Solid;
 	grid.cell_type[20][15] = SimGridCellType::Solid;
 	grid.cell_type[19][15] = SimGridCellType::Solid;
-	
+
 	// Spawn a group of particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {
 		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
@@ -32,7 +32,7 @@ pub fn construct_test_simulation_layout(grid: &mut SimGrid, mut commands: Comman
 		Vec2 { x: grid_center[0], y: grid_center[1] },
 		Vec2::ZERO
 	);
-	
+
 	/*// Spawn more particles to test spawning inside solids is rejected.
 	let _moar_test_particles = add_particles_in_radius(
 		&mut commands,
@@ -42,7 +42,7 @@ pub fn construct_test_simulation_layout(grid: &mut SimGrid, mut commands: Comman
 		Vec2 { x: 140.0, y: 45.0 },
 		Vec2::ZERO
 	);
-	
+
 	// Spawn even MOAR particles to test spawning inside solids is rejected.  ~~UwU~~
 	let _moar_test_particles = add_particles_in_radius(
 		&mut commands,
