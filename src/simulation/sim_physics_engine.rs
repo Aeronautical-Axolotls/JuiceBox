@@ -256,24 +256,26 @@ fn grid_to_particles(
     Ok(())
 }
 
-/** Force velocity incompressibility for each grid cell within the simulation.  Uses the
-	Gauss-Seidel method. */
-pub fn make_grid_velocities_incompressible(
-	grid: &mut SimGrid,
-	constraints: &SimConstraints) {
-
-
-
-
-
+/// Push particles apart so that we account for drift and over-dense grid cells.
+pub fn push_particles_apart(
+	constraints: &SimConstraints,
+	grid: &SimGrid,
+	particles: Query<(Entity, &mut SimParticle)>) {
+	
 	// ==============================================================
 	// TODO: Adjust divergence based on particle density in the cell.
 	// ==============================================================
+	
+	// Grab all the particles within this specific cell.
+	// Calculate density of current cell.
+	// If current cell is too dense, push particles apart.
+	// If current cell is not dense enough, pull them inward.
+}
 
-
-
-
-
+/** Force velocity incompressibility for each grid cell within the simulation.  Uses the
+	Gauss-Seidel method. */
+pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &SimConstraints) {
+	
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.iterations_per_frame {
 

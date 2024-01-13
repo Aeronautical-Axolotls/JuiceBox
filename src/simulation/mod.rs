@@ -40,14 +40,26 @@ fn setup(
 /// Simulation state manager update; handles user interactions with the simulation.
 fn update(
 	mut constraints:	ResMut<SimConstraints>,
-	mut grid:			ResMut<SimGrid>) {
+	mut grid:			ResMut<SimGrid>,
+	mut particles:		Query<(Entity, &mut SimParticle)>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
-	// TODO: Check for and handle changes to simulation grid.
-	make_grid_velocities_incompressible(grid.as_mut(), constraints.as_ref());
+	
+	step_simulation_once(constraints.as_ref(), grid.as_mut(), particles);
+	
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
+}
+
+/// Step the fluid simulation one time!
+fn step_simulation_once(
+	constraints: &SimConstraints,
+	grid: &mut SimGrid,
+	particles: Query<(Entity, &mut SimParticle)>) {
+	
+	push_particles_apart(constraints, grid, particles);
+	make_grid_velocities_incompressible(grid, constraints);
 }
 
 #[derive(Resource)]
