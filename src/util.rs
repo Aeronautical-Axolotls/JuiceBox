@@ -255,7 +255,7 @@ pub fn create_window_title(title: &str) -> String {
 pub fn set_window_icon(windows: NonSend<WinitWindows>)
 {
 	let (icon_rgba, icon_width, icon_height) = {
-		let image = image::open("assets/juicebox_logo_sm.png")
+		let image = image::open("assets/juicebox_logo_256.png")
 			.expect("Failed to open icon!")
 			.into_rgba8();
 		let (width, height)	= image.dimensions();

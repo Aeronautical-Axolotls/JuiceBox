@@ -41,12 +41,14 @@ fn setup(
 fn update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
-	mut particles:		Query<(Entity, &mut SimParticle)>) {
+	mut particles:		Query<(Entity, &mut SimParticle)>,
+	time:				Res<Time>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
 	
-	step_simulation_once(constraints.as_ref(), grid.as_mut(), particles);
+	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
+	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
 	
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
@@ -54,12 +56,19 @@ fn update(
 
 /// Step the fluid simulation one time!
 fn step_simulation_once(
-	constraints: &SimConstraints,
-	grid: &mut SimGrid,
-	particles: Query<(Entity, &mut SimParticle)>) {
+	constraints:	&SimConstraints,
+	grid:			&mut SimGrid,
+	particles:		&mut Query<(Entity, &mut SimParticle)>,
+	delta_time:		f32) {
 	
+	integrate_particles(constraints, particles, delta_time);
 	push_particles_apart(constraints, grid, particles);
+	handle_particle_collisions(constraints, grid, particles);
+	
+	// let change_grid: SimGrid = particles_to_grid(grid, particles);
+	
 	make_grid_velocities_incompressible(grid, constraints);
+	// grid_to_particles(grid, &change_grid, particles, 0.9);
 }
 
 #[derive(Resource)]
@@ -67,6 +76,7 @@ pub struct SimConstraints {
 	pub grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
 	pub iterations_per_frame:	u8, 	// Simulation iterations per frame.
 	pub gravity:				Vec2,	// Cartesian gravity vector.
+	pub particle_radius:		f32,	// Particle collision radii.
 }
 
 impl Default for SimConstraints {
@@ -76,6 +86,7 @@ impl Default for SimConstraints {
 			grid_particle_ratio:	0.1,
 			iterations_per_frame:	5,
 			gravity:				Vec2 { x: 0.0, y: -9.81 },
+			particle_radius:		1.5,
 		}
 	}
 }

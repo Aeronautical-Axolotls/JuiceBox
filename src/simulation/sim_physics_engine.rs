@@ -207,7 +207,7 @@ fn apply_grid(
 
 }
 
-fn grid_to_particles(
+pub fn grid_to_particles(
         grid: &SimGrid,
         change_grid: &SimGrid,
         particles: Vec<(Entity, &mut SimParticle)>,
@@ -256,31 +256,105 @@ fn grid_to_particles(
     Ok(())
 }
 
-/// Push particles apart so that we account for drift and over-dense grid cells.
+/// Change each particle's position based on its velocity.
+pub fn integrate_particles(
+	constraints:	&SimConstraints,
+	particles:		&mut Query<(Entity, &mut SimParticle)>,
+	delta_time:		f32) {
+	
+	for (_, mut particle) in particles.iter_mut() {
+		particle.velocity[0] += constraints.gravity[0] * delta_time;
+		particle.velocity[1] += constraints.gravity[1] * delta_time;
+		
+		particle.position[0] += particle.velocity[0] * delta_time;
+		particle.position[1] += particle.velocity[1] * delta_time;
+	}
+}
+
+/// Handle particle collisions with walls.
+pub fn handle_particle_collisions(
+	constraints:	&SimConstraints,
+	grid:			&SimGrid,
+	particles:		&mut Query<(Entity, &mut SimParticle)>) {
+	
+	for (_, mut particle) in particles.iter_mut() {
+		
+		// TODO: This.
+		// Collide with walls.
+		
+		// Don't let particles escape the grid!
+		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
+		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
+		
+		if particle.position[0] < 0.0 {
+			particle.position[0] = 0.0;
+			particle.velocity[0] = 0.0;
+		}
+		if particle.position[0] > grid_width {
+			particle.position[0] = grid_width;
+			particle.velocity[0] = 0.0;
+		}
+		if particle.position[1] < 0.0 {
+			particle.position[1] = 0.0;
+			particle.velocity[1] = 0.0;
+		}
+		if particle.position[1] > grid_height {
+			particle.position[1] = grid_height;
+			particle.velocity[1] = 0.0;
+		}
+	}
+}
+
+/// Push particles apart so that we account for drift and grid cells with incorrect densities.
 pub fn push_particles_apart(
-	constraints: &SimConstraints,
-	grid: &SimGrid,
-	particles: Query<(Entity, &mut SimParticle)>) {
+	constraints:	&SimConstraints,
+	grid:			&SimGrid,
+	particles:		&mut Query<(Entity, &mut SimParticle)>) {
 	
-	// ==============================================================
-	// TODO: Adjust divergence based on particle density in the cell.
-	// ==============================================================
+	for i in 0..constraints.iterations_per_frame {
+		
+		// Collect particles into cells.
+		// For each "bag" of particles in each cell, push them apart if they are touching.
 	
-	// Grab all the particles within this specific cell.
-	// Calculate density of current cell.
-	// If current cell is too dense, push particles apart.
-	// If current cell is not dense enough, pull them inward.
+		let mut iter_mut = particles.iter_combinations_mut();
+		while let Some([(_, mut particle0), (_, mut particle1)]) = iter_mut.fetch_next() {
+			
+			let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
+			let distance: f32			= Vec2::distance(particle0.position, particle1.position);
+			let distance_squared: f32	= distance * distance;
+			
+			if distance_squared > collision_radius || distance_squared == 0.0 {
+				continue;
+			}
+			
+			let delta_x: f32		= particle0.position[0] - particle1.position[0];
+			let delta_y: f32		= particle0.position[1] - particle1.position[1];
+			let delta_modifier: f32	= 0.5 * (collision_radius - distance) / distance;
+			
+			let position_change_x: f32	= delta_x * delta_modifier;
+			let position_change_y: f32	= delta_y * delta_modifier;
+			
+			particle0.position[0] += position_change_x;
+			particle0.position[1] += position_change_y;
+			particle1.position[0] -= position_change_x;
+			particle1.position[1] -= position_change_y;
+		}
+	}
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
 	Gauss-Seidel method. */
 pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &SimConstraints) {
 	
+	// ==============================================================
+	// TODO: Adjust divergence based on particle density in the cell.
+	// ==============================================================
+	
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.iterations_per_frame {
 
-		/* For each grid cell, calculate the inflow/outflow (divergence), find out how many surrounding
-			cells are solid, then adjust grid velocities accordingly. */
+		/* For each grid cell, calculate the inflow/outflow (divergence), find out how many 
+			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
 
