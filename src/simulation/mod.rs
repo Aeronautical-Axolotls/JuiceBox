@@ -33,7 +33,7 @@ fn setup(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 	
-	grid.new((50, 50), 5);
+	grid.change_dimensions((50, 50), 5);
 	test::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
@@ -152,7 +152,7 @@ impl Default for SimGrid {
 impl SimGrid {
 	
 	/// Create a new SimGrid!
-	fn new(&mut self, dimensions: (u16, u16), cell_size: u16) {
+	fn change_dimensions(&mut self, dimensions: (u16, u16), cell_size: u16) {
 		
 		let row_count: usize	= dimensions.0 as usize;
 		let col_count: usize	= dimensions.1 as usize;
