@@ -32,7 +32,8 @@ fn setup(
 	mut commands:		Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
-
+	
+	grid.new((50, 50), 5);
 	test::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
@@ -85,8 +86,8 @@ impl Default for SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:	0.1,
 			iterations_per_frame:	5,
-			gravity:				Vec2 { x: 0.0, y: -9.81 },
-			particle_radius:		1.5,
+			gravity:				Vec2 { x: 0.0, y: -96.2361 },	// 9.81^2 = 96.2361
+			particle_radius:		2.5,
 			particle_count:			0,
 		}
 	}
@@ -149,6 +150,22 @@ impl Default for SimGrid {
 }
 
 impl SimGrid {
+	
+	/// Create a new SimGrid!
+	fn new(&mut self, dimensions: (u16, u16), cell_size: u16) {
+		
+		let row_count: usize	= dimensions.0 as usize;
+		let col_count: usize	= dimensions.1 as usize;
+		
+		self.dimensions			= dimensions;
+		self.cell_size			= cell_size;
+		self.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
+		self.cell_center		= vec![vec![0.0; row_count]; col_count];
+		self.velocity_u			= vec![vec![0.0; row_count + 1]; col_count];
+		self.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
+		self.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
+	}
+	
 	/// Set simulation grid cell type.
     pub fn set_grid_cell_type(
         &mut self,

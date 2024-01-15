@@ -369,9 +369,6 @@ pub fn push_particles_apart(
 						},
 					};
 					
-					// let particle0: &mut SimParticle = particle_combo[0].1.as_mut();
-					// let particle1: &mut SimParticle = particle_combo[1].1.as_mut();
-					// separate_particle_pair(constraints, particle0, particle1);
 					separate_particle_pair(constraints, particle_combo);
 				}
 			}
@@ -397,7 +394,8 @@ fn separate_particle_pair(
 
 	let delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
 	let delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
-	let delta_modifier: f32	= 0.5 * (collision_radius - distance) / distance;
+	let push_factor: f32	= 1.0 / constraints.particle_radius;
+	let delta_modifier: f32	= push_factor * (collision_radius - distance) / distance;
 
 	let position_change_x: f32	= delta_x * delta_modifier;
 	let position_change_y: f32	= delta_y * delta_modifier;
@@ -406,44 +404,6 @@ fn separate_particle_pair(
 	particle_combo[0].1.position[1] += position_change_y;
 	particle_combo[1].1.position[0] -= position_change_x;
 	particle_combo[1].1.position[1] -= position_change_y;
-}
-
-/// Push particles apart so that we account for drift and grid cells with incorrect densities.
-pub fn push_particles_apart_BADBADBADBADBADBADBADBAD(
-	constraints:	&SimConstraints,
-	grid:			&SimGrid,
-	particles:		&mut Query<(Entity, &mut SimParticle)>) {
-	
-	for i in 0..constraints.iterations_per_frame {
-		
-		// TODO: These things to make this not so motherfucking slow (N!).
-		// Collect particles into cells.
-		// For each "bag" of particles in each cell, push them apart if they are touching.
-		
-		let mut iter_mut = particles.iter_combinations_mut();
-		while let Some([(_, mut particle0), (_, mut particle1)]) = iter_mut.fetch_next() {
-			
-			let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
-			let distance: f32			= Vec2::distance(particle0.position, particle1.position);
-			let distance_squared: f32	= distance * distance;
-			
-			if distance_squared > collision_radius || distance_squared == 0.0 {
-				continue;
-			}
-			
-			let delta_x: f32		= particle0.position[0] - particle1.position[0];
-			let delta_y: f32		= particle0.position[1] - particle1.position[1];
-			let delta_modifier: f32	= 0.5 * (collision_radius - distance) / distance;
-			
-			let position_change_x: f32	= delta_x * delta_modifier;
-			let position_change_y: f32	= delta_y * delta_modifier;
-			
-			particle0.position[0] += position_change_x;
-			particle0.position[1] += position_change_y;
-			particle1.position[0] -= position_change_x;
-			particle1.position[1] -= position_change_y;
-		}
-	}
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the

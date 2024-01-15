@@ -6,7 +6,7 @@ use crate::{
 	util::{self, vector_magnitude, JUICE_BLUE, JUICE_GREEN},
 	simulation::{
 		SimParticle,
-		SimGrid, SimGridCellType,
+		SimGrid, SimGridCellType, SimConstraints,
 	},
 };
 
@@ -45,7 +45,7 @@ impl Default for FluidRenderData {
 
 	fn default() -> Self {
 		Self {
-			color_render_type:	FluidColorRenderType::GridCell,
+			color_render_type:	FluidColorRenderType::Velocity,
 			arbitrary_color:	util::JUICE_YELLOW,
 			velocity_magnitude_color_scale:	100.0,
 			pressure_magnitude_color_scale:	100.0,
@@ -124,12 +124,17 @@ pub fn link_particle_sprite(mut commands: &mut Commands, particle: Entity) {
 }
 
 /// Update the visual transform of all particles to be rendered.
-fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>) {
-
+fn update_particle_position(
+	constraints: Res<SimConstraints>,
+	mut particles: Query<(&SimParticle, &mut Transform)>) {
+	
+	// Particles will be drawn from their upper-left corner.  Subtracting this offset will fix that!
+	let particle_half_size: f32 = constraints.particle_radius * 0.5;
+	
 	for (particle, mut transform) in particles.iter_mut() {
 		transform.translation = Vec3 {
-			x: particle.position.x,
-			y: particle.position.y,
+			x: particle.position.x - particle_half_size,
+			y: particle.position.y - particle_half_size,
 			/* IMPORTANT: Keep this at the same z-value for all particles.  This allows Bevy to do
 				sprite batching, cutting render costs by quite a bit.  If we change the z-index we
 				will likely see a large performance drop. */
@@ -139,10 +144,12 @@ fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>
 }
 
 /// Update the size of all particles to be rendered.
-fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
+fn update_particle_size(
+	mut particles:	Query<(&SimParticle, &mut Sprite)>,
+	constraints:	Res<SimConstraints>) {
 
 	for (_, mut sprite) in particles.iter_mut() {
-		let size: f32 = 1.0;
+		let size: f32 = constraints.particle_radius;
 		sprite.custom_size = Some(Vec2::splat(size));
 	}
 }
