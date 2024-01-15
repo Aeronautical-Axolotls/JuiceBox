@@ -256,19 +256,48 @@ pub fn grid_to_particles(
     Ok(())
 }
 
+/// Update the particle's lookup_index based on position, then update the grid's lookup table.
+pub fn update_particle_lookup(particle_id: Entity, particle: &mut SimParticle, grid: &mut SimGrid) {
+	
+	// Find the cell that this particle belongs to and update our spatial lookup accordingly.
+	let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
+	let lookup_index: usize		= get_lookup_index(cell_coordinates, grid.dimensions.0);
+	
+	// Remove the particle from its old lookup cell and place it here in its new one.
+	if !grid.spatial_lookup[lookup_index].contains(&particle_id) {
+		
+		grid.remove_particle_from_lookup(particle_id, particle.lookup_index);
+		grid.spatial_lookup[lookup_index].push(particle_id);
+		particle.lookup_index = lookup_index;
+	}
+}
+
+// Get a cell lookup index into our spatial lookup table.
+pub fn get_lookup_index(cell_coordinates: Vec2, grid_row_count: u16) -> usize {
+	(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * grid_row_count)) as usize
+}
+
 /// Change each particle's position based on its velocity.
-pub fn integrate_particles(
+pub fn integrate_particles_and_update_spatial_lookup(
 	constraints:	&SimConstraints,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
+	grid:			&mut SimGrid,
 	delta_time:		f32) {
 	
-	for (_, mut particle) in particles.iter_mut() {
+	for (id, mut particle) in particles.iter_mut() {
+		// Change each particle's velocity by gravity.
 		particle.velocity[0] += constraints.gravity[0] * delta_time;
 		particle.velocity[1] += constraints.gravity[1] * delta_time;
 		
+		// Change each particle's position by velocity.
 		particle.position[0] += particle.velocity[0] * delta_time;
 		particle.position[1] += particle.velocity[1] * delta_time;
+		
+		// Update this particle's spatial lookup.
+		update_particle_lookup(id, particle.as_mut(), grid);
 	}
+	
+	// TODO: Sort spatial lookup here.
 }
 
 /// Handle particle collisions with walls.
@@ -280,22 +309,22 @@ pub fn handle_particle_collisions(
 	for (_, mut particle) in particles.iter_mut() {
 		
 		// TODO: This.
-		// Collide with walls.
+		// Collide with solid cells.
 		
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
 		
-		if particle.position[0] < 0.0 {
-			particle.position[0] = 0.0;
+		if particle.position[0] < constraints.particle_radius {
+			particle.position[0] = constraints.particle_radius;
 			particle.velocity[0] = 0.0;
 		}
 		if particle.position[0] > grid_width {
 			particle.position[0] = grid_width;
 			particle.velocity[0] = 0.0;
 		}
-		if particle.position[1] < 0.0 {
-			particle.position[1] = 0.0;
+		if particle.position[1] < constraints.particle_radius {
+			particle.position[1] = constraints.particle_radius;
 			particle.velocity[1] = 0.0;
 		}
 		if particle.position[1] > grid_height {
@@ -311,11 +340,62 @@ pub fn push_particles_apart(
 	grid:			&SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>) {
 	
+	// Do this for each iteration of the simulation.
 	for i in 0..constraints.iterations_per_frame {
 		
+		// Go through each particle and check all collisions with neighbors in its cell.
+		for (particle0_id, mut particle0) in particles.iter_mut() {
+			
+			let lookup_index: usize = particle0.lookup_index;
+			
+			for particle1_index in 0..grid.spatial_lookup[lookup_index].len() {
+				
+				// TODO: Error checking here.
+				let particle1_id: Entity	= grid.spatial_lookup[lookup_index][particle1_index];
+				let particle1				= particles.get_mut(particle1_id).unwrap().1;
+				
+				
+				// Don't process collisions on ourself.
+				if particle0_id == particle1_id {
+					continue;
+				}
+				
+				let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
+				let distance: f32			= Vec2::distance(particle0.position, particle1.position);
+				let distance_squared: f32	= distance * distance;
+				
+				if distance_squared > collision_radius || distance_squared == 0.0 {
+					continue;
+				}
+				
+				let delta_x: f32		= particle0.position[0] - particle1.position[0];
+				let delta_y: f32		= particle0.position[1] - particle1.position[1];
+				let delta_modifier: f32	= 0.5 * (collision_radius - distance) / distance;
+				
+				let position_change_x: f32	= delta_x * delta_modifier;
+				let position_change_y: f32	= delta_y * delta_modifier;
+				
+				particle0.position[0] += position_change_x;
+				particle0.position[1] += position_change_y;
+				particle1.position[0] -= position_change_x;
+				particle1.position[1] -= position_change_y;
+			}
+		}
+	}
+}
+
+/// Push particles apart so that we account for drift and grid cells with incorrect densities.
+pub fn push_particles_apart_BADBADBADBADBADBADBADBAD(
+	constraints:	&SimConstraints,
+	grid:			&SimGrid,
+	particles:		&mut Query<(Entity, &mut SimParticle)>) {
+	
+	for i in 0..constraints.iterations_per_frame {
+		
+		// TODO: These things to make this not so motherfucking slow (N!).
 		// Collect particles into cells.
 		// For each "bag" of particles in each cell, push them apart if they are touching.
-	
+		
 		let mut iter_mut = particles.iter_combinations_mut();
 		while let Some([(_, mut particle0), (_, mut particle1)]) = iter_mut.fetch_next() {
 			

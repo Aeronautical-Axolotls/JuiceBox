@@ -3,6 +3,7 @@ pub mod sim_state_manager;
 mod util;
 
 use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
+use std::ptr::null;
 
 use bevy::prelude::*;
 use bevy::math::Vec2;
@@ -32,7 +33,7 @@ fn setup(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	test::construct_test_simulation_layout(grid.as_mut(), commands);
+	test::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
@@ -61,7 +62,7 @@ fn step_simulation_once(
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	delta_time:		f32) {
 	
-	integrate_particles(constraints, particles, delta_time);
+	integrate_particles_and_update_spatial_lookup(constraints, particles, grid, delta_time);
 	push_particles_apart(constraints, grid, particles);
 	handle_particle_collisions(constraints, grid, particles);
 	
@@ -77,6 +78,7 @@ pub struct SimConstraints {
 	pub iterations_per_frame:	u8, 	// Simulation iterations per frame.
 	pub gravity:				Vec2,	// Cartesian gravity vector.
 	pub particle_radius:		f32,	// Particle collision radii.
+	pub particle_count:			usize,	// Number of particles in the simulation.
 }
 
 impl Default for SimConstraints {
@@ -87,6 +89,7 @@ impl Default for SimConstraints {
 			iterations_per_frame:	5,
 			gravity:				Vec2 { x: 0.0, y: -9.81 },
 			particle_radius:		1.5,
+			particle_count:			0,
 		}
 	}
 }
@@ -129,6 +132,7 @@ pub struct SimGrid {
 	pub cell_center:    Vec<Vec<f32>>,			// Magnitude of pressure at center of cell.
 	pub	velocity_u:		Vec<Vec<f32>>,			// Hor. magnitude as row<column<>>; left -> right.
 	pub velocity_v:     Vec<Vec<f32>>,			// Vert. magnitude as row<column<>>; up -> down.
+	pub spatial_lookup:	Vec<Vec<Entity>>,		// [cell_hash_value[list_of_entities_within_cell]].
 }
 
 impl Default for SimGrid {
@@ -141,6 +145,7 @@ impl Default for SimGrid {
             cell_center:    vec![vec![0.0; 25]; 25],
 			velocity_u:		vec![vec![0.0; 26]; 25],
             velocity_v:     vec![vec![0.0; 25]; 26],
+			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 10]; 625],
 		}
 	}
 }
@@ -237,23 +242,49 @@ impl SimGrid {
 	}
 
 	/** Convert the Vec2 coordinates (row, column) from a position (x, y).  **Does not guarantee
-		that the requested position for the cell is valid; only that if a cell were to exist
-		at the given position, it would have the returned Vec2 as its (row, column)
-		coordinates.** */
+		that the requested position for the cell is valid, only that if a cell were to exist 
+		in the position, what its coordinates would be.** */
 	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
 		let cell_size: f32			= self.cell_size as f32;
 		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
-		let coordinates: Vec2 = Vec2 {
+		
+		let mut coordinates: Vec2 = Vec2 {
 			x: (grid_upper_bound - position[1]) / cell_size,	// Row
 			y: position[0] / cell_size,							// Column
 		};
-
+		
+		// Clamp our coordinates to our grid's bounds.
+		/* coordinates[0] = f32::max(0.0, coordinates[0]);
+		coordinates[1] = f32::max(0.0, coordinates[1]);
+		coordinates[0] = f32::min((self.dimensions.0 - 1) as f32, coordinates[0]);
+		coordinates[1] = f32::min((self.dimensions.1 - 1) as f32, coordinates[1]); */
+		
 		coordinates
+	}
+	
+	/// Add a new particle into our spatial lookup table.
+	pub fn add_particle_to_lookup(&mut self, particle_id: Entity, lookup_index: usize) {
+		self.spatial_lookup[lookup_index].push(particle_id);
+	}
+	
+	/// Remove a particle from our spatial lookup table; does nothing if the particle isn't found.
+	pub fn remove_particle_from_lookup(&mut self, particle_id: Entity, lookup_index: usize) {
+		
+		// Search through our spatial lookup at the specified location.
+		for particle_index in 0..self.spatial_lookup[lookup_index].len() {
+			
+			// If we found it, remove it.
+			if self.spatial_lookup[lookup_index][particle_index] == particle_id {
+				self.spatial_lookup[lookup_index].swap_remove(particle_index);
+				break;
+			}
+		}
 	}
 }
 
 #[derive(Component)]
 pub struct SimParticle {
-	pub position:	Vec2, 	// This particle's [x, y] position.
-	pub velocity:	Vec2, 	// This particle's [x, y] velocity.
+	pub position:		Vec2, 	// This particle's [x, y] position.
+	pub velocity:		Vec2, 	// This particle's [x, y] velocity.
+	pub lookup_index:	usize,	// Bucket index into spatial lookup for efficient neighbor search.
 }

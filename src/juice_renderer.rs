@@ -3,7 +3,7 @@ use bevy::{
 	core_pipeline::prelude::ClearColor, render::color,
 };
 use crate::{
-	util::{self, vector_magnitude},
+	util::{self, vector_magnitude, JUICE_BLUE, JUICE_GREEN},
 	simulation::{
 		SimParticle,
 		SimGrid, SimGridCellType,
@@ -30,7 +30,7 @@ impl Plugin for JuiceRenderer {
 	}
 }
 
-enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure }
+enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure, GridCell }
 enum FluidGridVectorType	{ Velocity }
 
 #[derive(Resource)]
@@ -45,7 +45,7 @@ impl Default for FluidRenderData {
 
 	fn default() -> Self {
 		Self {
-			color_render_type:	FluidColorRenderType::Velocity,
+			color_render_type:	FluidColorRenderType::GridCell,
 			arbitrary_color:	util::JUICE_YELLOW,
 			velocity_magnitude_color_scale:	100.0,
 			pressure_magnitude_color_scale:	100.0,
@@ -68,7 +68,7 @@ impl Default for GridRenderData {
 
 	fn default() -> Self {
 		Self {
-			draw_grid:			true,
+			draw_grid:			false,
 			grid_color:			Color::WHITE,
 			solid_cell_color:	Color::BLACK,
 
@@ -167,6 +167,12 @@ fn update_particle_color(
 			particles,
 			particle_render_data.arbitrary_color
 		),
+		FluidColorRenderType::GridCell	=> color_particles_by_grid_cell(
+			particles,
+			grid.as_ref(),
+			JUICE_BLUE,
+			JUICE_GREEN
+		),
 	}
 }
 
@@ -211,6 +217,27 @@ fn color_particles(mut particles: Query<(&SimParticle, &mut Sprite)>, color: Col
 
 	for (_, mut sprite) in particles.iter_mut() {
 		sprite.color = color;
+	}
+}
+
+/// Color all particles in the simulation by their grid cell.
+fn color_particles_by_grid_cell(
+	mut particles:	Query<(&SimParticle, &mut Sprite)>,
+	grid:			&SimGrid,
+	color_even:		Color,
+	color_odd:		Color) {
+
+	for (particle, mut sprite) in particles.iter_mut() {
+
+		let cell_pos: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
+		let cell_row: usize	= cell_pos[1] as usize;
+		let cell_col: usize	= cell_pos[0] as usize;
+
+		if (cell_row + cell_col) % 2 == 0 {
+			sprite.color = color_even;
+		} else {
+			sprite.color = color_odd;
+		}
 	}
 }
 

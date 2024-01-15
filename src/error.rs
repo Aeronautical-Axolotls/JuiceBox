@@ -15,4 +15,7 @@ pub enum Error {
 	
 	#[error("Invalid cell to create particles: `{0}`")]
 	InvalidCellParticleCreation(&'static str),
+	
+	#[error("Invalid entity ID: `{0}`")]
+	InvalidEntityID(&'static str),
 }
