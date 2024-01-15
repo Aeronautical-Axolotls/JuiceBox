@@ -23,7 +23,7 @@ pub fn construct_test_simulation_layout(
 	grid.cell_type[20][15] = SimGridCellType::Solid;
 	grid.cell_type[19][15] = SimGridCellType::Solid;
 
-	// Spawn a group of particles at the center of the screen.
+	// Spawn a group of 3,147 particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {
 		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
 		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,

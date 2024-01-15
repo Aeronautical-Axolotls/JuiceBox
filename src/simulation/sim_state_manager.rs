@@ -96,10 +96,14 @@ fn add_particle(
 
 	// Don't allow the user to create particles out of the simulation grid's bounds!
 	if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds("X-coordinate for particle creation is out of grid bounds!"));
+		return Err(Error::OutOfGridBounds(
+			"X-coordinate for particle creation is out of grid bounds!"
+		));
 	}
 	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds("Y-coordinate for particle creation is out of grid bounds!"));
+		return Err(Error::OutOfGridBounds(
+			"Y-coordinate for particle creation is out of grid bounds!"
+		));
 	}
 	// If the cell we are inside of is a solid, don't create the particle!
 	let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&position);

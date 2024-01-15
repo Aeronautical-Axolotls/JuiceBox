@@ -68,7 +68,7 @@ impl Default for GridRenderData {
 
 	fn default() -> Self {
 		Self {
-			draw_grid:			false,
+			draw_grid:			true,
 			grid_color:			Color::WHITE,
 			solid_cell_color:	Color::BLACK,
 

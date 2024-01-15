@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
-// use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 pub mod simulation;
 pub mod util;
@@ -26,8 +26,8 @@ fn main() {
 		EguiPlugin,
 
 		// Non-release plugins:
-		// LogDiagnosticsPlugin::default(),
-		// FrameTimeDiagnosticsPlugin::default(),
+		LogDiagnosticsPlugin::default(),
+		FrameTimeDiagnosticsPlugin::default(),
 	));
 	
 	juicebox.add_systems(Startup, util::set_window_icon);

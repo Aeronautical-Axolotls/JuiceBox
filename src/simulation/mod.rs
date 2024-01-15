@@ -65,9 +65,7 @@ fn step_simulation_once(
 	integrate_particles_and_update_spatial_lookup(constraints, particles, grid, delta_time);
 	push_particles_apart(constraints, grid, particles);
 	handle_particle_collisions(constraints, grid, particles);
-	
 	// let change_grid: SimGrid = particles_to_grid(grid, particles);
-	
 	make_grid_velocities_incompressible(grid, constraints);
 	// grid_to_particles(grid, &change_grid, particles, 0.9);
 }
@@ -145,7 +143,7 @@ impl Default for SimGrid {
             cell_center:    vec![vec![0.0; 25]; 25],
 			velocity_u:		vec![vec![0.0; 26]; 25],
             velocity_v:     vec![vec![0.0; 25]; 26],
-			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 10]; 625],
+			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 625],
 		}
 	}
 }
@@ -241,34 +239,43 @@ impl SimGrid {
 		}
 	}
 
-	/** Convert the Vec2 coordinates (row, column) from a position (x, y).  **Does not guarantee
-		that the requested position for the cell is valid, only that if a cell were to exist 
-		in the position, what its coordinates would be.** */
+	/** Convert the Vec2 coordinates (row, column) from a position (x, y).  **will return the 
+		closest valid cell to any invalid position input.** */
 	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
 		let cell_size: f32			= self.cell_size as f32;
 		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
 		
 		let mut coordinates: Vec2 = Vec2 {
-			x: (grid_upper_bound - position[1]) / cell_size,	// Row
-			y: position[0] / cell_size,							// Column
+			x: f32::floor((grid_upper_bound - position[1]) / cell_size),	// Row
+			y: f32::floor(position[0] / cell_size),							// Column
 		};
 		
 		// Clamp our coordinates to our grid's bounds.
-		/* coordinates[0] = f32::max(0.0, coordinates[0]);
+		coordinates[0] = f32::max(0.0, coordinates[0]);
 		coordinates[1] = f32::max(0.0, coordinates[1]);
 		coordinates[0] = f32::min((self.dimensions.0 - 1) as f32, coordinates[0]);
-		coordinates[1] = f32::min((self.dimensions.1 - 1) as f32, coordinates[1]); */
+		coordinates[1] = f32::min((self.dimensions.1 - 1) as f32, coordinates[1]);
 		
 		coordinates
 	}
 	
 	/// Add a new particle into our spatial lookup table.
 	pub fn add_particle_to_lookup(&mut self, particle_id: Entity, lookup_index: usize) {
+		
+		if lookup_index > self.spatial_lookup.len() {
+			eprintln!("Particle lookup index is out-of-bounds; cannot add particle to table!");
+			return;
+		}
 		self.spatial_lookup[lookup_index].push(particle_id);
 	}
 	
 	/// Remove a particle from our spatial lookup table; does nothing if the particle isn't found.
 	pub fn remove_particle_from_lookup(&mut self, particle_id: Entity, lookup_index: usize) {
+		
+		if lookup_index > self.spatial_lookup.len() {
+			eprintln!("Particle lookup index is out-of-bounds; cannot remove particle from table!");
+			return;
+		}
 		
 		// Search through our spatial lookup at the specified location.
 		for particle_index in 0..self.spatial_lookup[lookup_index].len() {
@@ -279,6 +286,28 @@ impl SimGrid {
 				break;
 			}
 		}
+	}
+	
+	/// Get a Vec<Entity> of the particles currently inside of the cell at lookup_index.
+	pub fn get_particles_in_lookup(&self, lookup_index: usize) -> Vec<Entity> {
+		if lookup_index > (self.dimensions.0 * self.dimensions.1) as usize {
+			eprintln!("Lookup index out of bounds; returning an empty vector!");
+			return Vec::new();
+		}
+		
+		let mut lookup_vector: Vec<Entity> = Vec::new();
+		
+		for particle_id in self.spatial_lookup[lookup_index].iter() {
+			
+			// TODO: Don't use placeholder!  Bad kitty!!!
+			if *particle_id == Entity::PLACEHOLDER {
+				continue;
+			}
+			
+			lookup_vector.push(*particle_id);
+		}
+		
+		lookup_vector
 	}
 }
 

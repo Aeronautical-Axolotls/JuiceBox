@@ -308,8 +308,7 @@ pub fn handle_particle_collisions(
 	
 	for (_, mut particle) in particles.iter_mut() {
 		
-		// TODO: This.
-		// Collide with solid cells.
+		// TODO: Collide with solid cells.
 		
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
@@ -340,48 +339,72 @@ pub fn push_particles_apart(
 	grid:			&SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>) {
 	
-	// Do this for each iteration of the simulation.
 	for i in 0..constraints.iterations_per_frame {
 		
-		// Go through each particle and check all collisions with neighbors in its cell.
-		for (particle0_id, mut particle0) in particles.iter_mut() {
+		// For each grid cell.
+		for lookup_index in 0..grid.spatial_lookup.len() {
 			
-			let lookup_index: usize = particle0.lookup_index;
-			
-			for particle1_index in 0..grid.spatial_lookup[lookup_index].len() {
+			// For each particle within this grid cell.
+			for particle0_id in grid.get_particles_in_lookup(lookup_index).iter() {
 				
-				// TODO: Error checking here.
-				let particle1_id: Entity	= grid.spatial_lookup[lookup_index][particle1_index];
-				let particle1				= particles.get_mut(particle1_id).unwrap().1;
+				// Will return a Vec<Entity> of only the valid entities within the cell.
+				let possible_collisions: Vec<Entity> = grid.get_particles_in_lookup(lookup_index);
 				
-				
-				// Don't process collisions on ourself.
-				if particle0_id == particle1_id {
-					continue;
+				// For each OTHER particle within this grid cell.
+				for particle1_id in possible_collisions.iter() {
+					
+					if particle0_id == particle1_id {
+						continue;
+					}
+					
+					let particle_combo_result = particles.get_many_mut([
+						*particle0_id,
+						*particle1_id,
+					]);
+					let mut particle_combo = match(particle_combo_result) {
+						Ok(particle_combo_result)	=> particle_combo_result,
+						Err(error)					=> {
+							eprintln!("Invalid particle combo; skipping!");
+							continue;
+						},
+					};
+					
+					
+					let particle0: &mut SimParticle = particle_combo[0].1.as_mut();
+					let particle1: &mut SimParticle = particle_combo[1].1.as_mut();
+					
+					separate_particle_pair(constraints, particle0, particle1);
 				}
-				
-				let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
-				let distance: f32			= Vec2::distance(particle0.position, particle1.position);
-				let distance_squared: f32	= distance * distance;
-				
-				if distance_squared > collision_radius || distance_squared == 0.0 {
-					continue;
-				}
-				
-				let delta_x: f32		= particle0.position[0] - particle1.position[0];
-				let delta_y: f32		= particle0.position[1] - particle1.position[1];
-				let delta_modifier: f32	= 0.5 * (collision_radius - distance) / distance;
-				
-				let position_change_x: f32	= delta_x * delta_modifier;
-				let position_change_y: f32	= delta_y * delta_modifier;
-				
-				particle0.position[0] += position_change_x;
-				particle0.position[1] += position_change_y;
-				particle1.position[0] -= position_change_x;
-				particle1.position[1] -= position_change_y;
 			}
 		}
 	}
+}
+
+/// Helper function for push_particles_apart().
+fn separate_particle_pair(
+	constraints:	&SimConstraints,
+	particle0:		&mut SimParticle,
+	particle1:		&mut SimParticle) {
+	
+	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
+	let distance: f32			= Vec2::distance(particle0.position, particle1.position);
+	let distance_squared: f32	= distance * distance;
+
+	if distance_squared > collision_radius || distance_squared == 0.0 {
+		return;
+	}
+
+	let delta_x: f32		= particle0.position[0] - particle1.position[0];
+	let delta_y: f32		= particle0.position[1] - particle1.position[1];
+	let delta_modifier: f32	= 0.5 * (collision_radius - distance) / distance;
+
+	let position_change_x: f32	= delta_x * delta_modifier;
+	let position_change_y: f32	= delta_y * delta_modifier;
+
+	particle0.position[0] += position_change_x;
+	particle0.position[1] += position_change_y;
+	particle1.position[0] -= position_change_x;
+	particle1.position[1] -= position_change_y;
 }
 
 /// Push particles apart so that we account for drift and grid cells with incorrect densities.
