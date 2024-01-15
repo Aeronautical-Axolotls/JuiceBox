@@ -296,8 +296,6 @@ pub fn integrate_particles_and_update_spatial_lookup(
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);
 	}
-	
-	// TODO: Sort spatial lookup here.
 }
 
 /// Handle particle collisions with walls.
@@ -313,7 +311,6 @@ pub fn handle_particle_collisions(
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
-		
 		if particle.position[0] < constraints.particle_radius {
 			particle.position[0] = constraints.particle_radius;
 			particle.velocity[0] = 0.0;
@@ -353,10 +350,12 @@ pub fn push_particles_apart(
 				// For each OTHER particle within this grid cell.
 				for particle1_id in possible_collisions.iter() {
 					
+					// Don't process a collision between ourself!
 					if particle0_id == particle1_id {
 						continue;
 					}
 					
+					// Get both particles involved in the collision.
 					let particle_combo_result = particles.get_many_mut([
 						*particle0_id,
 						*particle1_id,
@@ -369,6 +368,7 @@ pub fn push_particles_apart(
 						},
 					};
 					
+					// Push both particles apart.
 					separate_particle_pair(constraints, particle_combo);
 				}
 			}
@@ -381,25 +381,28 @@ fn separate_particle_pair(
 	constraints:		&SimConstraints,
 	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
 	
+	// Calculate a collision radius and distance to modify position (and break early if too far).
 	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
 	let distance: f32			= Vec2::distance(
 		particle_combo[0].1.position,
 		particle_combo[1].1.position
 	);
 	let distance_squared: f32	= distance * distance;
-
+	
+	// Break early if particles are too far apart (or are at the exact same position).
 	if distance_squared > collision_radius || distance_squared == 0.0 {
 		return;
 	}
-
+	
+	// Calculate the difference in position we need to separate the particles.
 	let delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
 	let delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
-	let push_factor: f32	= 1.0 / constraints.particle_radius;
+	let push_factor: f32	= 0.5;
 	let delta_modifier: f32	= push_factor * (collision_radius - distance) / distance;
-
 	let position_change_x: f32	= delta_x * delta_modifier;
 	let position_change_y: f32	= delta_y * delta_modifier;
-
+	
+	// Move the particles apart!
 	particle_combo[0].1.position[0] += position_change_x;
 	particle_combo[0].1.position[1] += position_change_y;
 	particle_combo[1].1.position[0] -= position_change_x;
