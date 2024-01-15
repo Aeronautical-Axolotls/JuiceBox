@@ -8,7 +8,7 @@ pub mod juice_renderer;
 pub mod error;
 // pub mod test and ui;
 
-pub mod test;
+pub mod test_old;
 pub mod ui;
 
 use simulation::Simulation;

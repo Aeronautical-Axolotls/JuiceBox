@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::juice_renderer;
-use crate::test;
+use crate::test_old;
 use sim_state_manager::*;
 use sim_physics_engine::*;
 
@@ -34,7 +34,7 @@ fn setup(
 	mut grid:			ResMut<SimGrid>) {
 	
 	grid.change_dimensions((50, 50), 5);
-	test::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
+	test_old::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
