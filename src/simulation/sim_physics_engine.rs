@@ -369,11 +369,10 @@ pub fn push_particles_apart(
 						},
 					};
 					
-					
-					let particle0: &mut SimParticle = particle_combo[0].1.as_mut();
-					let particle1: &mut SimParticle = particle_combo[1].1.as_mut();
-					
-					separate_particle_pair(constraints, particle0, particle1);
+					// let particle0: &mut SimParticle = particle_combo[0].1.as_mut();
+					// let particle1: &mut SimParticle = particle_combo[1].1.as_mut();
+					// separate_particle_pair(constraints, particle0, particle1);
+					separate_particle_pair(constraints, particle_combo);
 				}
 			}
 		}
@@ -382,29 +381,31 @@ pub fn push_particles_apart(
 
 /// Helper function for push_particles_apart().
 fn separate_particle_pair(
-	constraints:	&SimConstraints,
-	particle0:		&mut SimParticle,
-	particle1:		&mut SimParticle) {
+	constraints:		&SimConstraints,
+	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
 	
 	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
-	let distance: f32			= Vec2::distance(particle0.position, particle1.position);
+	let distance: f32			= Vec2::distance(
+		particle_combo[0].1.position,
+		particle_combo[1].1.position
+	);
 	let distance_squared: f32	= distance * distance;
 
 	if distance_squared > collision_radius || distance_squared == 0.0 {
 		return;
 	}
 
-	let delta_x: f32		= particle0.position[0] - particle1.position[0];
-	let delta_y: f32		= particle0.position[1] - particle1.position[1];
+	let delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
+	let delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
 	let delta_modifier: f32	= 0.5 * (collision_radius - distance) / distance;
 
 	let position_change_x: f32	= delta_x * delta_modifier;
 	let position_change_y: f32	= delta_y * delta_modifier;
 
-	particle0.position[0] += position_change_x;
-	particle0.position[1] += position_change_y;
-	particle1.position[0] -= position_change_x;
-	particle1.position[1] -= position_change_y;
+	particle_combo[0].1.position[0] += position_change_x;
+	particle_combo[0].1.position[1] += position_change_y;
+	particle_combo[1].1.position[0] -= position_change_x;
+	particle_combo[1].1.position[1] -= position_change_y;
 }
 
 /// Push particles apart so that we account for drift and grid cells with incorrect densities.
