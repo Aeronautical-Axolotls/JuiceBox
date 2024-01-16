@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
-// use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 pub mod simulation;
 pub mod util;
@@ -8,7 +8,7 @@ pub mod juice_renderer;
 pub mod error;
 // pub mod test and ui;
 
-pub mod test;
+pub mod test_old;
 pub mod ui;
 
 use simulation::Simulation;
@@ -26,12 +26,13 @@ fn main() {
 		EguiPlugin,
 
 		// Non-release plugins:
-		// LogDiagnosticsPlugin::default(),
-		// FrameTimeDiagnosticsPlugin::default(),
+		LogDiagnosticsPlugin::default(),
+		FrameTimeDiagnosticsPlugin::default(),
 	));
-
-	juicebox.add_systems(Update,ui_base);
-
+	
+	juicebox.add_systems(Startup, util::set_window_icon);
+	
+	juicebox.add_systems(Update, ui_base);
 	juicebox.add_systems(Update, util::control_camera);
 
 	juicebox.run();

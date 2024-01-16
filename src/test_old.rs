@@ -1,6 +1,7 @@
 use bevy::{
 	prelude::*,
 };
+use crate::simulation::SimConstraints;
 use crate::simulation::{
 	SimGridCellType,
 	SimGrid,
@@ -9,8 +10,11 @@ use crate::simulation::{
 use crate::juice_renderer::draw_vector_arrow;
 
 /// Create a simulation layout for testing.
-pub fn construct_test_simulation_layout(grid: &mut SimGrid, mut commands: Commands)
-{
+pub fn construct_test_simulation_layout(
+	constraints:	&mut SimConstraints,
+	grid:			&mut SimGrid,
+	mut commands:	Commands) {
+	
 	// Create a bunch of solid cells.
 	grid.cell_type[19][12] = SimGridCellType::Solid;
 	grid.cell_type[20][12] = SimGridCellType::Solid;
@@ -19,13 +23,14 @@ pub fn construct_test_simulation_layout(grid: &mut SimGrid, mut commands: Comman
 	grid.cell_type[20][15] = SimGridCellType::Solid;
 	grid.cell_type[19][15] = SimGridCellType::Solid;
 
-	// Spawn a group of particles at the center of the screen.
+	// Spawn a group of 3,147 particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {
 		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
 		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
 	};
 	let _test_particles = add_particles_in_radius(
 		&mut commands,
+		constraints,
 		grid,
 		3.5,
 		100.0,

@@ -3,12 +3,13 @@ pub mod sim_state_manager;
 mod util;
 
 use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
+use std::ptr::null;
 
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::juice_renderer;
-use crate::test;
+use crate::test_old;
 use sim_state_manager::*;
 use sim_physics_engine::*;
 
@@ -31,8 +32,9 @@ fn setup(
 	mut commands:		Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
-
-	test::construct_test_simulation_layout(grid.as_mut(), commands);
+	
+	grid.change_dimensions((50, 50), 5);
+	test_old::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
@@ -40,14 +42,33 @@ fn setup(
 /// Simulation state manager update; handles user interactions with the simulation.
 fn update(
 	mut constraints:	ResMut<SimConstraints>,
-	mut grid:			ResMut<SimGrid>) {
+	mut grid:			ResMut<SimGrid>,
+	mut particles:		Query<(Entity, &mut SimParticle)>,
+	time:				Res<Time>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
-	// TODO: Check for and handle changes to simulation grid.
-	make_grid_velocities_incompressible(grid.as_mut(), constraints.as_ref());
+	
+	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
+	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
+	
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
+}
+
+/// Step the fluid simulation one time!
+fn step_simulation_once(
+	constraints:	&SimConstraints,
+	grid:			&mut SimGrid,
+	particles:		&mut Query<(Entity, &mut SimParticle)>,
+	delta_time:		f32) {
+	
+	integrate_particles_and_update_spatial_lookup(constraints, particles, grid, delta_time);
+	push_particles_apart(constraints, grid, particles);
+	handle_particle_collisions(constraints, grid, particles);
+	// let change_grid: SimGrid = particles_to_grid(grid, particles);
+	make_grid_velocities_incompressible(grid, constraints);
+	// grid_to_particles(grid, &change_grid, particles, 0.9);
 }
 
 #[derive(Resource)]
@@ -55,6 +76,8 @@ pub struct SimConstraints {
 	pub grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
 	pub iterations_per_frame:	u8, 	// Simulation iterations per frame.
 	pub gravity:				Vec2,	// Cartesian gravity vector.
+	pub particle_radius:		f32,	// Particle collision radii.
+	pub particle_count:			usize,	// Number of particles in the simulation.
 }
 
 impl Default for SimConstraints {
@@ -63,7 +86,9 @@ impl Default for SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:	0.1,
 			iterations_per_frame:	5,
-			gravity:				Vec2 { x: 0.0, y: -9.81 },
+			gravity:				Vec2 { x: 0.0, y: -96.2361 },	// 9.81^2 = 96.2361
+			particle_radius:		2.5,
+			particle_count:			0,
 		}
 	}
 }
@@ -106,6 +131,7 @@ pub struct SimGrid {
 	pub cell_center:    Vec<Vec<f32>>,			// Magnitude of pressure at center of cell.
 	pub	velocity_u:		Vec<Vec<f32>>,			// Hor. magnitude as row<column<>>; left -> right.
 	pub velocity_v:     Vec<Vec<f32>>,			// Vert. magnitude as row<column<>>; up -> down.
+	pub spatial_lookup:	Vec<Vec<Entity>>,		// [cell_hash_value[list_of_entities_within_cell]].
 }
 
 impl Default for SimGrid {
@@ -118,11 +144,28 @@ impl Default for SimGrid {
             cell_center:    vec![vec![0.0; 25]; 25],
 			velocity_u:		vec![vec![0.0; 26]; 25],
             velocity_v:     vec![vec![0.0; 25]; 26],
+			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 625],
 		}
 	}
 }
 
 impl SimGrid {
+	
+	/// Create a new SimGrid!
+	fn change_dimensions(&mut self, dimensions: (u16, u16), cell_size: u16) {
+		
+		let row_count: usize	= dimensions.0 as usize;
+		let col_count: usize	= dimensions.1 as usize;
+		
+		self.dimensions			= dimensions;
+		self.cell_size			= cell_size;
+		self.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
+		self.cell_center		= vec![vec![0.0; row_count]; col_count];
+		self.velocity_u			= vec![vec![0.0; row_count + 1]; col_count];
+		self.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
+		self.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
+	}
+	
 	/// Set simulation grid cell type.
     pub fn set_grid_cell_type(
         &mut self,
@@ -213,24 +256,81 @@ impl SimGrid {
 		}
 	}
 
-	/** Convert the Vec2 coordinates (row, column) from a position (x, y).  **Does not guarantee
-		that the requested position for the cell is valid; only that if a cell were to exist
-		at the given position, it would have the returned Vec2 as its (row, column)
-		coordinates.** */
+	/** Convert the Vec2 coordinates (row, column) from a position (x, y).  **will return the 
+		closest valid cell to any invalid position input.** */
 	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
 		let cell_size: f32			= self.cell_size as f32;
 		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
-		let coordinates: Vec2 = Vec2 {
-			x: (grid_upper_bound - position[1]) / cell_size,	// Row
-			y: position[0] / cell_size,							// Column
+		
+		let mut coordinates: Vec2 = Vec2 {
+			x: f32::floor((grid_upper_bound - position[1]) / cell_size),	// Row
+			y: f32::floor(position[0] / cell_size),							// Column
 		};
-
+		
+		// Clamp our coordinates to our grid's bounds.
+		coordinates[0] = f32::max(0.0, coordinates[0]);
+		coordinates[1] = f32::max(0.0, coordinates[1]);
+		coordinates[0] = f32::min((self.dimensions.0 - 1) as f32, coordinates[0]);
+		coordinates[1] = f32::min((self.dimensions.1 - 1) as f32, coordinates[1]);
+		
 		coordinates
+	}
+	
+	/// Add a new particle into our spatial lookup table.
+	pub fn add_particle_to_lookup(&mut self, particle_id: Entity, lookup_index: usize) {
+		
+		if lookup_index > self.spatial_lookup.len() {
+			eprintln!("Particle lookup index is out-of-bounds; cannot add particle to table!");
+			return;
+		}
+		self.spatial_lookup[lookup_index].push(particle_id);
+	}
+	
+	/// Remove a particle from our spatial lookup table; does nothing if the particle isn't found.
+	pub fn remove_particle_from_lookup(&mut self, particle_id: Entity, lookup_index: usize) {
+		
+		if lookup_index > self.spatial_lookup.len() {
+			eprintln!("Particle lookup index is out-of-bounds; cannot remove particle from table!");
+			return;
+		}
+		
+		// Search through our spatial lookup at the specified location.
+		for particle_index in 0..self.spatial_lookup[lookup_index].len() {
+			
+			// If we found it, remove it.
+			if self.spatial_lookup[lookup_index][particle_index] == particle_id {
+				self.spatial_lookup[lookup_index].swap_remove(particle_index);
+				break;
+			}
+		}
+	}
+	
+	/// Get a Vec<Entity> of the particles currently inside of the cell at lookup_index.
+	pub fn get_particles_in_lookup(&self, lookup_index: usize) -> Vec<Entity> {
+		if lookup_index > (self.dimensions.0 * self.dimensions.1) as usize {
+			eprintln!("Lookup index out of bounds; returning an empty vector!");
+			return Vec::new();
+		}
+		
+		let mut lookup_vector: Vec<Entity> = Vec::new();
+		
+		for particle_id in self.spatial_lookup[lookup_index].iter() {
+			
+			// TODO: Don't use placeholder!  Bad kitty!!!
+			if *particle_id == Entity::PLACEHOLDER {
+				continue;
+			}
+			
+			lookup_vector.push(*particle_id);
+		}
+		
+		lookup_vector
 	}
 }
 
 #[derive(Component)]
 pub struct SimParticle {
-	pub position:	Vec2, 	// This particle's [x, y] position.
-	pub velocity:	Vec2, 	// This particle's [x, y] velocity.
+	pub position:		Vec2, 	// This particle's [x, y] position.
+	pub velocity:		Vec2, 	// This particle's [x, y] velocity.
+	pub lookup_index:	usize,	// Bucket index into spatial lookup for efficient neighbor search.
 }

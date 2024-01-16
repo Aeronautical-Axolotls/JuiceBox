@@ -3,10 +3,10 @@ use bevy::{
 	core_pipeline::prelude::ClearColor, render::color,
 };
 use crate::{
-	util::{self, vector_magnitude},
+	util::{self, vector_magnitude, JUICE_BLUE, JUICE_GREEN},
 	simulation::{
 		SimParticle,
-		SimGrid, SimGridCellType,
+		SimGrid, SimGridCellType, SimConstraints,
 	},
 };
 
@@ -30,7 +30,7 @@ impl Plugin for JuiceRenderer {
 	}
 }
 
-enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure }
+enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure, GridCell }
 enum FluidGridVectorType	{ Velocity }
 
 #[derive(Resource)]
@@ -47,8 +47,8 @@ impl Default for FluidRenderData {
 		Self {
 			color_render_type:	FluidColorRenderType::Velocity,
 			arbitrary_color:	util::JUICE_YELLOW,
-			velocity_magnitude_color_scale:	10.0,
-			pressure_magnitude_color_scale:	10.0,
+			velocity_magnitude_color_scale:	100.0,
+			pressure_magnitude_color_scale:	100.0,
 		}
 	}
 }
@@ -124,12 +124,17 @@ pub fn link_particle_sprite(mut commands: &mut Commands, particle: Entity) {
 }
 
 /// Update the visual transform of all particles to be rendered.
-fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>) {
-
+fn update_particle_position(
+	constraints: Res<SimConstraints>,
+	mut particles: Query<(&SimParticle, &mut Transform)>) {
+	
+	// Particles will be drawn from their upper-left corner.  Subtracting this offset will fix that!
+	let particle_half_size: f32 = constraints.particle_radius * 0.5;
+	
 	for (particle, mut transform) in particles.iter_mut() {
 		transform.translation = Vec3 {
-			x: particle.position.x,
-			y: particle.position.y,
+			x: particle.position.x - particle_half_size,
+			y: particle.position.y - particle_half_size,
 			/* IMPORTANT: Keep this at the same z-value for all particles.  This allows Bevy to do
 				sprite batching, cutting render costs by quite a bit.  If we change the z-index we
 				will likely see a large performance drop. */
@@ -139,10 +144,12 @@ fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>
 }
 
 /// Update the size of all particles to be rendered.
-fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
+fn update_particle_size(
+	mut particles:	Query<(&SimParticle, &mut Sprite)>,
+	constraints:	Res<SimConstraints>) {
 
 	for (_, mut sprite) in particles.iter_mut() {
-		let size: f32 = 1.0;
+		let size: f32 = constraints.particle_radius;
 		sprite.custom_size = Some(Vec2::splat(size));
 	}
 }
@@ -166,6 +173,12 @@ fn update_particle_color(
 		FluidColorRenderType::Arbitrary	=> color_particles(
 			particles,
 			particle_render_data.arbitrary_color
+		),
+		FluidColorRenderType::GridCell	=> color_particles_by_grid_cell(
+			particles,
+			grid.as_ref(),
+			JUICE_BLUE,
+			JUICE_GREEN
 		),
 	}
 }
@@ -211,6 +224,27 @@ fn color_particles(mut particles: Query<(&SimParticle, &mut Sprite)>, color: Col
 
 	for (_, mut sprite) in particles.iter_mut() {
 		sprite.color = color;
+	}
+}
+
+/// Color all particles in the simulation by their grid cell.
+fn color_particles_by_grid_cell(
+	mut particles:	Query<(&SimParticle, &mut Sprite)>,
+	grid:			&SimGrid,
+	color_even:		Color,
+	color_odd:		Color) {
+
+	for (particle, mut sprite) in particles.iter_mut() {
+
+		let cell_pos: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
+		let cell_row: usize	= cell_pos[1] as usize;
+		let cell_col: usize	= cell_pos[0] as usize;
+
+		if (cell_row + cell_col) % 2 == 0 {
+			sprite.color = color_even;
+		} else {
+			sprite.color = color_odd;
+		}
 	}
 }
 

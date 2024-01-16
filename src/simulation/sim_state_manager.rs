@@ -49,14 +49,15 @@ pub type Result<T> = core::result::Result<T, Error>;
 	the number of particles per unit radius. */
 pub fn add_particles_in_radius(
 	commands:			&mut Commands,
-	grid:				&SimGrid,
+	constraints:		&mut SimConstraints,
+	grid:				&mut SimGrid,
 	particle_density:	f32,
 	radius:				f32,
 	center_position:	Vec2,
 	velocity:			Vec2) {
 
 	// Create center particle.
-	let _center_particle = add_particle(commands, grid, center_position, velocity);
+	let _center_particle = add_particle(commands, constraints, grid, center_position, velocity);
 
 	// Density for the rings inside the circle.
 	let ring_density: f32		= particle_density * 2.0;
@@ -80,24 +81,29 @@ pub fn add_particles_in_radius(
 			};
 //
 			// If particle_position is outside the grid bounds, this will not create a particle:
-			let _particle = add_particle(commands, grid, particle_position, velocity);
+			let _particle = add_particle(commands, constraints, grid, particle_position, velocity);
 		}
 	}
 }
 
 /// Add particles into the simulation.
 fn add_particle(
-	commands:	&mut Commands,
-	grid:			&SimGrid,
+	commands:		&mut Commands,
+	constraints:	&mut SimConstraints,
+	grid:			&mut SimGrid,
 	position:		Vec2,
 	velocity:		Vec2) -> Result<()> {
 
 	// Don't allow the user to create particles out of the simulation grid's bounds!
 	if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds("X-coordinate for particle creation is out of grid bounds!"));
+		return Err(Error::OutOfGridBounds(
+			"X-coordinate for particle creation is out of grid bounds!"
+		));
 	}
 	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds("Y-coordinate for particle creation is out of grid bounds!"));
+		return Err(Error::OutOfGridBounds(
+			"Y-coordinate for particle creation is out of grid bounds!"
+		));
 	}
 	// If the cell we are inside of is a solid, don't create the particle!
 	let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&position);
@@ -106,14 +112,20 @@ fn add_particle(
 		SimGridCellType::Solid) {
 		return Err(Error::InvalidCellParticleCreation("Chosen cell is solid!"));
 	}
-
-	let particle: Entity = commands.spawn(
+	
+	// Add every particle to the 0-cell's lookup at first; we will sort this next frame.
+	let lookup_index: usize	= 0;
+	let particle: Entity	= commands.spawn(
 		SimParticle {
-			position:	position,
-			velocity:	velocity,
+			position:		position,
+			velocity:		velocity,
+			lookup_index:	lookup_index,
 		}
 	).id();
-
+	grid.add_particle_to_lookup(particle, lookup_index);
+	
+	constraints.particle_count += 1;
+	
 	// IMPORTANT: Links a sprite to each particle for rendering.
 	juice_renderer::link_particle_sprite(commands, particle);
 
@@ -121,13 +133,25 @@ fn add_particle(
 }
 
 /// Remove a particle with ID particle_id from the simulation.
-fn delete_particles(
-	mut commands:	&mut Commands,
-	mut particles:	Query<(Entity, &mut SimParticle)>,
-	particle_id:	Entity) -> Result<()> {
-
-	commands.entity(particle_id).despawn();
-	Ok(())
+fn delete_particle(
+	mut commands:		&mut Commands,
+	mut constraints:	&mut SimConstraints,
+	mut particles:		Query<(Entity, &mut SimParticle)>,
+	grid:				&mut SimGrid,
+	particle_id:		Entity) -> Result<()> {
+	
+	// Look for the particle in our particles query.
+	if let Ok(particle) = particles.get(particle_id) {
+		
+		// Remove particle from lookup table and despawn it.
+		grid.remove_particle_from_lookup(particle_id, particle.1.lookup_index);
+		commands.entity(particle_id).despawn();
+		constraints.particle_count -= 1;
+		
+		return Ok(());
+	}
+	
+	Err(Error::InvalidEntityID("Invalid particle entity ID!"))
 }
 
 /** Returns a vector of ID's of the particles within a circle centered at "position" with radius
