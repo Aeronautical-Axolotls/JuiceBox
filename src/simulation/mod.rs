@@ -9,9 +9,9 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::juice_renderer;
-use crate::test_old;
 use sim_state_manager::*;
 use sim_physics_engine::*;
+use crate::test::test_state_manager;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -34,7 +34,7 @@ fn setup(
 	mut grid:			ResMut<SimGrid>) {
 	
 	grid.change_dimensions((50, 50), 5);
-	test_old::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
+	test_state_manager::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
@@ -86,7 +86,7 @@ impl Default for SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:	0.1,
 			iterations_per_frame:	5,
-			gravity:				Vec2 { x: 0.0, y: -96.2361 },	// 9.81^2 = 96.2361
+			gravity:				Vec2 { x: 0.0, y: -9.81 },	// 9.81^2 = 96.2361
 			particle_radius:		2.5,
 			particle_count:			0,
 		}
