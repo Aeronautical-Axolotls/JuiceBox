@@ -8,7 +8,8 @@ use std::ptr::null;
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::juice_renderer;
+use crate::juice_renderer::{self, draw_selection_circle};
+use crate::util::JUICE_YELLOW;
 use sim_state_manager::*;
 use sim_physics_engine::*;
 use crate::test::test_state_manager;
@@ -35,15 +36,20 @@ fn setup(
 	
 	grid.change_dimensions((50, 50), 5);
 	test_state_manager::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
+	
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
 }
 
 /// Simulation state manager update; handles user interactions with the simulation.
 fn update(
+	mut commands:		Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
+	windows:			Query<&Window>,
+	cameras:			Query<(&Camera, &GlobalTransform)>,
+	mut gizmos:			Gizmos,
 	time:				Res<Time>) {
 
 	// TODO: Check for and handle simulation saving/loading.
@@ -51,6 +57,8 @@ fn update(
 	
 	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
+	test_state_manager::test_select_grid_cells(&mut commands, constraints.as_mut(), grid.as_mut(), &particles, &windows, &cameras, &mut gizmos);
+	test_state_manager::test_select_particles(&mut commands, constraints.as_mut(), grid.as_mut(), &particles, &windows, &cameras, &mut gizmos);
 	
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
@@ -256,11 +264,11 @@ impl SimGrid {
 		}
 	}
 
-	/** Convert the Vec2 coordinates (row, column) from a position (x, y).  **will return the 
+	/** Convert the Vec2 position (x, y) to coordinates (row, column).  **will return the 
 		closest valid cell to any invalid position input.** */
 	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
 		let cell_size: f32			= self.cell_size as f32;
-		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
+		let grid_upper_bound: f32	= self.dimensions.1 as f32 * cell_size;
 		
 		let mut coordinates: Vec2 = Vec2 {
 			x: f32::floor((grid_upper_bound - position[1]) / cell_size),	// Row
@@ -274,6 +282,27 @@ impl SimGrid {
 		coordinates[1] = f32::min((self.dimensions.1 - 1) as f32, coordinates[1]);
 		
 		coordinates
+	}
+	
+	/** Convert the Vec2 coordinates (row, column) to a position (x, y).  **will return the 
+		closest valid position to any invalid coordinate input.** */
+	pub fn get_cell_position_from_coordinates(&self, coordinates: Vec2) -> Vec2 {
+		let cell_size: f32			= self.cell_size as f32;
+		let grid_max_x_bound: f32	= self.dimensions.1 as f32 * cell_size;
+		let grid_max_y_bound: f32	= self.dimensions.0 as f32 * cell_size - cell_size;
+		
+		let mut position: Vec2 = Vec2 {
+			x: f32::floor(coordinates.y * cell_size),
+			y: f32::floor(grid_max_y_bound - coordinates.x * cell_size),
+		};
+		
+		// Clamp our coordinates to our grid's bounds.
+		position.x = f32::max(0.0, position.x);
+		position.y = f32::max(0.0, position.y);
+		position.x = f32::min(grid_max_x_bound, position.x);
+		position.y = f32::min(grid_max_y_bound, position.y);
+		
+		position
 	}
 	
 	/// Add a new particle into our spatial lookup table.
@@ -307,8 +336,9 @@ impl SimGrid {
 	
 	/// Get a Vec<Entity> of the particles currently inside of the cell at lookup_index.
 	pub fn get_particles_in_lookup(&self, lookup_index: usize) -> Vec<Entity> {
-		if lookup_index > (self.dimensions.0 * self.dimensions.1) as usize {
-			eprintln!("Lookup index out of bounds; returning an empty vector!");
+		
+		// Return an empty vector if we are out of bounds.
+		if lookup_index >= (self.dimensions.0 * self.dimensions.1) as usize {
 			return Vec::new();
 		}
 		

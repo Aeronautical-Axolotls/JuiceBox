@@ -425,3 +425,8 @@ pub fn draw_vector_arrow(
 	gizmos.line_2d(head_position, arrow_left_position,	arrow_color);
 	gizmos.line_2d(head_position, arrow_right_position,	arrow_color);
 }
+
+/// Draws a circle around the mouse cursor.
+pub fn draw_selection_circle(gizmos: &mut Gizmos, position: Vec2, radius: f32, color: Color) {
+	gizmos.circle_2d(position, radius, color);
+}

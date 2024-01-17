@@ -6,7 +6,7 @@ use bevy::{
 	utils::default,
 	input::{ keyboard::KeyCode, Input },
 	time::Time,
-	transform::components::Transform,
+	transform::components::{Transform, GlobalTransform},
 	render::camera::{ OrthographicProjection, Camera },
 	ecs::{ system::{ Res, Query, NonSend }, query::With },
 };
@@ -99,6 +99,27 @@ pub fn control_camera(
 			projection.scale = f32::min(projection.scale + zoom_speed, max_zoom);
 		}
 	}
+}
+
+/// Get the mouse cursor's position on the screen!  Returns (0.0, 0.0) if cursor position not found.
+pub fn get_cursor_position(
+	windows: &Query<&Window>,
+	cameras: &Query<(&Camera, &GlobalTransform)>) -> Vec2 {
+	
+	/* TODO: Store the cursor's position every frame in some Bevy resource; maybe make it part of
+		the user interaction module? */
+	
+	let window = windows.single();
+	let (camera, camera_transform) = cameras.single();
+	
+	if let Some(cursor_position) = window.cursor_position()
+		.and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor)) {
+		
+		let cursor_world_position = cursor_position;
+		return cursor_world_position;
+	}
+	
+	return Vec2::ZERO;
 }
 
 /// Gets system time in milliseconds since January 1st, 1970.
