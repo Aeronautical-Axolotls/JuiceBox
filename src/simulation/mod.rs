@@ -2,15 +2,9 @@ pub mod sim_physics_engine;
 pub mod sim_state_manager;
 mod util;
 
-use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
-use std::ptr::null;
-
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::juice_renderer::{self, draw_selection_circle};
-use crate::util::JUICE_YELLOW;
-use sim_state_manager::*;
 use sim_physics_engine::*;
 use crate::test::test_state_manager;
 
@@ -30,12 +24,16 @@ impl Plugin for Simulation {
 
 /// Simulation state manager initialization.
 fn setup(
-	mut commands:		Commands,
+	commands:		Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 	
 	grid.change_dimensions((50, 50), 5);
-	test_state_manager::construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), commands);
+	test_state_manager::construct_test_simulation_layout(
+		constraints.as_mut(),
+		grid.as_mut(),
+		commands
+	);
 	
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
@@ -43,13 +41,9 @@ fn setup(
 
 /// Simulation state manager update; handles user interactions with the simulation.
 fn update(
-	mut commands:		Commands,
-	mut constraints:	ResMut<SimConstraints>,
+	constraints:		Res<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
-	windows:			Query<&Window>,
-	cameras:			Query<(&Camera, &GlobalTransform)>,
-	mut gizmos:			Gizmos,
 	time:				Res<Time>) {
 
 	// TODO: Check for and handle simulation saving/loading.

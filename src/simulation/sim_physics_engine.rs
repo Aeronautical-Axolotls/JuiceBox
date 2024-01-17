@@ -360,10 +360,10 @@ pub fn push_particles_apart(
 						*particle0_id,
 						*particle1_id,
 					]);
-					let mut particle_combo = match(particle_combo_result) {
+					let particle_combo = match particle_combo_result {
 						Ok(particle_combo_result)	=> particle_combo_result,
-						Err(error)					=> {
-							eprintln!("Invalid particle combo; skipping!");
+						Err(_error)					=> {
+							// eprintln!("Invalid particle combo; skipping!");
 							continue;
 						},
 					};

@@ -1,4 +1,4 @@
-use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
+use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::math::Vec2;
