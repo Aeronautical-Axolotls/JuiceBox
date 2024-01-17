@@ -1,15 +1,14 @@
 use bevy::prelude::*;
 use crate::juice_renderer::draw_selection_circle;
-use crate::simulation::{SimConstraints, SimParticle};
 use crate::simulation::sim_state_manager::{
-	select_grid_cells,
 	select_particles,
 	delete_particle,
 };
 use crate::simulation::{
-	SimGridCellType,
+	SimConstraints,
+	SimParticle,
 	SimGrid,
-	sim_state_manager::add_particles_in_radius
+	sim_state_manager::add_particles_in_radius,
 };
 use crate::util::get_cursor_position;
 
@@ -84,6 +83,8 @@ pub fn test_select_particles(
 		cursor_position,
 		radius
 	);
+	
+	// Delete them to prove it worked!
 	for particle in selected_particles.iter() {
 		let _ = delete_particle(commands, constraints, particles, grid, *particle);
 	}
@@ -103,7 +104,7 @@ pub fn test_select_grid_cells(
 	let cursor_position: Vec2	= get_cursor_position(windows, cameras);
 	
 	// Test cell selection.
-	let selected_cells: Vec<Vec2> = select_grid_cells(grid, cursor_position, radius);
+	let selected_cells: Vec<Vec2> = grid.select_grid_cells(cursor_position, radius);
 	for i in 0..selected_cells.len() {
 		
 		let half_cell_size: f32 = grid.cell_size as f32 * 0.5;

@@ -57,8 +57,6 @@ fn update(
 	
 	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
-	test_state_manager::test_select_grid_cells(&mut commands, constraints.as_mut(), grid.as_mut(), &particles, &windows, &cameras, &mut gizmos);
-	test_state_manager::test_select_particles(&mut commands, constraints.as_mut(), grid.as_mut(), &particles, &windows, &cameras, &mut gizmos);
 	
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
@@ -303,6 +301,65 @@ impl SimGrid {
 		position.y = f32::min(grid_max_y_bound, position.y);
 		
 		position
+	}
+	
+	/** Selects grid cells that entirely cover the a circle of radius `radius` centered at `position`; 
+		returns a Vector containing each cell's coordinates. */
+	pub fn select_grid_cells(&self, position: Vec2, radius: f32) -> Vec<Vec2> {
+		
+		/* If we are less than a cell in radius, the function will only search 1 cell.  That is 
+			incorrect, as we could still need to search 4 cells if the selection is positioned 
+			properly.  Therefore, we cap the radius for selection-cell bound checking to 2.5, but 
+			leave the true radius untouched to retain proper particle selection behavior. */
+		let min_selection_size: f32 = self.cell_size as f32 / 2.0;
+		let adj_radius: f32			= f32::max(min_selection_size, radius);
+		
+		/* Find our min/max world coordinates for cells to search.  Subtract cell size to account for 
+			the selection area potentially not being perfectly centered; this will ensure we always 
+			check the full possible number of cells our selection may be concerned with. We will check 
+			one or two extra cells, but I believe consistent behavior is worth 4 extra cell checks. */
+		let selection_max_bound: Vec2 = Vec2 {
+			x: position.x + adj_radius + self.cell_size as f32,
+			y: position.y + adj_radius + self.cell_size as f32,
+		};
+		let selection_min_bound: Vec2 = Vec2 {
+			x: position.x - adj_radius,
+			y: position.y - adj_radius,
+		};
+		
+		// Find the number of cells we need to check.
+		let mut x_cell_count: f32			= selection_max_bound.x - selection_min_bound.x;
+		let mut y_cell_count: f32			= selection_max_bound.y - selection_min_bound.y;
+		x_cell_count						/= self.cell_size as f32;
+		y_cell_count						/= self.cell_size as f32;
+		let cells_in_selection_count: usize	= (x_cell_count * y_cell_count) as usize;
+		
+		// Figure out which grid cells we are actually going to be checking.
+		let mut cells_in_selection: Vec<Vec2>	= vec![Vec2::ZERO; cells_in_selection_count];
+		for cell_index in 0..cells_in_selection_count {
+			
+			/* BUG: Sometimes the top two corner cells of the selection "flicker", and the sides have 
+				an extra cell jutting out.  Not sure why, but my guess is it's a type casting or 
+				rounding issue; not important (for now).  The corner flickering does affect the number 
+				of cells checked, however the extra cell jutting out does not (making me think the 
+				latter is a rendering issue).  Finally, the algorithm breaks down a little bit extra 
+				if the radius is not a multiple of the grid cell size. */
+			
+			/* For each cell, get the grid coordinates from the selection's minimum bound. */
+			let mut cell_coordinates: Vec2 = self.get_cell_coordinates_from_position(
+				&selection_min_bound
+			);
+			
+			// Move row-major to the right and up for each cell in our selection list.
+			cell_coordinates.x -= f32::floor((cell_index as f32 / y_cell_count as f32) % 
+				y_cell_count as f32);
+			cell_coordinates.y += f32::floor(cell_index as f32 % x_cell_count);
+			
+			// Add our selected cell's coordinates to our list of cell coordinates!
+			cells_in_selection[cell_index] = cell_coordinates;
+		}
+		
+		cells_in_selection
 	}
 	
 	/// Add a new particle into our spatial lookup table.
