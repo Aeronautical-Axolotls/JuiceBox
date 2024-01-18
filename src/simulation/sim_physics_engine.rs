@@ -330,7 +330,9 @@ pub fn handle_particle_collisions(
 	}
 }
 
-/// Push particles apart so that we account for drift and grid cells with incorrect densities.
+/** Push particles apart so that we account for drift and grid cells with incorrect densities.  
+	TODO: Improve collision solving speed between particles within cells.  Lots of particles in 
+	one cell leads to a large slowdown. */
 pub fn push_particles_apart(
 	constraints:	&SimConstraints,
 	grid:			&SimGrid,
@@ -382,31 +384,29 @@ fn separate_particle_pair(
 	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
 	
 	// Calculate a collision radius and distance to modify position (and break early if too far).
-	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
-	let distance: f32			= Vec2::distance(
-		particle_combo[0].1.position,
-		particle_combo[1].1.position
-	);
-	let distance_squared: f32	= distance * distance;
+	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius * 4.0;
+	let collision_quarter: f32	= constraints.particle_radius * 2.0;
 	
-	// Break early if particles are too far apart (or are at the exact same position).
-	if distance_squared > collision_radius || distance_squared == 0.0 {
+	// Figure out if we even need to push the particles apart in the first place!
+	let mut delta_x: f32	= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
+	let mut delta_y: f32	= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
+	let delta_squared: f32	= delta_x * delta_x + delta_y * delta_y;
+	let delta: f32			= delta_squared.sqrt();
+	if delta_squared > collision_radius || delta_squared == 0.0 {
 		return;
 	}
 	
 	// Calculate the difference in position we need to separate the particles.
-	let delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
-	let delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
 	let push_factor: f32	= 0.5;
-	let delta_modifier: f32	= push_factor * (collision_radius - distance) / distance;
-	let position_change_x: f32	= delta_x * delta_modifier;
-	let position_change_y: f32	= delta_y * delta_modifier;
+	let delta_modifier: f32	= push_factor * (collision_quarter - delta) / delta;
+	delta_x *= delta_modifier;
+	delta_y *= delta_modifier;
 	
 	// Move the particles apart!
-	particle_combo[0].1.position[0] += position_change_x;
-	particle_combo[0].1.position[1] += position_change_y;
-	particle_combo[1].1.position[0] -= position_change_x;
-	particle_combo[1].1.position[1] -= position_change_y;
+	particle_combo[0].1.position[0] += delta_x;
+	particle_combo[0].1.position[1] += delta_y;
+	particle_combo[1].1.position[0] -= delta_x;
+	particle_combo[1].1.position[1] -= delta_y;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
