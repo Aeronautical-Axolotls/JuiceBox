@@ -68,7 +68,7 @@ fn step_simulation_once(
 	handle_particle_collisions(constraints, grid, particles);
 	let change_grid: SimGrid = particles_to_grid(grid, particles);
 	// make_grid_velocities_incompressible(grid, constraints);
-	// grid_to_particles(grid, &change_grid, particles, 0.9);
+	grid_to_particles(grid, &change_grid, particles, 0.0);
 }
 
 #[derive(Resource)]

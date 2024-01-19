@@ -36,8 +36,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
             for (id, particle) in particles.iter() {
 
                 let influence = find_influence(
-                    particle.position[0],
-                    pos[0],
+                    particle.position,
+                    pos,
                     grid.cell_size);
 
                 scaled_influence_sum += influence;
@@ -63,8 +63,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
             for (id, particle) in particles.iter() {
 
                 let influence = find_influence(
-                    particle.position[1],
-                    pos[1],
+                    particle.position,
+                    pos,
                     grid.cell_size);
 
                 scaled_influence_sum += influence;
@@ -93,18 +93,18 @@ fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     // These values are needed when interpolating the velocity
     // values transfered to the particles from the grid.
 
-    let mut change_grid = old_grid.clone();
-    let mut change_u  = old_grid.velocity_u.clone();
-    let mut change_v = old_grid.velocity_v.clone();
+    let mut change_grid = new_grid.clone();
+    let mut change_u  = new_grid.velocity_u.clone();
+    let mut change_v = new_grid.velocity_v.clone();
 
-    for row_index in 0..(change_grid.velocity_u.len()-1) {
-        for col_index in 0..change_grid.velocity_u[row_index].len() - 1 {
+    for row_index in 0..change_grid.velocity_u.len() {
+        for col_index in 0..change_grid.velocity_u[row_index].len() {
             change_u[row_index][col_index] = new_grid.velocity_u[row_index][col_index] - old_grid.velocity_u[row_index][col_index];
         }
     }
 
-    for row_index in 0..(change_grid.velocity_v.len()-1) {
-        for col_index in 0..change_grid.velocity_v[row_index].len()-1 {
+    for row_index in 0..change_grid.velocity_v.len() {
+        for col_index in 0..change_grid.velocity_v[row_index].len() {
             change_v[row_index][col_index] = new_grid.velocity_v[row_index][col_index] - old_grid.velocity_v[row_index][col_index];
         }
     }
@@ -133,7 +133,7 @@ fn collect_particles<'a>(
     }
 
     // Goes through all the particles and selects only
-    // particles within the search radius and adds them
+    // particles within the cell and adds them
     // to the bag
     particles.for_each_mut(|particle| {
         if particle_ids.contains(&particle.0) {
@@ -159,6 +159,7 @@ fn apply_grid<'a>(
     let right_u = Vec2::new(pos[0] + half_cell, pos[1]);
     let top_v = Vec2::new(pos[0], pos[1] + half_cell);
     let bottom_v = Vec2::new(pos[0], pos[1] - half_cell);
+
 
     // New velocity value using equation from section 7.6
     // in Fluid Simulation for Computer Graphics, Second Edition
@@ -226,28 +227,40 @@ pub fn grid_to_particles(
     // figure out which particles are 'within' that cell,
     // then apply the grid transformation
 
-    let half_cell = grid.cell_size as f32 / 2.0;
-    let height = (grid.dimensions.1 * grid.cell_size) as f32;
+    // let half_cell = grid.cell_size as f32 / 2.0;
+    // let height = (grid.dimensions.0 * grid.cell_size) as f32;
 
     // We go through each cell
-    for row_index in 0..(grid.dimensions.1-1) as usize {
-        for col_index in 0..(grid.dimensions.0-1) as usize {
+    println!("Grid:");
+    println!("{:?}", grid.velocity_u);
+    println!("{:?}", grid.velocity_v);
 
-            // match grid.cell_type[row_index][col_index] {
-            //     SimGridCellType::Air => {
-            //         continue;
-            //     }
-            //     SimGridCellType::Solid => {
-            //         continue;
-            //     },
-            //     SimGridCellType::Fluid => (),
-            // }
+    println!("New Changes:");
+    println!("{:?}", change_grid.velocity_u);
+    println!("{:?}", change_grid.velocity_v);
+
+    for row_index in 0..grid.dimensions.1 as usize {
+        for col_index in 0..grid.dimensions.0 as usize {
+
+            match grid.cell_type[row_index][col_index] {
+                SimGridCellType::Air => {
+                    continue;
+                }
+                SimGridCellType::Solid => {
+                    continue;
+                },
+                SimGridCellType::Fluid => (),
+            }
 
             // Grab the center postition of the cell
-            let pos = Vec2::new((col_index as f32 * grid.cell_size as f32) + half_cell, height - (row_index as f32 * grid.cell_size as f32 + half_cell));
+            let pos = Vec2::new(row_index as f32, col_index as f32);
 
             // Grab all the particles within this specific cell
             let particles_in_cell = collect_particles(grid, pos, particles);
+
+            if particles_in_cell.len() == 0 {
+                continue;
+            }
 
             // Get the velocity values for each face of the cell
             let velocities = vec![
