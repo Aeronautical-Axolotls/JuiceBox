@@ -330,7 +330,9 @@ pub fn handle_particle_collisions(
 	}
 }
 
-/// Push particles apart so that we account for drift and grid cells with incorrect densities.
+/** Push particles apart so that we account for drift and grid cells with incorrect densities.  
+	TODO: Improve collision solving speed between particles within cells.  Lots of particles in 
+	one cell leads to a large slowdown. */
 pub fn push_particles_apart(
 	constraints:	&SimConstraints,
 	grid:			&SimGrid,
@@ -360,10 +362,10 @@ pub fn push_particles_apart(
 						*particle0_id,
 						*particle1_id,
 					]);
-					let mut particle_combo = match(particle_combo_result) {
+					let particle_combo = match particle_combo_result {
 						Ok(particle_combo_result)	=> particle_combo_result,
-						Err(error)					=> {
-							eprintln!("Invalid particle combo; skipping!");
+						Err(_error)					=> {
+							// eprintln!("Invalid particle combo; skipping!");
 							continue;
 						},
 					};
@@ -382,31 +384,29 @@ fn separate_particle_pair(
 	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
 	
 	// Calculate a collision radius and distance to modify position (and break early if too far).
-	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
-	let distance: f32			= Vec2::distance(
-		particle_combo[0].1.position,
-		particle_combo[1].1.position
-	);
-	let distance_squared: f32	= distance * distance;
+	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius * 4.0;
+	let collision_quarter: f32	= constraints.particle_radius * 2.0;
 	
-	// Break early if particles are too far apart (or are at the exact same position).
-	if distance_squared > collision_radius || distance_squared == 0.0 {
+	// Figure out if we even need to push the particles apart in the first place!
+	let mut delta_x: f32	= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
+	let mut delta_y: f32	= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
+	let delta_squared: f32	= delta_x * delta_x + delta_y * delta_y;
+	let delta: f32			= delta_squared.sqrt();
+	if delta_squared > collision_radius || delta_squared == 0.0 {
 		return;
 	}
 	
 	// Calculate the difference in position we need to separate the particles.
-	let delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
-	let delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
 	let push_factor: f32	= 0.5;
-	let delta_modifier: f32	= push_factor * (collision_radius - distance) / distance;
-	let position_change_x: f32	= delta_x * delta_modifier;
-	let position_change_y: f32	= delta_y * delta_modifier;
+	let delta_modifier: f32	= push_factor * (collision_quarter - delta) / delta;
+	delta_x *= delta_modifier;
+	delta_y *= delta_modifier;
 	
 	// Move the particles apart!
-	particle_combo[0].1.position[0] += position_change_x;
-	particle_combo[0].1.position[1] += position_change_y;
-	particle_combo[1].1.position[0] -= position_change_x;
-	particle_combo[1].1.position[1] -= position_change_y;
+	particle_combo[0].1.position[0] += delta_x;
+	particle_combo[0].1.position[1] += delta_y;
+	particle_combo[1].1.position[0] -= delta_x;
+	particle_combo[1].1.position[1] -= delta_y;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
@@ -420,7 +420,7 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.iterations_per_frame {
 
-		/* For each grid cell, calculate the inflow/outflow (divergence), find out how many 
+		/* For each grid cell, calculate the inflow/outflow (divergence).  Then, find out how many 
 			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
@@ -448,8 +448,8 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 				// BUG: These signs might be backwards...
 				grid.velocity_u[row as usize][col as usize]			+= divergence * left_solid;
 				grid.velocity_u[row as usize][(col + 1) as usize]	-= divergence * right_solid;
-				grid.velocity_v[row as usize][col as usize]			+= divergence * up_solid;
-				grid.velocity_v[(row + 1) as usize][col as usize]	-= divergence * down_solid;
+				grid.velocity_v[row as usize][col as usize]			-= divergence * up_solid;
+				grid.velocity_v[(row + 1) as usize][col as usize]	+= divergence * down_solid;
 			}
 		}
 	}
@@ -472,8 +472,8 @@ fn calculate_cell_divergence(
 		to index like this. */
 	let left_velocity: f32	= grid.velocity_u[cell_row][cell_col];
 	let right_velocity: f32	= grid.velocity_u[cell_row][cell_col + 1];
-	let up_velocity: f32	= grid.velocity_v[cell_row + 1][cell_col];
-	let down_velocity: f32	= grid.velocity_v[cell_row][cell_col];
+	let up_velocity: f32	= grid.velocity_v[cell_row][cell_col];
+	let down_velocity: f32	= grid.velocity_v[cell_row + 1][cell_col];
 	// BUG: The up and down flows may need to be reversed.
 	let x_divergence: f32	= right_velocity - left_velocity;
 	let y_divergence: f32	= up_velocity - down_velocity;

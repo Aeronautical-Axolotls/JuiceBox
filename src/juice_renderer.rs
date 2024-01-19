@@ -336,29 +336,22 @@ fn draw_grid_vectors(
 		return;
 	}
 
-	for x in 0..grid.dimensions.0 {
-		for y in 0..grid.dimensions.1 {
-
-			// Find the center of each grid cell to draw the vector arrows.
-			let half_cell_size: f32 = (grid.cell_size as f32) / 2.0;
-			let cell_center_position: Vec2 = Vec2 {
-				x: (x as f32) * (grid.cell_size as f32) + half_cell_size,
-				y: (y as f32) * (grid.cell_size as f32) + half_cell_size,
-			};
-
+	for row in 0..grid.dimensions.1 {
+		for col in 0..grid.dimensions.0 {
+			
 			/* Indices for each column/row of each u/v velocity component on the grid.  Note that
 				because each cell has two velocity components going in either direction, the
 				vectors containing said components are one element larger in either rows or
 				columns.  This fact prevents the following code from going out of bounds, so long
 				as grid.velocity_u and grid.velocity_v are constructed properly. */
-			let column_u0: usize	= x as usize;
-			let column_u1: usize	= (x + 1) as usize;
-			let row_u: usize		= y as usize;
+			let column_u0: usize	= col as usize;
+			let column_u1: usize	= (col + 1) as usize;
+			let row_u: usize		= row as usize;
 
-			let row_v0: usize		= y as usize;
-			let row_v1: usize		= (y + 1) as usize;
-			let column_v: usize		= x as usize;
-
+			let row_v0: usize		= row as usize;
+			let row_v1: usize		= (row + 1) as usize;
+			let column_v: usize		= col as usize;
+			
 			// Horizontal velocity components.
 			let velocities_u: [f32; 2]	= [
 				grid.velocity_u[row_u][column_u0],
@@ -378,13 +371,29 @@ fn draw_grid_vectors(
 
 			// Calculate velocity direction and magnitude based on u and v components.
 			let velocity_vector_polar: Vec2 = util::cartesian_to_polar(velocity_vector_cartesian);
-
+			
+			// Skip drawing if the vector is too short.
+			if velocity_vector_polar[0] < 0.2 {
+				continue;
+			}
+			
+			// Find the center of each grid cell to draw the vector arrows.
+			let half_cell_size: f32	= (grid.cell_size as f32) / 2.0;
+			let cell_x: f32			= (col * grid.cell_size) as f32;
+			let cell_y: f32			= (row * grid.cell_size) as f32;
+			let grid_height: f32	= (grid.dimensions.0 * grid.cell_size) as f32;
+			let cell_center_position: Vec2 = Vec2 {
+				x: cell_x + half_cell_size,
+				y: grid_height - cell_y + half_cell_size,
+			};
+			
 			draw_vector_arrow(
 				cell_center_position,
 				velocity_vector_polar[1],
 				velocity_vector_polar[0],
 				grid_render_data.grid_vector_color,
-				&mut gizmos);
+				&mut gizmos
+			);
 		}
 	}
 }
@@ -424,4 +433,9 @@ pub fn draw_vector_arrow(
 	gizmos.line_2d(tail_position, head_position,		arrow_color);
 	gizmos.line_2d(head_position, arrow_left_position,	arrow_color);
 	gizmos.line_2d(head_position, arrow_right_position,	arrow_color);
+}
+
+/// Draws a circle around the mouse cursor.
+pub fn draw_selection_circle(gizmos: &mut Gizmos, position: Vec2, radius: f32, color: Color) {
+	gizmos.circle_2d(position, radius, color);
 }

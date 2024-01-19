@@ -1,4 +1,4 @@
-use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
+use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::math::Vec2;
@@ -133,12 +133,12 @@ fn add_particle(
 }
 
 /// Remove a particle with ID particle_id from the simulation.
-fn delete_particle(
-	mut commands:		&mut Commands,
-	mut constraints:	&mut SimConstraints,
-	mut particles:		Query<(Entity, &mut SimParticle)>,
-	grid:				&mut SimGrid,
-	particle_id:		Entity) -> Result<()> {
+pub fn delete_particle(
+	commands:		&mut Commands,
+	constraints:	&mut SimConstraints,
+	particles:		&Query<(Entity, &mut SimParticle)>,
+	grid:			&mut SimGrid,
+	particle_id:	Entity) -> Result<()> {
 	
 	// Look for the particle in our particles query.
 	if let Ok(particle) = particles.get(particle_id) {
@@ -146,7 +146,12 @@ fn delete_particle(
 		// Remove particle from lookup table and despawn it.
 		grid.remove_particle_from_lookup(particle_id, particle.1.lookup_index);
 		commands.entity(particle_id).despawn();
-		constraints.particle_count -= 1;
+		
+		/* BUG: This overflowed once while testing, and I'm betting it's because I misuse 
+			Entity::PLACEHOLDER.  Here is my silly little fix: */
+		if constraints.particle_count > 0 {
+			constraints.particle_count -= 1;
+		}
 		
 		return Ok(());
 	}
@@ -154,30 +159,36 @@ fn delete_particle(
 	Err(Error::InvalidEntityID("Invalid particle entity ID!"))
 }
 
-/** Returns a vector of ID's of the particles within a circle centered at "position" with radius
-	"radius." */
-pub fn select_particles(
-	particles:	Query<(Entity, &mut SimParticle)>,
+/** Returns a vector of entity ID's of each particle within a circle centered at `position` with 
+	radius `radius`; returns an empty vector if no particles are found. */
+pub fn select_particles<'a>(
+	particles:	&Query<(Entity, &mut SimParticle)>,
+	grid:		&SimGrid,
 	position:	Vec2,
-	radius:		u32) -> Result<Vec<Entity>> {
-
-	/* TODO: Rework this function to use a spatial lookup based on SimGrid.  If a particle is
-		outside of the nearest grid cells, then skip checking it.  We can accomplish this in a
-		parallel-friendly way by sorting a list of spatial lookups for particles based on the grid,
-		then choosing the nearest 1/9/25/49 grid cells (based on radius). */
-
-	let mut selected_particles: Vec<Entity> = Vec::new();
-
-	for (entity_id, particle) in particles.iter() {
-		let distance: f32 = position.distance(particle.position);
-		if distance <= (radius as f32) {
-			selected_particles.push(entity_id);
+	radius:		f32) -> Vec<Entity> {
+	
+	let mut selected_particles: Vec<Entity>	= Vec::new();
+	
+	// TODO: Maybe use map() here?  Idk.  Garrett I need u to explain map() to me I don't get it :(
+	let selected_cell_coordinates: Vec<Vec2> = grid.select_grid_cells(position, radius);
+	
+	for i in 0..selected_cell_coordinates.len() {
+		
+		let cell_lookup_index: usize = get_lookup_index(selected_cell_coordinates[i], grid.dimensions.0);
+		for particle_id in grid.get_particles_in_lookup(cell_lookup_index).iter() {
+			
+			// TODO: Error checking here.  Don't use unwrap() in production!
+			let particle: &SimParticle = particles.get(*particle_id).unwrap().1;
+			
+			// Avoid an unnecessary sqrt() here: 
+			let distance: f32 = Vec2::distance_squared(position, particle.position);
+			
+			// If we are within our radius, add the particle to the list and return it!
+			if distance < (radius * radius) {
+				selected_particles.push(*particle_id);
+			}
 		}
 	}
-
-	if selected_particles.len() > 0 {
-		Ok(selected_particles)
-	} else {
-		Err(Error::NoParticlesFound("cannot select any particles!"))
-	}
+	
+	selected_particles
 }
