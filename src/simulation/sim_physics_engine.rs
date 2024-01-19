@@ -420,7 +420,7 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.iterations_per_frame {
 
-		/* For each grid cell, calculate the inflow/outflow (divergence), find out how many 
+		/* For each grid cell, calculate the inflow/outflow (divergence).  Then, find out how many 
 			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
@@ -448,8 +448,8 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 				// BUG: These signs might be backwards...
 				grid.velocity_u[row as usize][col as usize]			+= divergence * left_solid;
 				grid.velocity_u[row as usize][(col + 1) as usize]	-= divergence * right_solid;
-				grid.velocity_v[row as usize][col as usize]			+= divergence * up_solid;
-				grid.velocity_v[(row + 1) as usize][col as usize]	-= divergence * down_solid;
+				grid.velocity_v[row as usize][col as usize]			-= divergence * up_solid;
+				grid.velocity_v[(row + 1) as usize][col as usize]	+= divergence * down_solid;
 			}
 		}
 	}
@@ -472,8 +472,8 @@ fn calculate_cell_divergence(
 		to index like this. */
 	let left_velocity: f32	= grid.velocity_u[cell_row][cell_col];
 	let right_velocity: f32	= grid.velocity_u[cell_row][cell_col + 1];
-	let up_velocity: f32	= grid.velocity_v[cell_row + 1][cell_col];
-	let down_velocity: f32	= grid.velocity_v[cell_row][cell_col];
+	let up_velocity: f32	= grid.velocity_v[cell_row][cell_col];
+	let down_velocity: f32	= grid.velocity_v[cell_row + 1][cell_col];
 	// BUG: The up and down flows may need to be reversed.
 	let x_divergence: f32	= right_velocity - left_velocity;
 	let y_divergence: f32	= up_velocity - down_velocity;
