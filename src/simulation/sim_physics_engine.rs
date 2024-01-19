@@ -1,11 +1,12 @@
 use bevy::prelude::*;
 use crate::error::Error;
-use super::{SimGrid, SimParticle, SimConstraints};
+use super::{SimGrid, SimParticle, SimConstraints, SimGridCellType};
 use super::util::*;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-pub fn particles_to_grid(grid: &mut SimGrid, particles: Vec<(Entity, &mut SimParticle)>) -> SimGrid {
+/// Apply Particle velocities to grid velocity points
+pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut SimParticle)>) -> SimGrid {
 
     // for velocity_u points and velocity_v points,
     // add up all particle velocities nearby scaled
@@ -47,7 +48,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: Vec<(Entity, &mut SimPar
         }
     }
 
-    for row_index in 0..grid.velocity_v.len() {
+    for row_index in 0..grid.velocity_v.len(){
         for col_index in 0..grid.velocity_v[row_index].len() {
 
             let pos = grid.get_velocity_point_pos(
@@ -83,7 +84,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: Vec<(Entity, &mut SimPar
 
 }
 
-
+/** Create a SimGrid with values containing the difference between
+    The old grid and new grid */
 fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
 
     // Here we are creating a SimGrid that holds the delta or change
@@ -92,17 +94,17 @@ fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     // values transfered to the particles from the grid.
 
     let mut change_grid = old_grid.clone();
-    let mut change_u: Vec<Vec<f32>> = Vec::new();
-    let mut change_v: Vec<Vec<f32>> = Vec::new();
+    let mut change_u  = old_grid.velocity_u.clone();
+    let mut change_v = old_grid.velocity_v.clone();
 
-    for row_index in 0..change_grid.velocity_u.len() {
-        for col_index in 0..change_grid.velocity_u[row_index].len() {
+    for row_index in 0..(change_grid.velocity_u.len()-1) {
+        for col_index in 0..change_grid.velocity_u[row_index].len() - 1 {
             change_u[row_index][col_index] = new_grid.velocity_u[row_index][col_index] - old_grid.velocity_u[row_index][col_index];
         }
     }
 
-    for row_index in 0..change_grid.velocity_v.len() {
-        for col_index in 0..change_grid.velocity_v[row_index].len() {
+    for row_index in 0..(change_grid.velocity_v.len()-1) {
+        for col_index in 0..change_grid.velocity_v[row_index].len()-1 {
             change_v[row_index][col_index] = new_grid.velocity_v[row_index][col_index] - old_grid.velocity_v[row_index][col_index];
         }
     }
@@ -117,34 +119,36 @@ fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
 fn collect_particles<'a>(
         grid: &SimGrid,
         center: Vec2,
-        particles: &'a Vec<(Entity, &mut SimParticle)>
-    ) -> Vec<&'a (Entity, &'a mut SimParticle)> {
-
-    let cell_dim = grid.cell_size as f32;
-
-    let collection_radius = cell_dim / 2.0;
+        particles: &'a mut Query<(Entity, &mut SimParticle)>
+    ) -> Vec<(Entity, Mut<'a, SimParticle>)> {
 
     let mut particle_bag = Vec::new();
+
+    let index = get_lookup_index(center, grid.dimensions.0);
+
+    let particle_ids = grid.get_particles_in_lookup(index);
+
+    if particle_ids.len() == 0 {
+        return Vec::new();
+    }
 
     // Goes through all the particles and selects only
     // particles within the search radius and adds them
     // to the bag
-    for particle in particles {
-        let pos = Vec2::from((particle.1.position[0], particle.1.position[1]));
-        let distance = center.distance(pos);
-        if distance < cell_dim / collection_radius {
+    particles.for_each_mut(|particle| {
+        if particle_ids.contains(&particle.0) {
             particle_bag.push(particle);
         }
-    }
+    });
 
     particle_bag
 
 }
 
-fn apply_grid(
+fn apply_grid<'a>(
         cell_size: u16,
         pos: Vec2,
-        particles: Vec<&(Entity, &mut SimParticle)>,
+        particles: Vec<(Entity, Mut<'a, SimParticle>)>,
         velocities: Vec<f32>,
         changes: Vec<f32>,
         pic_coef: f32,
@@ -159,7 +163,7 @@ fn apply_grid(
     // New velocity value using equation from section 7.6
     // in Fluid Simulation for Computer Graphics, Second Edition
     // (Bridson, Robert)
-    for particle in particles {
+    for mut particle in particles {
         let new_velocity_u = (
                 pic_coef * linear_interpolate(
                     left_u,
@@ -203,16 +207,20 @@ fn apply_grid(
                     )
                 )
             );
+
+        let new_velocity = Vec2::new(new_velocity_u, new_velocity_v);
+        particle.1.velocity = new_velocity;
     }
 
 }
 
+/// Apply grid velocities to particle velocities
 pub fn grid_to_particles(
         grid: &SimGrid,
         change_grid: &SimGrid,
-        particles: Vec<(Entity, &mut SimParticle)>,
+        particles: &mut Query<(Entity, &mut SimParticle)>,
         flip_pic_coef: f32
-    ) -> Result<()> {
+    ) {
 
     // Basic idea right now is to go through each cell,
     // figure out which particles are 'within' that cell,
@@ -222,14 +230,24 @@ pub fn grid_to_particles(
     let height = (grid.dimensions.1 * grid.cell_size) as f32;
 
     // We go through each cell
-    for row_index in 0..grid.dimensions.1 as usize {
-        for col_index in 0..grid.dimensions.0 as usize {
+    for row_index in 0..(grid.dimensions.1-1) as usize {
+        for col_index in 0..(grid.dimensions.0-1) as usize {
+
+            // match grid.cell_type[row_index][col_index] {
+            //     SimGridCellType::Air => {
+            //         continue;
+            //     }
+            //     SimGridCellType::Solid => {
+            //         continue;
+            //     },
+            //     SimGridCellType::Fluid => (),
+            // }
 
             // Grab the center postition of the cell
             let pos = Vec2::new((col_index as f32 * grid.cell_size as f32) + half_cell, height - (row_index as f32 * grid.cell_size as f32 + half_cell));
 
             // Grab all the particles within this specific cell
-            let particles_in_cell = collect_particles(grid, pos, &particles);
+            let particles_in_cell = collect_particles(grid, pos, particles);
 
             // Get the velocity values for each face of the cell
             let velocities = vec![
@@ -252,20 +270,18 @@ pub fn grid_to_particles(
             apply_grid(grid.cell_size, pos, particles_in_cell, velocities, changes, flip_pic_coef);
         }
     }
-
-    Ok(())
 }
 
 /// Update the particle's lookup_index based on position, then update the grid's lookup table.
 pub fn update_particle_lookup(particle_id: Entity, particle: &mut SimParticle, grid: &mut SimGrid) {
-	
+
 	// Find the cell that this particle belongs to and update our spatial lookup accordingly.
 	let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
 	let lookup_index: usize		= get_lookup_index(cell_coordinates, grid.dimensions.0);
-	
+
 	// Remove the particle from its old lookup cell and place it here in its new one.
 	if !grid.spatial_lookup[lookup_index].contains(&particle_id) {
-		
+
 		grid.remove_particle_from_lookup(particle_id, particle.lookup_index);
 		grid.spatial_lookup[lookup_index].push(particle_id);
 		particle.lookup_index = lookup_index;
@@ -283,16 +299,16 @@ pub fn integrate_particles_and_update_spatial_lookup(
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	grid:			&mut SimGrid,
 	delta_time:		f32) {
-	
+
 	for (id, mut particle) in particles.iter_mut() {
 		// Change each particle's velocity by gravity.
 		particle.velocity[0] += constraints.gravity[0] * delta_time;
 		particle.velocity[1] += constraints.gravity[1] * delta_time;
-		
+
 		// Change each particle's position by velocity.
 		particle.position[0] += particle.velocity[0] * delta_time;
 		particle.position[1] += particle.velocity[1] * delta_time;
-		
+
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);
 	}
@@ -303,11 +319,11 @@ pub fn handle_particle_collisions(
 	constraints:	&SimConstraints,
 	grid:			&SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>) {
-	
+
 	for (_, mut particle) in particles.iter_mut() {
-		
+
 		// TODO: Collide with solid cells.
-		
+
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
@@ -335,26 +351,26 @@ pub fn push_particles_apart(
 	constraints:	&SimConstraints,
 	grid:			&SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>) {
-	
+
 	for i in 0..constraints.iterations_per_frame {
-		
+
 		// For each grid cell.
 		for lookup_index in 0..grid.spatial_lookup.len() {
-			
+
 			// For each particle within this grid cell.
 			for particle0_id in grid.get_particles_in_lookup(lookup_index).iter() {
-				
+
 				// Will return a Vec<Entity> of only the valid entities within the cell.
 				let possible_collisions: Vec<Entity> = grid.get_particles_in_lookup(lookup_index);
-				
+
 				// For each OTHER particle within this grid cell.
 				for particle1_id in possible_collisions.iter() {
-					
+
 					// Don't process a collision between ourself!
 					if particle0_id == particle1_id {
 						continue;
 					}
-					
+
 					// Get both particles involved in the collision.
 					let particle_combo_result = particles.get_many_mut([
 						*particle0_id,
@@ -367,7 +383,7 @@ pub fn push_particles_apart(
 							continue;
 						},
 					};
-					
+
 					// Push both particles apart.
 					separate_particle_pair(constraints, particle_combo);
 				}
@@ -380,7 +396,7 @@ pub fn push_particles_apart(
 fn separate_particle_pair(
 	constraints:		&SimConstraints,
 	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
-	
+
 	// Calculate a collision radius and distance to modify position (and break early if too far).
 	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
 	let distance: f32			= Vec2::distance(
@@ -388,12 +404,12 @@ fn separate_particle_pair(
 		particle_combo[1].1.position
 	);
 	let distance_squared: f32	= distance * distance;
-	
+
 	// Break early if particles are too far apart (or are at the exact same position).
 	if distance_squared > collision_radius || distance_squared == 0.0 {
 		return;
 	}
-	
+
 	// Calculate the difference in position we need to separate the particles.
 	let delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
 	let delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
@@ -401,7 +417,7 @@ fn separate_particle_pair(
 	let delta_modifier: f32	= push_factor * (collision_radius - distance) / distance;
 	let position_change_x: f32	= delta_x * delta_modifier;
 	let position_change_y: f32	= delta_y * delta_modifier;
-	
+
 	// Move the particles apart!
 	particle_combo[0].1.position[0] += position_change_x;
 	particle_combo[0].1.position[1] += position_change_y;
@@ -412,15 +428,15 @@ fn separate_particle_pair(
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
 	Gauss-Seidel method. */
 pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &SimConstraints) {
-	
+
 	// ==============================================================
 	// TODO: Adjust divergence based on particle density in the cell.
 	// ==============================================================
-	
+
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.iterations_per_frame {
 
-		/* For each grid cell, calculate the inflow/outflow (divergence), find out how many 
+		/* For each grid cell, calculate the inflow/outflow (divergence), find out how many
 			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {

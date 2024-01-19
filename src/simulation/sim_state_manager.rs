@@ -9,42 +9,6 @@ use super::*;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-// pub struct SimStateManager;
-// impl Plugin for SimStateManager {
-
-// 	fn build(&self, app: &mut App) {
-// 		app.insert_resource(SimConstraints::default());
-// 		app.insert_resource(SimGrid::default());
-
-// 		app.add_systems(Startup, setup);
-// 		app.add_systems(Update, update);
-// 	}
-// }
-
-// /// Simulation state manager initialization.
-// fn setup(
-// 	mut commands:		Commands,
-// 	mut constraints:	ResMut<SimConstraints>,
-// 	mut grid:			ResMut<SimGrid>) {
-
-// 	test::construct_test_simulation_layout(grid.as_mut(), commands);
-// 	// TODO: Get saved simulation data from most recently open file OR default file.
-// 	// TODO: Population constraints, grid, and particles with loaded data.
-// }
-
-// /// Simulation state manager update; handles user interactions with the simulation.
-// fn update(
-// 	mut constraints:	ResMut<SimConstraints>,
-// 	mut grid:			ResMut<SimGrid>) {
-
-// 	// TODO: Check for and handle simulation saving/loading.
-// 	// TODO: Check for and handle simulation pause/timestep change.
-// 	// TODO: Check for and handle changes to simulation grid.
-// 	make_grid_velocities_incompressible(grid.as_mut(), constraints.as_ref());
-// 	// TODO: Check for and handle changes to gravity.
-// 	// TODO: Check for and handle tool usage.
-// }
-
 /** Add many particles into the simulation within a radius.  Note that particle_density is
 	the number of particles per unit radius. */
 pub fn add_particles_in_radius(
@@ -112,7 +76,7 @@ fn add_particle(
 		SimGridCellType::Solid) {
 		return Err(Error::InvalidCellParticleCreation("Chosen cell is solid!"));
 	}
-	
+
 	// Add every particle to the 0-cell's lookup at first; we will sort this next frame.
 	let lookup_index: usize	= 0;
 	let particle: Entity	= commands.spawn(
@@ -123,9 +87,9 @@ fn add_particle(
 		}
 	).id();
 	grid.add_particle_to_lookup(particle, lookup_index);
-	
+
 	constraints.particle_count += 1;
-	
+
 	// IMPORTANT: Links a sprite to each particle for rendering.
 	juice_renderer::link_particle_sprite(commands, particle);
 
@@ -139,18 +103,18 @@ fn delete_particle(
 	mut particles:		Query<(Entity, &mut SimParticle)>,
 	grid:				&mut SimGrid,
 	particle_id:		Entity) -> Result<()> {
-	
+
 	// Look for the particle in our particles query.
 	if let Ok(particle) = particles.get(particle_id) {
-		
+
 		// Remove particle from lookup table and despawn it.
 		grid.remove_particle_from_lookup(particle_id, particle.1.lookup_index);
 		commands.entity(particle_id).despawn();
 		constraints.particle_count -= 1;
-		
+
 		return Ok(());
 	}
-	
+
 	Err(Error::InvalidEntityID("Invalid particle entity ID!"))
 }
 

@@ -127,10 +127,10 @@ pub fn link_particle_sprite(mut commands: &mut Commands, particle: Entity) {
 fn update_particle_position(
 	constraints: Res<SimConstraints>,
 	mut particles: Query<(&SimParticle, &mut Transform)>) {
-	
+
 	// Particles will be drawn from their upper-left corner.  Subtracting this offset will fix that!
 	let particle_half_size: f32 = constraints.particle_radius * 0.5;
-	
+
 	for (particle, mut transform) in particles.iter_mut() {
 		transform.translation = Vec3 {
 			x: particle.position.x - particle_half_size,
