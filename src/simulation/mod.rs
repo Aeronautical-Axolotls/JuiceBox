@@ -64,7 +64,7 @@ fn step_simulation_once(
 	delta_time:		f32) {
 	
 	integrate_particles_and_update_spatial_lookup(constraints, particles, grid, delta_time);
-	push_particles_apart(constraints, grid, particles);
+	push_particles_apart(constraints, grid, particles, delta_time);
 	handle_particle_collisions(constraints, grid, particles);
 	// let change_grid: SimGrid = particles_to_grid(grid, particles);
 	make_grid_velocities_incompressible(grid, constraints);
@@ -73,22 +73,24 @@ fn step_simulation_once(
 
 #[derive(Resource)]
 pub struct SimConstraints {
-	pub grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
-	pub iterations_per_frame:	u8, 	// Simulation iterations per frame.
-	pub gravity:				Vec2,	// Cartesian gravity vector.
-	pub particle_radius:		f32,	// Particle collision radii.
-	pub particle_count:			usize,	// Number of particles in the simulation.
+	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio.
+	pub incomp_iters_per_frame:		u8, 	// Simulation incompressibility iterations per frame.
+	pub collision_iters_per_frame:	u8,		// Collision iterations per frame.
+	pub gravity:					Vec2,	// Cartesian gravity vector.
+	pub particle_radius:			f32,	// Particle collision radii.
+	pub particle_count:				usize,	// Number of particles in the simulation.
 }
 
 impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:	0.1,
-			iterations_per_frame:	5,
-			gravity:				Vec2 { x: 0.0, y: -9.81 },	// 9.81^2 = 96.2361
-			particle_radius:		2.5,
-			particle_count:			0,
+			grid_particle_ratio:		0.1,
+			incomp_iters_per_frame:		5,
+			collision_iters_per_frame:	2,
+			gravity:					Vec2 { x: 0.0, y: -23.0 },	// 9.81^2 = 96.2361
+			particle_radius:			2.5,
+			particle_count:				0,
 		}
 	}
 }
@@ -101,18 +103,23 @@ impl SimConstraints {
 
 	// Toggle Timestep from defualt and zero value
 	fn toggle_simulation_pause(sim: &mut SimConstraints) {
-		if sim.iterations_per_frame != 0 {
-			sim.iterations_per_frame = 0;
+		if sim.incomp_iters_per_frame != 0 {
+			sim.incomp_iters_per_frame = 0;
 		}
 		else{
-			sim.iterations_per_frame = 5;
+			sim.incomp_iters_per_frame = 5;
             // TODO: Create a variable to represent last speed set by user
 		}
 	}
 
-	// Changes timestep of simulation
-	fn change_timestep(sim: &mut SimConstraints, new_timstep: u8) {
-		sim.iterations_per_frame = new_timstep;
+	// Changes number of iterations for incompressibility per frame.
+	fn change_incompressibility_timestep(sim: &mut SimConstraints, new_timstep: u8) {
+		sim.incomp_iters_per_frame = new_timstep;
+	}
+	
+	// Changes number of iterations for particle collision per frame.
+	fn change_collision_timestep(sim: &mut SimConstraints, new_timstep: u8) {
+		sim.collision_iters_per_frame = new_timstep;
 	}
 }
 
@@ -406,6 +413,56 @@ impl SimGrid {
 		}
 		
 		lookup_vector
+	}
+	
+	/// Get the particles in all 9 cells surrounding a point.
+	fn get_nearby_particles(&self, lookup_index: usize) -> Vec<Entity> {
+		
+		let mut nearby_particles: Vec<Entity>	= Vec::new();
+		let mut cells_to_check: Vec<usize>		= Vec::new();
+		let col_count: usize					= self.dimensions.1 as usize;
+		
+		let is_cell_on_right_border: bool		= lookup_index % (col_count - 1) == 0;
+		let is_cell_on_left_border: bool		= lookup_index % col_count == 0;
+		
+		/* Make sure the current row's cells-to-check are valid.  If they are, search for particles 
+			within them. */
+		cells_to_check.push(lookup_index);
+		if lookup_index > 0 && !is_cell_on_left_border {
+			cells_to_check.push(lookup_index - 1);
+		}
+		if lookup_index < self.spatial_lookup.len() && !is_cell_on_right_border {
+			cells_to_check.push(lookup_index + 1);
+		}
+		
+		// Previous row's cell check: 
+		if lookup_index >= col_count {
+			cells_to_check.push(lookup_index - col_count);
+			if !is_cell_on_left_border {
+				cells_to_check.push(lookup_index - col_count - 1);
+			}
+			if !is_cell_on_right_border {
+				cells_to_check.push(lookup_index - col_count + 1);
+			}
+		}
+		
+		// Next row's cell check: 
+		if lookup_index <= self.spatial_lookup.len() - col_count {
+			cells_to_check.push(lookup_index + col_count);
+			if !is_cell_on_left_border {
+				cells_to_check.push(lookup_index + col_count - 1);
+			}
+			if lookup_index < self.spatial_lookup.len() - col_count && !is_cell_on_right_border {
+				cells_to_check.push(lookup_index + col_count + 1);
+			}
+		}
+		
+		
+		for i in 0..cells_to_check.len() {
+			nearby_particles.append(&mut self.get_particles_in_lookup(cells_to_check[i]));
+		}
+		
+		nearby_particles
 	}
 }
 
