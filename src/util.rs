@@ -6,7 +6,7 @@ use bevy::{
 	utils::default,
 	input::{ keyboard::KeyCode, Input },
 	time::Time,
-	transform::components::Transform,
+	transform::components::{Transform, GlobalTransform},
 	render::camera::{ OrthographicProjection, Camera },
 	ecs::{ system::{ Res, Query, NonSend }, query::With },
 };
@@ -101,14 +101,35 @@ pub fn control_camera(
 	}
 }
 
+/// Get the mouse cursor's position on the screen!  Returns (0.0, 0.0) if cursor position not found.
+pub fn get_cursor_position(
+	windows: &Query<&Window>,
+	cameras: &Query<(&Camera, &GlobalTransform)>) -> Vec2 {
+
+	/* TODO: Store the cursor's position every frame in some Bevy resource; maybe make it part of
+		the user interaction module? */
+
+	let window = windows.single();
+	let (camera, camera_transform) = cameras.single();
+
+	if let Some(cursor_position) = window.cursor_position()
+		.and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor)) {
+
+		let cursor_world_position = cursor_position;
+		return cursor_world_position;
+	}
+
+	return Vec2::ZERO;
+}
+
 /// Gets system time in milliseconds since January 1st, 1970.
 pub fn get_millis_since_epoch() -> u128 {
 	match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-		Ok(n)	=> n.as_millis(), 
+		Ok(n)	=> n.as_millis(),
 		Err(_)	=> {
 			eprintln!("Your system time is before the epoch!  RNG will not work!");
 			12345678900987654321
-		}, 
+		},
 	}
 }
 
@@ -116,7 +137,7 @@ pub fn get_millis_since_epoch() -> u128 {
 pub fn generate_random_usize(seed: usize) -> usize {
 	let mut rand: usize = get_millis_since_epoch() as usize;
 	rand += seed;
-	
+
 	rand ^= rand << 13;
 	rand ^= rand >> 7;
 	rand ^= rand << 17;
@@ -127,7 +148,7 @@ pub fn generate_random_usize(seed: usize) -> usize {
 pub fn generate_random_u32(seed: u32) -> u32 {
 	let mut rand: u32 = get_millis_since_epoch() as u32;
 	rand += seed;
-	
+
 	rand ^= rand << 13;
 	rand ^= rand >> 17;
 	rand ^= rand << 5;
@@ -263,7 +284,7 @@ pub fn set_window_icon(windows: NonSend<WinitWindows>)
 		(rgba, width, height)
 	};
 	let icon = Icon::from_rgba(icon_rgba, icon_width, icon_height).unwrap();
-	
+
 	for window in windows.windows.values() {
 		window.set_window_icon(Some(icon.clone()));
 	}

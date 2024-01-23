@@ -33,18 +33,29 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
 
             let mut scaled_influence_sum = 0.0;
 
-            for (id, particle) in particles.iter() {
-
+            particles.for_each(|(_, particle)| {
                 let influence = find_influence(
                     particle.position,
                     pos,
                     grid.cell_size);
 
+                if influence == 0.0 {
+                    ()
+                }
+
                 scaled_influence_sum += influence;
                 scaled_velocity_sum += particle.velocity[0] * influence;
+
+            });
+
+            if scaled_influence_sum == 0.0 {
+                velocity_u[row_index][col_index] = 0.0;
+                continue;
             }
 
-            velocity_u[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
+            let new_velocity = scaled_velocity_sum / scaled_influence_sum;
+
+            velocity_u[row_index][col_index] = new_velocity;
         }
     }
 
@@ -60,18 +71,28 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
 
             let mut scaled_influence_sum = 0.0;
 
-            for (id, particle) in particles.iter() {
-
+            particles.for_each(|(_, particle)| {
                 let influence = find_influence(
                     particle.position,
                     pos,
                     grid.cell_size);
 
+                if influence == 0.0 {
+                    ()
+                }
+
                 scaled_influence_sum += influence;
                 scaled_velocity_sum += particle.velocity[1] * influence;
+            });
+
+            if scaled_influence_sum == 0.0 {
+                velocity_v[row_index][col_index] = 0.0;
+                continue;
             }
 
-            velocity_v[row_index][col_index] = scaled_velocity_sum / scaled_influence_sum;
+            let new_velocity = scaled_velocity_sum / scaled_influence_sum;
+
+            velocity_v[row_index][col_index] = new_velocity;
         }
     }
 
@@ -93,19 +114,33 @@ fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     // These values are needed when interpolating the velocity
     // values transfered to the particles from the grid.
 
-    let mut change_grid = new_grid.clone();
-    let mut change_u  = new_grid.velocity_u.clone();
-    let mut change_v = new_grid.velocity_v.clone();
+    let mut change_grid = old_grid.clone();
+    let mut change_u  = old_grid.velocity_u.clone();
+    let mut change_v = old_grid.velocity_v.clone();
 
     for row_index in 0..change_grid.velocity_u.len() {
         for col_index in 0..change_grid.velocity_u[row_index].len() {
-            change_u[row_index][col_index] = new_grid.velocity_u[row_index][col_index] - old_grid.velocity_u[row_index][col_index];
+
+            let mut change_in_u = new_grid.velocity_u[row_index][col_index] - old_grid.velocity_u[row_index][col_index];
+
+            if change_in_u.is_nan() {
+                change_in_u = 0.0;
+            }
+
+            change_u[row_index][col_index] = change_in_u;
         }
     }
 
     for row_index in 0..change_grid.velocity_v.len() {
         for col_index in 0..change_grid.velocity_v[row_index].len() {
-            change_v[row_index][col_index] = new_grid.velocity_v[row_index][col_index] - old_grid.velocity_v[row_index][col_index];
+
+            let mut change_in_v = new_grid.velocity_v[row_index][col_index] - old_grid.velocity_v[row_index][col_index];
+
+            if change_in_v.is_nan() {
+                change_in_v = 0.0;
+            }
+
+            change_v[row_index][col_index] = change_in_v;
         }
     }
 
@@ -149,70 +184,83 @@ fn apply_grid<'a>(
         cell_size: u16,
         pos: Vec2,
         particles: Vec<(Entity, Mut<'a, SimParticle>)>,
-        velocities: Vec<f32>,
-        changes: Vec<f32>,
+        grid_points: Vec<(Vec2, Vec2)>,
+        change_points: Vec<(Vec2, Vec2)>,
         pic_coef: f32,
-    ) {
+    ) -> Result<()> {
 
-    let half_cell = cell_size as f32 / 2.0;
-    let left_u = Vec2::new(pos[0] - half_cell, pos[1]);
-    let right_u = Vec2::new(pos[0] + half_cell, pos[1]);
-    let top_v = Vec2::new(pos[0], pos[1] + half_cell);
-    let bottom_v = Vec2::new(pos[0], pos[1] - half_cell);
-
+    // let half_cell = cell_size as f32 / 2.0;
+    // let left_u = Vec2::new(pos[0] - half_cell, pos[1]);
+    // let right_u = Vec2::new(pos[0] + half_cell, pos[1]);
+    // let top_v = Vec2::new(pos[0], pos[1] + half_cell);
+    // let bottom_v = Vec2::new(pos[0], pos[1] - half_cell);
 
     // New velocity value using equation from section 7.6
     // in Fluid Simulation for Computer Graphics, Second Edition
     // (Bridson, Robert)
-    for mut particle in particles {
-        let new_velocity_u = (
-                pic_coef * linear_interpolate(
-                    left_u,
-                    right_u,
-                    velocities[0],
-                    velocities[2],
-                    particle.1.position,
-                    true
-                )
-            ) + (
-                (1.0 - pic_coef) * (
-                    particle.1.velocity[0] + linear_interpolate(
-                        left_u,
-                        right_u,
-                        changes[0],
-                        changes[2],
-                        particle.1.position,
-                        true
-                    )
-                )
-            );
 
-        let new_velocity_v =
-            (pic_coef * linear_interpolate(
-                    top_v,
-                    bottom_v,
-                    velocities[1],
-                    velocities[3],
-                    particle.1.position,
-                    false
-                )
-            ) + (
-                (1.0 - pic_coef) * (
-                    particle.1.velocity[1] + linear_interpolate(
-                        top_v,
-                        bottom_v,
-                        changes[1],
-                        changes[3],
-                        particle.1.position,
-                        false
-                    )
-                )
-            );
+    for (_, mut particle) in particles {
 
-        let new_velocity = Vec2::new(new_velocity_u, new_velocity_v);
-        particle.1.velocity = new_velocity;
+
+        // let interp_vel_u = linear_interpolate(
+        //             left_u,
+        //             right_u,
+        //             velocities[0],
+        //             velocities[2],
+        //             particle.1.position,
+        //             true
+        //         );
+
+        // let change_interp_u = linear_interpolate(
+        //             left_u,
+        //             right_u,
+        //             changes[0],
+        //             changes[2],
+        //             particle.1.position,
+        //             true
+        //         );
+
+        // let interp_vel_v = linear_interpolate(
+        //             top_v,
+        //             bottom_v,
+        //             velocities[1],
+        //             velocities[3],
+        //             particle.1.position,
+        //             false
+        //         );
+
+        // let change_interp_v = linear_interpolate(
+        //             top_v,
+        //             bottom_v,
+        //             changes[1],
+        //             changes[3],
+        //             particle.1.position,
+        //             false
+        //         );
+
+        let interp_vel = interpolate_velocity(particle.position, &grid_points)?;
+        let change_vel = interpolate_velocity(particle.position, &change_points)?;
+        let interp_vel_u = interp_vel.x;
+        let interp_vel_v = interp_vel.y;
+        let change_interp_u = change_vel.x;
+        let change_interp_v = change_vel.y;
+
+        let new_velocity_u = (pic_coef * interp_vel_u) + ((1.0 - pic_coef) * (particle.velocity[0] + change_interp_u));
+
+
+        let new_velocity_v = (pic_coef * interp_vel_v) + ((1.0 - pic_coef) * (particle.velocity[1] + change_interp_v));
+
+        let mut new_velocity = Vec2::new(new_velocity_u, new_velocity_v);
+
+        if new_velocity_v.is_nan() || new_velocity_u.is_nan() {
+            new_velocity = Vec2::ZERO;
+        }
+
+        particle.velocity = new_velocity;
+
     }
 
+    Ok(())
 }
 
 /// Apply grid velocities to particle velocities
@@ -221,39 +269,31 @@ pub fn grid_to_particles(
         change_grid: &SimGrid,
         particles: &mut Query<(Entity, &mut SimParticle)>,
         flip_pic_coef: f32
-    ) {
+    ) -> Result<()> {
 
     // Basic idea right now is to go through each cell,
     // figure out which particles are 'within' that cell,
     // then apply the grid transformation
 
-    // let half_cell = grid.cell_size as f32 / 2.0;
-    // let height = (grid.dimensions.0 * grid.cell_size) as f32;
-
-    // We go through each cell
-    println!("Grid:");
-    println!("{:?}", grid.velocity_u);
-    println!("{:?}", grid.velocity_v);
-
-    println!("New Changes:");
-    println!("{:?}", change_grid.velocity_u);
-    println!("{:?}", change_grid.velocity_v);
+    let half_cell = grid.cell_size as f32 / 2.0;
+    let grid_height = (grid.dimensions.0 * grid.cell_size) as f32;
 
     for row_index in 0..grid.dimensions.1 as usize {
         for col_index in 0..grid.dimensions.0 as usize {
 
-            match grid.cell_type[row_index][col_index] {
-                SimGridCellType::Air => {
-                    continue;
-                }
-                SimGridCellType::Solid => {
-                    continue;
-                },
-                SimGridCellType::Fluid => (),
-            }
+            // match grid.cell_type[row_index][col_index] {
+            //     SimGridCellType::Air => {
+            //         continue;
+            //     }
+            //     SimGridCellType::Solid => {
+            //         continue;
+            //     },
+            //     SimGridCellType::Fluid => (),
+            // }
 
             // Grab the center postition of the cell
             let pos = Vec2::new(row_index as f32, col_index as f32);
+            let center = Vec2::new((col_index as f32 * grid.cell_size as f32) + half_cell, grid_height - ((row_index as f32 * grid.cell_size as f32) + half_cell));
 
             // Grab all the particles within this specific cell
             let particles_in_cell = collect_particles(grid, pos, particles);
@@ -262,27 +302,44 @@ pub fn grid_to_particles(
                 continue;
             }
 
-            // Get the velocity values for each face of the cell
-            let velocities = vec![
-                grid.velocity_u[row_index][col_index],
-                grid.velocity_v[row_index][col_index],
-                grid.velocity_u[row_index][col_index + 1],
-                grid.velocity_v[row_index+1][col_index]
+            // // Get the velocity values for each face of the cell
+            // let velocities = vec![
+            //     grid.velocity_u[row_index][col_index],
+            //     grid.velocity_v[row_index][col_index],
+            //     grid.velocity_u[row_index][col_index + 1],
+            //     grid.velocity_v[row_index + 1][col_index]
+            // ];
+
+            // // Get the change in velocity from applying the particle
+            // // velocities to the grid
+            // let changes = vec![
+            //     change_grid.velocity_u[row_index][col_index],
+            //     change_grid.velocity_v[row_index][col_index],
+            //     change_grid.velocity_u[row_index][col_index + 1],
+            //     change_grid.velocity_v[row_index + 1][col_index]
+            // ];
+
+
+            let grid_points = vec![
+                (grid.get_cell_velocity(row_index + 1, col_index - 1), grid.get_cell_position_from_coordinates(Vec2::new((row_index + 1) as f32, (col_index - 1) as f32))),
+                (grid.get_cell_velocity(row_index - 1, col_index - 1), grid.get_cell_position_from_coordinates(Vec2::new((row_index - 1) as f32, (col_index - 1) as f32))),
+                (grid.get_cell_velocity(row_index - 1, col_index + 1), grid.get_cell_position_from_coordinates(Vec2::new((row_index - 1) as f32, (col_index + 1) as f32))),
+                (grid.get_cell_velocity(row_index + 1, col_index + 1), grid.get_cell_position_from_coordinates(Vec2::new((row_index + 1) as f32, (col_index + 1) as f32))),
             ];
 
-            // Get the change in velocity from applying the particle
-            // velocities to the grid
-            let changes = vec![
-                change_grid.velocity_u[row_index][col_index],
-                change_grid.velocity_v[row_index][col_index],
-                change_grid.velocity_u[row_index][col_index + 1],
-                change_grid.velocity_v[row_index+1][col_index]
+            let change_points = vec![
+                (change_grid.get_cell_velocity(row_index + 1, col_index - 1), change_grid.get_cell_position_from_coordinates(Vec2::new((row_index + 1) as f32, (col_index - 1) as f32))),
+                (change_grid.get_cell_velocity(row_index - 1, col_index - 1), change_grid.get_cell_position_from_coordinates(Vec2::new((row_index - 1) as f32, (col_index - 1) as f32))),
+                (change_grid.get_cell_velocity(row_index - 1, col_index + 1), change_grid.get_cell_position_from_coordinates(Vec2::new((row_index - 1) as f32, (col_index + 1) as f32))),
+                (change_grid.get_cell_velocity(row_index + 1, col_index + 1), change_grid.get_cell_position_from_coordinates(Vec2::new((row_index + 1) as f32, (col_index + 1) as f32))),
             ];
+
 
             // Solve for the new velocities of the particles
-            apply_grid(grid.cell_size, pos, particles_in_cell, velocities, changes, flip_pic_coef);
+            apply_grid(grid.cell_size, center, particles_in_cell, grid_points, change_points, flip_pic_coef)?;
         }
     }
+    Ok(())
 }
 
 /// Update the particle's lookup_index based on position, then update the grid's lookup table.
@@ -319,6 +376,9 @@ pub fn integrate_particles_and_update_spatial_lookup(
 		particle.velocity[1] += constraints.gravity[1] * delta_time;
 
 		// Change each particle's position by velocity.
+
+        // advect_particle(particle);
+
 		particle.position[0] += particle.velocity[0] * delta_time;
 		particle.position[1] += particle.velocity[1] * delta_time;
 
@@ -326,6 +386,15 @@ pub fn integrate_particles_and_update_spatial_lookup(
 		update_particle_lookup(id, particle.as_mut(), grid);
 	}
 }
+
+// /// Advect particles
+// fn advect_particle<'a>(particle: Mut<'a, SimParticle>) {
+
+
+//     let part_1 = particle.velocity;
+
+
+// }
 
 /// Handle particle collisions with walls.
 pub fn handle_particle_collisions(
@@ -342,24 +411,26 @@ pub fn handle_particle_collisions(
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
 		if particle.position[0] < constraints.particle_radius {
 			particle.position[0] = constraints.particle_radius;
-			particle.velocity[0] = 0.0;
+			particle.velocity = Vec2::ZERO;
 		}
 		if particle.position[0] > grid_width {
 			particle.position[0] = grid_width;
-			particle.velocity[0] = 0.0;
+			particle.velocity = Vec2::ZERO;
 		}
 		if particle.position[1] < constraints.particle_radius {
 			particle.position[1] = constraints.particle_radius;
-			particle.velocity[1] = 0.0;
+			particle.velocity = Vec2::ZERO;
 		}
 		if particle.position[1] > grid_height {
 			particle.position[1] = grid_height;
-			particle.velocity[1] = 0.0;
+			particle.velocity = Vec2::ZERO;
 		}
 	}
 }
 
-/// Push particles apart so that we account for drift and grid cells with incorrect densities.
+/** Push particles apart so that we account for drift and grid cells with incorrect densities.
+	TODO: Improve collision solving speed between particles within cells.  Lots of particles in
+	one cell leads to a large slowdown. */
 pub fn push_particles_apart(
 	constraints:	&SimConstraints,
 	grid:			&SimGrid,
@@ -389,10 +460,10 @@ pub fn push_particles_apart(
 						*particle0_id,
 						*particle1_id,
 					]);
-					let mut particle_combo = match(particle_combo_result) {
+					let particle_combo = match particle_combo_result {
 						Ok(particle_combo_result)	=> particle_combo_result,
-						Err(error)					=> {
-							eprintln!("Invalid particle combo; skipping!");
+						Err(_error)					=> {
+							// eprintln!("Invalid particle combo; skipping!");
 							continue;
 						},
 					};
@@ -411,31 +482,29 @@ fn separate_particle_pair(
 	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
 
 	// Calculate a collision radius and distance to modify position (and break early if too far).
-	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius;
-	let distance: f32			= Vec2::distance(
-		particle_combo[0].1.position,
-		particle_combo[1].1.position
-	);
-	let distance_squared: f32	= distance * distance;
+	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius * 4.0;
+	let collision_quarter: f32	= constraints.particle_radius * 2.0;
 
-	// Break early if particles are too far apart (or are at the exact same position).
-	if distance_squared > collision_radius || distance_squared == 0.0 {
+	// Figure out if we even need to push the particles apart in the first place!
+	let mut delta_x: f32	= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
+	let mut delta_y: f32	= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
+	let delta_squared: f32	= delta_x * delta_x + delta_y * delta_y;
+	let delta: f32			= delta_squared.sqrt();
+	if delta_squared > collision_radius || delta_squared == 0.0 {
 		return;
 	}
 
 	// Calculate the difference in position we need to separate the particles.
-	let delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
-	let delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
 	let push_factor: f32	= 0.5;
-	let delta_modifier: f32	= push_factor * (collision_radius - distance) / distance;
-	let position_change_x: f32	= delta_x * delta_modifier;
-	let position_change_y: f32	= delta_y * delta_modifier;
+	let delta_modifier: f32	= push_factor * (collision_quarter - delta) / delta;
+	delta_x *= delta_modifier;
+	delta_y *= delta_modifier;
 
 	// Move the particles apart!
-	particle_combo[0].1.position[0] += position_change_x;
-	particle_combo[0].1.position[1] += position_change_y;
-	particle_combo[1].1.position[0] -= position_change_x;
-	particle_combo[1].1.position[1] -= position_change_y;
+	particle_combo[0].1.position[0] += delta_x;
+	particle_combo[0].1.position[1] += delta_y;
+	particle_combo[1].1.position[0] -= delta_x;
+	particle_combo[1].1.position[1] -= delta_y;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
@@ -449,7 +518,7 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.iterations_per_frame {
 
-		/* For each grid cell, calculate the inflow/outflow (divergence), find out how many
+		/* For each grid cell, calculate the inflow/outflow (divergence).  Then, find out how many
 			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
@@ -477,8 +546,8 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 				// BUG: These signs might be backwards...
 				grid.velocity_u[row as usize][col as usize]			+= divergence * left_solid;
 				grid.velocity_u[row as usize][(col + 1) as usize]	-= divergence * right_solid;
-				grid.velocity_v[row as usize][col as usize]			+= divergence * up_solid;
-				grid.velocity_v[(row + 1) as usize][col as usize]	-= divergence * down_solid;
+				grid.velocity_v[row as usize][col as usize]			-= divergence * up_solid;
+				grid.velocity_v[(row + 1) as usize][col as usize]	+= divergence * down_solid;
 			}
 		}
 	}
@@ -501,8 +570,8 @@ fn calculate_cell_divergence(
 		to index like this. */
 	let left_velocity: f32	= grid.velocity_u[cell_row][cell_col];
 	let right_velocity: f32	= grid.velocity_u[cell_row][cell_col + 1];
-	let up_velocity: f32	= grid.velocity_v[cell_row + 1][cell_col];
-	let down_velocity: f32	= grid.velocity_v[cell_row][cell_col];
+	let up_velocity: f32	= grid.velocity_v[cell_row][cell_col];
+	let down_velocity: f32	= grid.velocity_v[cell_row + 1][cell_col];
 	// BUG: The up and down flows may need to be reversed.
 	let x_divergence: f32	= right_velocity - left_velocity;
 	let y_divergence: f32	= up_velocity - down_velocity;
