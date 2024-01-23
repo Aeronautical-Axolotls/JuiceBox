@@ -5,7 +5,7 @@ use super::util::*;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-/// Apply Particle velocities to grid velocity points
+/// Applies Particle velocities to grid velocity points
 pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut SimParticle)>) -> SimGrid {
 
     // for velocity_u points and velocity_v points,
@@ -105,8 +105,10 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
 
 }
 
-/** Create a SimGrid with values containing the difference between
-    The old grid and new grid */
+/**
+    Create a SimGrid with values containing the difference between
+    The old grid and new grid
+*/
 fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
 
     // Here we are creating a SimGrid that holds the delta or change
@@ -151,6 +153,10 @@ fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
 
 }
 
+/**
+    Collects all the particles within a cell and returns
+    a vector of particles with their ID and data
+*/
 fn collect_particles<'a>(
         grid: &SimGrid,
         center: Vec2,
@@ -180,14 +186,17 @@ fn collect_particles<'a>(
 
 }
 
+/**
+    Interpolates new particle velocities from grid points for a given
+    set of particles.
+*/
 fn apply_grid<'a>(
-        cell_size: u16,
         pos: Vec2,
         particles: Vec<(Entity, Mut<'a, SimParticle>)>,
-        grid_points: Vec<(Vec2, Vec2)>,
-        change_points: Vec<(Vec2, Vec2)>,
+        grid: &SimGrid,
+        change_grid: &SimGrid,
         pic_coef: f32,
-    ) -> Result<()> {
+    ) {
 
     // let half_cell = cell_size as f32 / 2.0;
     // let left_u = Vec2::new(pos[0] - half_cell, pos[1]);
@@ -201,58 +210,12 @@ fn apply_grid<'a>(
 
     for (_, mut particle) in particles {
 
+        let interp_vel = interpolate_velocity(particle.position, &grid);
+        let change_vel = interpolate_velocity(particle.position, &change_grid);
 
-        // let interp_vel_u = linear_interpolate(
-        //             left_u,
-        //             right_u,
-        //             velocities[0],
-        //             velocities[2],
-        //             particle.1.position,
-        //             true
-        //         );
+        let mut new_velocity = (pic_coef * interp_vel) + ((1.0 - pic_coef) * (particle.velocity[0] + change_vel));
 
-        // let change_interp_u = linear_interpolate(
-        //             left_u,
-        //             right_u,
-        //             changes[0],
-        //             changes[2],
-        //             particle.1.position,
-        //             true
-        //         );
-
-        // let interp_vel_v = linear_interpolate(
-        //             top_v,
-        //             bottom_v,
-        //             velocities[1],
-        //             velocities[3],
-        //             particle.1.position,
-        //             false
-        //         );
-
-        // let change_interp_v = linear_interpolate(
-        //             top_v,
-        //             bottom_v,
-        //             changes[1],
-        //             changes[3],
-        //             particle.1.position,
-        //             false
-        //         );
-
-        let interp_vel = interpolate_velocity(particle.position, &grid_points)?;
-        let change_vel = interpolate_velocity(particle.position, &change_points)?;
-        let interp_vel_u = interp_vel.x;
-        let interp_vel_v = interp_vel.y;
-        let change_interp_u = change_vel.x;
-        let change_interp_v = change_vel.y;
-
-        let new_velocity_u = (pic_coef * interp_vel_u) + ((1.0 - pic_coef) * (particle.velocity[0] + change_interp_u));
-
-
-        let new_velocity_v = (pic_coef * interp_vel_v) + ((1.0 - pic_coef) * (particle.velocity[1] + change_interp_v));
-
-        let mut new_velocity = Vec2::new(new_velocity_u, new_velocity_v);
-
-        if new_velocity_v.is_nan() || new_velocity_u.is_nan() {
+        if new_velocity.x.is_nan() || new_velocity.y.is_nan() {
             new_velocity = Vec2::ZERO;
         }
 
@@ -260,7 +223,6 @@ fn apply_grid<'a>(
 
     }
 
-    Ok(())
 }
 
 /// Apply grid velocities to particle velocities
@@ -269,7 +231,7 @@ pub fn grid_to_particles(
         change_grid: &SimGrid,
         particles: &mut Query<(Entity, &mut SimParticle)>,
         flip_pic_coef: f32
-    ) -> Result<()> {
+    ) {
 
     // Basic idea right now is to go through each cell,
     // figure out which particles are 'within' that cell,
@@ -292,11 +254,11 @@ pub fn grid_to_particles(
             // }
 
             // Grab the center postition of the cell
-            let pos = Vec2::new(row_index as f32, col_index as f32);
+            let coords = Vec2::new(row_index as f32, col_index as f32);
             let center = Vec2::new((col_index as f32 * grid.cell_size as f32) + half_cell, grid_height - ((row_index as f32 * grid.cell_size as f32) + half_cell));
 
             // Grab all the particles within this specific cell
-            let particles_in_cell = collect_particles(grid, pos, particles);
+            let particles_in_cell = collect_particles(grid, coords, particles);
 
             if particles_in_cell.len() == 0 {
                 continue;
@@ -319,27 +281,10 @@ pub fn grid_to_particles(
             //     change_grid.velocity_v[row_index + 1][col_index]
             // ];
 
-
-            let grid_points = vec![
-                (grid.get_cell_velocity(row_index + 1, col_index - 1), grid.get_cell_position_from_coordinates(Vec2::new((row_index + 1) as f32, (col_index - 1) as f32))),
-                (grid.get_cell_velocity(row_index - 1, col_index - 1), grid.get_cell_position_from_coordinates(Vec2::new((row_index - 1) as f32, (col_index - 1) as f32))),
-                (grid.get_cell_velocity(row_index - 1, col_index + 1), grid.get_cell_position_from_coordinates(Vec2::new((row_index - 1) as f32, (col_index + 1) as f32))),
-                (grid.get_cell_velocity(row_index + 1, col_index + 1), grid.get_cell_position_from_coordinates(Vec2::new((row_index + 1) as f32, (col_index + 1) as f32))),
-            ];
-
-            let change_points = vec![
-                (change_grid.get_cell_velocity(row_index + 1, col_index - 1), change_grid.get_cell_position_from_coordinates(Vec2::new((row_index + 1) as f32, (col_index - 1) as f32))),
-                (change_grid.get_cell_velocity(row_index - 1, col_index - 1), change_grid.get_cell_position_from_coordinates(Vec2::new((row_index - 1) as f32, (col_index - 1) as f32))),
-                (change_grid.get_cell_velocity(row_index - 1, col_index + 1), change_grid.get_cell_position_from_coordinates(Vec2::new((row_index - 1) as f32, (col_index + 1) as f32))),
-                (change_grid.get_cell_velocity(row_index + 1, col_index + 1), change_grid.get_cell_position_from_coordinates(Vec2::new((row_index + 1) as f32, (col_index + 1) as f32))),
-            ];
-
-
             // Solve for the new velocities of the particles
-            apply_grid(grid.cell_size, center, particles_in_cell, grid_points, change_points, flip_pic_coef)?;
+            apply_grid(center, particles_in_cell, grid, change_grid, flip_pic_coef);
         }
     }
-    Ok(())
 }
 
 /// Update the particle's lookup_index based on position, then update the grid's lookup table.

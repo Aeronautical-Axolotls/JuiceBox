@@ -5,6 +5,10 @@ use super::SimGrid;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
+/**
+    Find the weight of influence of a particle
+    to a grid point.
+*/
 pub fn find_influence(
     particle_pos: Vec2,
     grid_point: Vec2,
@@ -27,32 +31,40 @@ pub fn find_influence(
     }
 }
 
-pub fn linear_interpolate(pos_1: Vec2, pos_2: Vec2, velocity_1: f32, velocity_2: f32, particle_pos: Vec2, horizontal: bool) -> f32 {
-
-    let mut interp_velocity;
-
-    if horizontal {
-        interp_velocity = ((velocity_1 * (pos_2[0] - pos_1[0])) + (velocity_2 * (particle_pos[0] - pos_1[0]))) / (pos_2[0] - pos_1[0]);
-    } else {
-        interp_velocity = ((velocity_1 * (pos_2[1] - pos_1[1])) + (velocity_2 * (particle_pos[1] - pos_1[1]))) / (pos_2[1] - pos_1[1]);
-    }
-
-    interp_velocity
-
-}
-
-/** Uses bilinear interpolation to find the velocity of the particle interpolated from the nearest grid points.
-Each grid point in grid_points includes both the (u, v) components and (x, y) coordinates in that order. */
-pub fn interpolate_velocity(particle_pos: Vec2, grid_points: &Vec<(Vec2, Vec2)>) -> Result<Vec2> {
+/**
+    Uses bilinear interpolation to find the velocity of the
+    particle interpolated from the nearest grid points.
+    Each grid point in grid_points includes both the
+    (u, v) components and (x, y) coordinates in that order.
+*/
+pub fn interpolate_velocity(particle_pos: Vec2, grid: &SimGrid) -> Vec2 {
 
     // Grid points 0..3 are the four corners of the bilinear interpolation
     // in order of clockwise rotation around the particle point.
     // https://en.wikipedia.org/wiki/Bilinear_interpolation
 
+    let cell_coords = grid.get_cell_coordinates_from_position(&particle_pos);
 
-    if grid_points.len() != 4 {
-        return Err(Error::Interpolation("incorrect number of grid points to interpolate!"))
-    }
+    let row = cell_coords.x;
+    let col = cell_coords.y;
+
+    let bottom_left: Vec2;
+    let bottom_right: Vec2;
+    let top_left: Vec2;
+    let top_right: Vec2;
+
+
+    bottom_left = Vec2::new(f32::min(row + 1.0, grid.dimensions.1 as f32), f32::max(col - 1.0, 0.0));
+    bottom_right = Vec2::new(f32::min(row + 1.0, grid.dimensions.1 as f32), f32::min(col + 1.0, grid.dimensions.0 as f32));
+    top_left = Vec2::new(f32::max(row - 1.0, 0.0), f32::max(col - 1.0, 0.0));
+    top_right = Vec2::new(f32::max(row - 1.0, 0.0), f32::min(col + 1.0, grid.dimensions.0 as f32));
+
+    let grid_points = vec![
+        (grid.get_cell_velocity(bottom_left.x as usize, bottom_left.y as usize), grid.get_cell_position_from_coordinates(bottom_left)),
+        (grid.get_cell_velocity(top_left.x as usize, top_left.y as usize), grid.get_cell_position_from_coordinates(top_left)),
+        (grid.get_cell_velocity(top_right.x as usize, top_right.y as usize), grid.get_cell_position_from_coordinates(top_right)),
+        (grid.get_cell_velocity(bottom_right.x as usize, bottom_right.y as usize), grid.get_cell_position_from_coordinates(bottom_right)),
+    ];
 
     let r1_u = (
             (
@@ -138,6 +150,8 @@ pub fn interpolate_velocity(particle_pos: Vec2, grid_points: &Vec<(Vec2, Vec2)>)
 
     let interp_velocity = Vec2::new(interp_velocity_u, interp_velocity_v);
 
-    Ok(interp_velocity)
+    println!("{:?}", interp_velocity);
+
+    interp_velocity
 
 }

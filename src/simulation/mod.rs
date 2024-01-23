@@ -50,7 +50,7 @@ fn update(
 	// TODO: Check for and handle simulation pause/timestep change.
 
 	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time).unwrap();
+	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
 
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
@@ -61,16 +61,15 @@ fn step_simulation_once(
 	constraints:	&SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
-	delta_time:		f32) -> Result<()> {
+	delta_time:		f32) {
 
 	integrate_particles_and_update_spatial_lookup(constraints, particles, grid, delta_time);
 	push_particles_apart(constraints, grid, particles);
 	handle_particle_collisions(constraints, grid, particles);
 	let change_grid: SimGrid = particles_to_grid(grid, particles);
 	// make_grid_velocities_incompressible(grid, constraints);
-	// grid_to_particles(grid, &change_grid, particles, 1.0)?;
+	grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 
-    Ok(())
 }
 
 #[derive(Resource)]
@@ -412,7 +411,7 @@ impl SimGrid {
 
     pub fn get_cell_velocity(&self, row: usize, column: usize) -> Vec2 {
 
-        if row as u16 >= self.dimensions.0 || column as u16 >= self.dimensions.1 {
+        if row as u16 >= self.dimensions.0 || column as u16 >= self.dimensions.1 || row == 0 || column == 0 {
             return Vec2::ZERO;
         }
 
