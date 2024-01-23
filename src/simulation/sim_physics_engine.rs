@@ -336,18 +336,20 @@ pub fn handle_particle_collisions(
 pub fn push_particles_apart(
 	constraints:	&SimConstraints,
 	grid:			&SimGrid,
-	particles:		&mut Query<(Entity, &mut SimParticle)>) {
+	particles:		&mut Query<(Entity, &mut SimParticle)>,
+	delta_time:		f32) {
 	
-	for i in 0..constraints.iterations_per_frame {
+	for i in 0..constraints.collision_iters_per_frame {
 		
 		// For each grid cell.
 		for lookup_index in 0..grid.spatial_lookup.len() {
 			
-			// For each particle within this grid cell.
-			for particle0_id in grid.get_particles_in_lookup(lookup_index).iter() {
-				
-				// Will return a Vec<Entity> of only the valid entities within the cell.
-				let possible_collisions: Vec<Entity> = grid.get_particles_in_lookup(lookup_index);
+			// Create a vector of all particles in all of the surrounding cells.
+			let nearby_particles: Vec<Entity>		= grid.get_nearby_particles(lookup_index);
+			let possible_collisions: Vec<Entity>	= nearby_particles.clone();
+			
+			// For each particle within neighboring grid cell.
+			for particle0_id in nearby_particles.iter() {
 				
 				// For each OTHER particle within this grid cell.
 				for particle1_id in possible_collisions.iter() {
@@ -371,7 +373,7 @@ pub fn push_particles_apart(
 					};
 					
 					// Push both particles apart.
-					separate_particle_pair(constraints, particle_combo);
+					separate_particle_pair(constraints, particle_combo, delta_time);
 				}
 			}
 		}
@@ -381,24 +383,27 @@ pub fn push_particles_apart(
 /// Helper function for push_particles_apart().
 fn separate_particle_pair(
 	constraints:		&SimConstraints,
-	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
+	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2],
+	delta_time:			f32) {
 	
 	// Calculate a collision radius and distance to modify position (and break early if too far).
-	let collision_radius: f32	= constraints.particle_radius * constraints.particle_radius * 4.0;
-	let collision_quarter: f32	= constraints.particle_radius * 2.0;
+	let collision_multiplier: f32		= 2.0;
+	let effective_radius: f32			= constraints.particle_radius * collision_multiplier;
+	let collision_radius: f32			= effective_radius * 2.0;
+	let collision_radius_squared: f32	= effective_radius * effective_radius;
 	
 	// Figure out if we even need to push the particles apart in the first place!
 	let mut delta_x: f32	= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
 	let mut delta_y: f32	= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
 	let delta_squared: f32	= delta_x * delta_x + delta_y * delta_y;
 	let delta: f32			= delta_squared.sqrt();
-	if delta_squared > collision_radius || delta_squared == 0.0 {
+	if delta_squared > collision_radius_squared || delta_squared == 0.0 {
 		return;
 	}
 	
 	// Calculate the difference in position we need to separate the particles.
 	let push_factor: f32	= 0.5;
-	let delta_modifier: f32	= push_factor * (collision_quarter - delta) / delta;
+	let delta_modifier: f32	= delta_time * push_factor * (collision_radius - delta) / delta;
 	delta_x *= delta_modifier;
 	delta_y *= delta_modifier;
 	
@@ -407,18 +412,19 @@ fn separate_particle_pair(
 	particle_combo[0].1.position[1] += delta_y;
 	particle_combo[1].1.position[0] -= delta_x;
 	particle_combo[1].1.position[1] -= delta_y;
+	
+	particle_combo[0].1.velocity[0] += delta_x * collision_multiplier;
+	particle_combo[0].1.velocity[1] += delta_y * collision_multiplier;
+	particle_combo[1].1.velocity[0] -= delta_x * collision_multiplier;
+	particle_combo[1].1.velocity[1] -= delta_y * collision_multiplier;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
 	Gauss-Seidel method. */
 pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &SimConstraints) {
 	
-	// ==============================================================
-	// TODO: Adjust divergence based on particle density in the cell.
-	// ==============================================================
-	
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
-	for _ in 0..constraints.iterations_per_frame {
+	for _ in 0..constraints.incomp_iters_per_frame {
 
 		/* For each grid cell, calculate the inflow/outflow (divergence).  Then, find out how many 
 			surrounding cells are solid, then adjust grid velocities accordingly. */
@@ -426,12 +432,14 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 			for col in 0..grid.dimensions.1 {
 
 				// Used to increase convergence time for our Gauss-Seidel implementation.
-				let overrelaxation: f32	= 1.99;
+				let overrelaxation: f32	= 2.0;
+				let stiffness: f32		= 1.0;
 				let divergence: f32		= calculate_cell_divergence(
 					&grid,
 					row as usize,
 					col as usize,
-					overrelaxation
+					overrelaxation,
+					stiffness
 				);
 
 				// Calculate and sum the solid modifier for each surrounding cell.
@@ -461,10 +469,11 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 	to increase the convergence of our divergence algorithm (ironic) dramatically.
 	**Overrelaxation values must be between 1 and 2.** */
 fn calculate_cell_divergence(
-	grid: &SimGrid,
-	cell_row: usize,
-	cell_col: usize,
-	overrelaxation: f32
+	grid:			&SimGrid,
+	cell_row:		usize,
+	cell_col:		usize,
+	overrelaxation: f32,
+	stiffness:		f32
 ) -> f32 {
 
 	/* Retrieve velocities for each face of the current cell.  Note: this will not go out of
@@ -474,10 +483,23 @@ fn calculate_cell_divergence(
 	let right_velocity: f32	= grid.velocity_u[cell_row][cell_col + 1];
 	let up_velocity: f32	= grid.velocity_v[cell_row][cell_col];
 	let down_velocity: f32	= grid.velocity_v[cell_row + 1][cell_col];
+	
 	// BUG: The up and down flows may need to be reversed.
 	let x_divergence: f32	= right_velocity - left_velocity;
 	let y_divergence: f32	= up_velocity - down_velocity;
-	let divergence: f32		= overrelaxation * (x_divergence + y_divergence);
+	
+	/* Calculate a stiffness factor to account for drift, where more dense regions need harder 
+		pushes to become less dense. */
+	let target_density: f32		= 0.0;
+	let density_actual: f32		= 0.0;
+	let density_factor: f32		= stiffness * (density_actual - target_density);
+	
+	let divergence: f32		= overrelaxation * (x_divergence + y_divergence) - density_factor;
+	
+	// ==============================================================
+	// TODO: Adjust divergence based on particle density in the cell.
+	// ==============================================================
+	
 	divergence
 }
 

@@ -36,8 +36,8 @@ pub fn construct_test_simulation_layout(
 		&mut commands,
 		constraints,
 		grid,
-		2.0,
-		25.0,
+		3.0,
+		50.0,
 		Vec2 { x: grid_center[0], y: grid_center[1] },
 		Vec2::ZERO
 	);
@@ -72,6 +72,8 @@ pub fn construct_test_simulation_layout(
 		Vec2 { x: 100.0, y: 100.0 },
 		Vec2::ZERO
 	);*/
+	
+	println!("Creating a test simulation with {} particles...", constraints.particle_count);
 }
 
 /// Test particle selection.
