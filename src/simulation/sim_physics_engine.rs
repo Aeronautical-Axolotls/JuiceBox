@@ -29,6 +29,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     for row_index in 0..grid.velocity_u.len() {
         for col_index in 0..grid.velocity_u[row_index].len() {
 
+            // Get (x, y) of current velocity point
             let pos = grid.get_velocity_point_pos(
                 row_index,
                 col_index,
@@ -37,6 +38,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
             let left_center = pos - Vec2::new(half_cell, 0.0);
             let right_center = pos + Vec2::new(half_cell, 0.0);
 
+            // If the velocity point lies on the simulation
+            // boundary, skip it
             if left_center.x < 0.0 {
                 continue;
             }
@@ -45,6 +48,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                 continue;
             }
 
+            // Determine if this velocity point lies between two air cells, and if so,
+            // skip it
             let left_center_coords = grid.get_cell_coordinates_from_position(&left_center);
             let right_center_coords = grid.get_cell_coordinates_from_position(&right_center);
 
@@ -82,6 +87,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
         }
     }
 
+    // Do the same thing for vertical velocity points within the MAC grid
     for row_index in 0..grid.velocity_v.len() {
         for col_index in 0..grid.velocity_v[row_index].len() {
 
@@ -142,6 +148,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     grid.velocity_u = velocity_u;
     grid.velocity_v = velocity_v;
 
+    // Return the change grid
     create_change_grid(&old_grid, &grid)
 
 }
@@ -232,7 +239,6 @@ fn collect_particles<'a>(
     set of particles.
 */
 fn apply_grid<'a>(
-        pos: Vec2,
         particles: Vec<(Entity, Mut<'a, SimParticle>)>,
         grid: &SimGrid,
         change_grid: &SimGrid,
@@ -278,12 +284,11 @@ pub fn grid_to_particles(
     // figure out which particles are 'within' that cell,
     // then apply the grid transformation
 
-    let half_cell = grid.cell_size as f32 / 2.0;
-    let grid_height = (grid.dimensions.0 * grid.cell_size) as f32;
-
     for row_index in 0..grid.dimensions.1 as usize {
         for col_index in 0..grid.dimensions.0 as usize {
 
+            // Skip over looking for particles where
+            // they are not located
             match grid.cell_type[row_index][col_index] {
                 SimGridCellType::Air => {
                     continue;
@@ -296,35 +301,19 @@ pub fn grid_to_particles(
 
             // Grab the center postition of the cell
             let coords = Vec2::new(row_index as f32, col_index as f32);
-            let center = Vec2::new((col_index as f32 * grid.cell_size as f32) + half_cell, grid_height - ((row_index as f32 * grid.cell_size as f32) + half_cell));
 
             // Grab all the particles within this specific cell
             let particles_in_cell = collect_particles(grid, coords, particles);
 
+            // if we find an old fluid cell without any particles in it
+            // make it an air cell
             if particles_in_cell.len() == 0 {
                 grid.cell_type[row_index][col_index] = SimGridCellType::Air;
                 continue;
             }
 
-            // // Get the velocity values for each face of the cell
-            // let velocities = vec![
-            //     grid.velocity_u[row_index][col_index],
-            //     grid.velocity_v[row_index][col_index],
-            //     grid.velocity_u[row_index][col_index + 1],
-            //     grid.velocity_v[row_index + 1][col_index]
-            // ];
-
-            // // Get the change in velocity from applying the particle
-            // // velocities to the grid
-            // let changes = vec![
-            //     change_grid.velocity_u[row_index][col_index],
-            //     change_grid.velocity_v[row_index][col_index],
-            //     change_grid.velocity_u[row_index][col_index + 1],
-            //     change_grid.velocity_v[row_index + 1][col_index]
-            // ];
-
             // Solve for the new velocities of the particles
-            apply_grid(center, particles_in_cell, grid, change_grid, flip_pic_coef);
+            apply_grid(particles_in_cell, grid, change_grid, flip_pic_coef);
         }
     }
 }
@@ -366,6 +355,7 @@ pub fn integrate_particles_and_update_spatial_lookup(
 		particle.position[0] += particle.velocity[0] * delta_time;
 		particle.position[1] += particle.velocity[1] * delta_time;
 
+        // Update the grid cell this particle is in to be a fluid
         let coords = grid.get_cell_coordinates_from_position(&particle.position);
         grid.cell_type[coords.x as usize][coords.y as usize] = SimGridCellType::Fluid;
 
@@ -398,19 +388,19 @@ pub fn handle_particle_collisions(
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
 		if particle.position[0] < constraints.particle_radius {
 			particle.position[0] = constraints.particle_radius;
-			particle.velocity = Vec2::ZERO;
+			particle.velocity[0] = 0.0;
 		}
 		if particle.position[0] > grid_width {
 			particle.position[0] = grid_width;
-			particle.velocity = Vec2::ZERO;
+			particle.velocity[0] = 0.0;
 		}
 		if particle.position[1] < constraints.particle_radius {
 			particle.position[1] = constraints.particle_radius;
-			particle.velocity = Vec2::ZERO;
+			particle.velocity[1] = 0.0;
 		}
 		if particle.position[1] > grid_height {
 			particle.position[1] = grid_height;
-			particle.velocity = Vec2::ZERO;
+			particle.velocity[1] = 0.0;
 		}
 	}
 }
