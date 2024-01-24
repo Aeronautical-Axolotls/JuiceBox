@@ -245,12 +245,6 @@ fn apply_grid<'a>(
         pic_coef: f32,
     ) {
 
-    // let half_cell = cell_size as f32 / 2.0;
-    // let left_u = Vec2::new(pos[0] - half_cell, pos[1]);
-    // let right_u = Vec2::new(pos[0] + half_cell, pos[1]);
-    // let top_v = Vec2::new(pos[0], pos[1] + half_cell);
-    // let bottom_v = Vec2::new(pos[0], pos[1] - half_cell);
-
     // New velocity value using equation from section 7.6
     // in Fluid Simulation for Computer Graphics, Second Edition
     // (Bridson, Robert)
@@ -260,7 +254,7 @@ fn apply_grid<'a>(
         let interp_vel = interpolate_velocity(particle.position, &grid);
         let change_vel = interpolate_velocity(particle.position, &change_grid);
 
-        let mut new_velocity = (pic_coef * interp_vel) + ((1.0 - pic_coef) * (particle.velocity[0] + change_vel));
+        let mut new_velocity = (pic_coef * interp_vel) + ((1.0 - pic_coef) * (particle.velocity + change_vel));
 
         if new_velocity.x.is_nan() || new_velocity.y.is_nan() {
             new_velocity = Vec2::ZERO;
