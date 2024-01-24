@@ -14,7 +14,7 @@ pub struct JuiceRenderer;
 impl Plugin for JuiceRenderer {
 
 	fn build(&self, app: &mut App) {
-		app.insert_resource(ClearColor(util::JUICE_SKY_BLUE));
+		app.insert_resource(ClearColor(Color::BLACK));
 		app.insert_resource(FluidRenderData::default());
 		app.insert_resource(GridRenderData::default());
 
@@ -69,12 +69,12 @@ impl Default for GridRenderData {
 	fn default() -> Self {
 		Self {
 			draw_grid:			true,
-			grid_color:			Color::WHITE,
-			solid_cell_color:	Color::BLACK,
+			grid_color:			Color::DARK_GRAY,
+			solid_cell_color:	Color::GOLD,
 
 			draw_grid_vectors:	true,
 			grid_vector_type:	FluidGridVectorType::Velocity,
-			grid_vector_color:	Color::BLACK,
+			grid_vector_color:	Color::GRAY,
 		}
 	}
 }

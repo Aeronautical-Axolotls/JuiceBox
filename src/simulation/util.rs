@@ -18,7 +18,7 @@ pub fn find_influence(
 
     let scaled_diff = (diff as f32) / (grid_scale as f32);
 
-    if scaled_diff > 1.5 {
+    if scaled_diff.abs() > 1.0 {
         return 0.0;
     }
 
@@ -150,7 +150,7 @@ pub fn interpolate_velocity(particle_pos: Vec2, grid: &SimGrid) -> Vec2 {
 
     let interp_velocity = Vec2::new(interp_velocity_u, interp_velocity_v);
 
-    println!("{:?}", interp_velocity);
+    // println!("{:?}", interp_velocity);
 
     interp_velocity
 

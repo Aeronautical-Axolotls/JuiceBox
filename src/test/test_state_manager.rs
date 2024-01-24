@@ -32,15 +32,15 @@ pub fn construct_test_simulation_layout(
 		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
 	};
 
-	let _test_particles = add_particles_in_radius(
-		&mut commands,
-		constraints,
-		grid,
-		5.0,
-		50.0,
-		Vec2 { x: grid_center[0], y: grid_center[1] },
-		Vec2::ZERO
-	);
+	// let _test_particles = add_particles_in_radius(
+	// 	&mut commands,
+	// 	constraints,
+	// 	grid,
+	// 	2.0,
+	// 	50.0,
+	// 	Vec2 { x: grid_center[0], y: grid_center[1] },
+	// 	Vec2::ZERO
+	// );
 
 	// Spawn a group of 3,147 particles at the center of the screen.
 	// let _test_particles = add_particles_in_radius(
@@ -63,15 +63,29 @@ pub fn construct_test_simulation_layout(
 	// 	Vec2::ZERO
 	// );
 
-	// Spawn even MOAR particles to test spawning inside solids is rejected.  ~~UwU~~
+	// // Spawn even MOAR particles to test spawning inside solids is rejected.  ~~UwU~~
 	// let _moar_test_particles = add_particles_in_radius(
 	// 	&mut commands,
+        // constraints,
 	// 	grid,
 	// 	10.0,
 	// 	20.0,
 	// 	Vec2 { x: 100.0, y: 100.0 },
 	// 	Vec2::ZERO
 	// );
+
+	// Spawn even MOAR particles to test spawning inside solids is rejected.  ~~UwU~~
+	let _moar_test_particles = add_particles_in_radius(
+		&mut commands,
+        constraints,
+		grid,
+		10.0,
+		20.0,
+		Vec2 { x: grid_center[0], y: grid_center[1] },
+		Vec2::ZERO
+	);
+
+	println!("Creating a test simulation with {} particles...", constraints.particle_count);
 }
 
 /// Test particle selection.
