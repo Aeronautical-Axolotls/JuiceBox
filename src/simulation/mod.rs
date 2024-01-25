@@ -28,7 +28,7 @@ fn setup(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	grid.change_dimensions((100, 100), 5);
+	grid.change_dimensions((10, 10), 5);
 	test_state_manager::construct_test_simulation_layout(
 		constraints.as_mut(),
 		grid.as_mut(),
@@ -51,8 +51,9 @@ fn update(
 	// TODO: Check for and handle simulation pause/timestep change.
 
 	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
-
+	// step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
+	grid.velocity_u[9][10] = 10.0;
+	grid.velocity_v[10][9] = 10.0;
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
 }
@@ -68,7 +69,7 @@ fn step_simulation_once(
     push_particles_apart(constraints, grid, particles, delta_time);
     handle_particle_collisions(constraints, grid, particles);
     let change_grid: SimGrid = particles_to_grid(grid, particles);
-    make_grid_velocities_incompressible(grid, constraints);
+    make_grid_velocities_incompressible(grid, constraints, delta_time);
     grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 
 }
@@ -90,7 +91,7 @@ impl Default for SimConstraints {
 			grid_particle_ratio:		0.9,
 			incomp_iters_per_frame:		5,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -23.0 },	// 9.81^2 = 96.2361
+			gravity:					Vec2 { x: 0.0, y: -96.2361 },	// 9.81^2 = 96.2361
 			particle_radius:			2.5,
 			particle_count:				0,
 		}
@@ -363,6 +364,13 @@ impl SimGrid {
 		}
 
 		cells_in_selection
+	}
+	
+	/// Update each grid cell's density based on weighted particle influences.
+	pub fn update_grid_density(&mut self) {
+		
+		// TODO: Make this work.
+		
 	}
 
 	/// Add a new particle into our spatial lookup table.

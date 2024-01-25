@@ -384,7 +384,7 @@ fn draw_grid_vectors(
 			let grid_height: f32	= (grid.dimensions.0 * grid.cell_size) as f32;
 			let cell_center_position: Vec2 = Vec2 {
 				x: cell_x + half_cell_size,
-				y: grid_height - cell_y + half_cell_size,
+				y: grid_height - cell_y - half_cell_size,
 			};
 			
 			draw_vector_arrow(

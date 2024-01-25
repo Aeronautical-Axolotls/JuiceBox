@@ -358,15 +358,6 @@ pub fn integrate_particles_and_update_spatial_lookup(
 	}
 }
 
-// /// Advect particles
-// fn advect_particle<'a>(particle: Mut<'a, SimParticle>) {
-
-
-//     let part_1 = particle.velocity;
-
-
-// }
-
 /// Handle particle collisions with walls.
 pub fn handle_particle_collisions(
 	constraints:	&SimConstraints,
@@ -490,7 +481,11 @@ fn separate_particle_pair(
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
 	Gauss-Seidel method. */
-pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &SimConstraints) {
+pub fn make_grid_velocities_incompressible(
+	grid:			&mut SimGrid,
+	constraints: 	&SimConstraints,
+	delta_time:		f32) {
+	
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.incomp_iters_per_frame {
 
@@ -502,7 +497,7 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 				// Used to increase convergence time for our Gauss-Seidel implementation.
 				let overrelaxation: f32	= 2.0;
 				let stiffness: f32		= 1.0;
-				let divergence: f32		= calculate_cell_divergence(
+				let divergence: f32		= delta_time * calculate_cell_divergence(
 					&grid,
 					row as usize,
 					col as usize,
