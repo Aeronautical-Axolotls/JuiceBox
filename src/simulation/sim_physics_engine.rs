@@ -333,13 +333,16 @@ pub fn get_lookup_index(cell_coordinates: Vec2, grid_row_count: u16) -> usize {
 	(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * grid_row_count)) as usize
 }
 
-/// Change each particle's position based on its velocity.
-pub fn integrate_particles_and_update_spatial_lookup(
+/** For each particle: integrate velocity into position, update cell type, update spatial lookup, 
+	and update density values for the four faces of the cell the particle is in. */
+pub fn update_particles(
 	constraints:	&SimConstraints,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	grid:			&mut SimGrid,
 	delta_time:		f32) {
-
+	
+	grid.clear_density_values();
+	
 	for (id, mut particle) in particles.iter_mut() {
 		// Change each particle's velocity by gravity.
 		particle.velocity[0] += constraints.gravity[0] * delta_time;
@@ -355,6 +358,9 @@ pub fn integrate_particles_and_update_spatial_lookup(
 
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);
+		
+		// Update the grid's density value for this current cell.
+		grid.update_grid_density(&particle.position, particle.lookup_index);
 	}
 }
 

@@ -201,7 +201,7 @@ pub fn cartesian_to_polar(cartesian_vector: Vec2) -> Vec2 {
 
 /** Generate a color value from a gradient between n colors based on a value between 0.0 and 1.0.
 	**Color values should be provided in lowest value -> highest value order.** */
-pub fn generate_color_from_gradient(colors: Vec<Color>, mut value: f32) -> Color {
+pub fn generate_color_from_gradient(colors: &Vec<Color>, mut value: f32) -> Color {
 
 	// Clamp value and get the total number of color zones we can interpolate between.
 	value						= value.clamp(0.0, 1.0);
