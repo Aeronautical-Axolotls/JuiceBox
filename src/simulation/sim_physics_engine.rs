@@ -453,9 +453,9 @@ fn separate_particle_pair(
 	delta_time:			f32) {
 
 	// Calculate a collision radius and distance to modify position (and break early if too far).
-	let collision_multiplier: f32		= 2.0;
-	let effective_radius: f32			= constraints.particle_radius * collision_multiplier;
-	let collision_radius: f32			= effective_radius * 2.0;
+	let radius_multiplier: f32			= 2.0;
+	let effective_radius: f32			= constraints.particle_radius * radius_multiplier;
+	let collision_radius: f32			= effective_radius * radius_multiplier;
 	let collision_radius_squared: f32	= effective_radius * effective_radius;
 
 	// Figure out if we even need to push the particles apart in the first place!
@@ -474,15 +474,17 @@ fn separate_particle_pair(
 	delta_y *= delta_modifier;
 
 	// Move the particles apart!
-	particle_combo[0].1.position[0] += delta_x;
-	particle_combo[0].1.position[1] += delta_y;
-	particle_combo[1].1.position[0] -= delta_x;
-	particle_combo[1].1.position[1] -= delta_y;
+	let position_multiplier: f32	= 1.0;
+	particle_combo[0].1.position[0] += delta_x * position_multiplier;
+	particle_combo[0].1.position[1] += delta_y * position_multiplier;
+	particle_combo[1].1.position[0] -= delta_x * position_multiplier;
+	particle_combo[1].1.position[1] -= delta_y * position_multiplier;
 
-	particle_combo[0].1.velocity[0] += delta_x * collision_multiplier;
-	particle_combo[0].1.velocity[1] += delta_y * collision_multiplier;
-	particle_combo[1].1.velocity[0] -= delta_x * collision_multiplier;
-	particle_combo[1].1.velocity[1] -= delta_y * collision_multiplier;
+	let velocity_multiplier: f32	= 1.0;
+	particle_combo[0].1.velocity[0] += delta_x * velocity_multiplier;
+	particle_combo[0].1.velocity[1] += delta_y * velocity_multiplier;
+	particle_combo[1].1.velocity[0] -= delta_x * velocity_multiplier;
+	particle_combo[1].1.velocity[1] -= delta_y * velocity_multiplier;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the

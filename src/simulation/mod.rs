@@ -28,7 +28,7 @@ fn setup(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	grid.change_dimensions((100, 100), 5);
+	grid.change_dimensions((100, 100), 2);
 	test_state_manager::construct_test_simulation_layout(
 		constraints.as_mut(),
 		grid.as_mut(),
@@ -67,8 +67,8 @@ fn step_simulation_once(
     update_particles(constraints, particles, grid, delta_time);
     push_particles_apart(constraints, grid, particles, delta_time);
     handle_particle_collisions(constraints, grid, particles);
-    let change_grid: SimGrid = particles_to_grid(grid, particles);
-    make_grid_velocities_incompressible(grid, constraints);
+    // let change_grid: SimGrid = particles_to_grid(grid, particles);
+    // make_grid_velocities_incompressible(grid, constraints);
     // grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 }
 
@@ -89,8 +89,8 @@ impl Default for SimConstraints {
 			grid_particle_ratio:		0.9,
 			incomp_iters_per_frame:		5,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -9.81 },
-			particle_radius:			2.5,
+			gravity:					Vec2 { x: 0.0, y: -2.0 },
+			particle_radius:			1.5,
 			particle_count:				0,
 		}
 	}
