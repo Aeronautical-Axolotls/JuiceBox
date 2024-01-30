@@ -329,17 +329,20 @@ pub fn get_lookup_index(cell_coordinates: Vec2, grid_row_count: u16) -> usize {
 	(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * grid_row_count)) as usize
 }
 
-/// Change each particle's position based on its velocity.
-pub fn integrate_particles_and_update_spatial_lookup(
+/** For each particle: integrate velocity into position, update cell type, update spatial lookup, 
+	and update density values for the four faces of the cell the particle is in. */
+pub fn update_particles(
 	constraints:	&SimConstraints,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	grid:			&mut SimGrid,
 	delta_time:		f32) {
-
+	
+	// grid.clear_density_values();
+	
 	for (id, mut particle) in particles.iter_mut() {
 		// Change each particle's velocity by gravity.
-		particle.velocity[0] += constraints.gravity[0] * delta_time;
-		particle.velocity[1] += constraints.gravity[1] * delta_time;
+		particle.velocity[0] += constraints.gravity[0];
+		particle.velocity[1] += constraints.gravity[1];
 
 		// Change each particle's position by velocity.
 		particle.position[0] += particle.velocity[0] * delta_time;
@@ -351,17 +354,11 @@ pub fn integrate_particles_and_update_spatial_lookup(
 
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);
+		
+		// Update the grid's density value for this current cell.
+		// grid.update_grid_density(&particle.position, particle.lookup_index);
 	}
 }
-
-// /// Advect particles
-// fn advect_particle<'a>(particle: Mut<'a, SimParticle>) {
-
-
-//     let part_1 = particle.velocity;
-
-
-// }
 
 /// Handle particle collisions with walls.
 pub fn handle_particle_collisions(
@@ -371,8 +368,8 @@ pub fn handle_particle_collisions(
 
 	for (_, mut particle) in particles.iter_mut() {
 
-		// TODO: Collide with solid cells.
-
+		// TODO: Collision checking w/ solids.
+		
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
@@ -452,9 +449,9 @@ fn separate_particle_pair(
 	delta_time:			f32) {
 
 	// Calculate a collision radius and distance to modify position (and break early if too far).
-	let collision_multiplier: f32		= 2.0;
-	let effective_radius: f32			= constraints.particle_radius * collision_multiplier;
-	let collision_radius: f32			= effective_radius * 2.0;
+	let radius_multiplier: f32			= 2.0;
+	let effective_radius: f32			= constraints.particle_radius * radius_multiplier;
+	let collision_radius: f32			= effective_radius * radius_multiplier;
 	let collision_radius_squared: f32	= effective_radius * effective_radius;
 
 	// Figure out if we even need to push the particles apart in the first place!
@@ -473,20 +470,25 @@ fn separate_particle_pair(
 	delta_y *= delta_modifier;
 
 	// Move the particles apart!
-	particle_combo[0].1.position[0] += delta_x;
-	particle_combo[0].1.position[1] += delta_y;
-	particle_combo[1].1.position[0] -= delta_x;
-	particle_combo[1].1.position[1] -= delta_y;
+	let position_multiplier: f32	= 1.0;
+	particle_combo[0].1.position[0] += delta_x * position_multiplier;
+	particle_combo[0].1.position[1] += delta_y * position_multiplier;
+	particle_combo[1].1.position[0] -= delta_x * position_multiplier;
+	particle_combo[1].1.position[1] -= delta_y * position_multiplier;
 
-	particle_combo[0].1.velocity[0] += delta_x * collision_multiplier;
-	particle_combo[0].1.velocity[1] += delta_y * collision_multiplier;
-	particle_combo[1].1.velocity[0] -= delta_x * collision_multiplier;
-	particle_combo[1].1.velocity[1] -= delta_y * collision_multiplier;
+	let velocity_multiplier: f32	= 1.0;
+	particle_combo[0].1.velocity[0] += delta_x * velocity_multiplier;
+	particle_combo[0].1.velocity[1] += delta_y * velocity_multiplier;
+	particle_combo[1].1.velocity[0] -= delta_x * velocity_multiplier;
+	particle_combo[1].1.velocity[1] -= delta_y * velocity_multiplier;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
 	Gauss-Seidel method. */
-pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &SimConstraints) {
+pub fn make_grid_velocities_incompressible(
+	grid:			&mut SimGrid,
+	constraints: 	&SimConstraints) {
+	
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.incomp_iters_per_frame {
 
@@ -494,21 +496,20 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
-
-				// Used to increase convergence time for our Gauss-Seidel implementation.
-				let overrelaxation: f32	= 2.0;
-				let stiffness: f32		= 1.0;
-				let divergence: f32		= calculate_cell_divergence(
+				
+				// Determine the inflow/outflow of the current cell.
+				let divergence: f32 = calculate_cell_divergence(
 					&grid,
 					row as usize,
-					col as usize,
-					overrelaxation,
-					stiffness
+					col as usize
 				);
 
 				// Calculate and sum the solid modifier for each surrounding cell.
 				let solids: [u8; 4]	= calculate_cell_solids(&grid, row as usize, col as usize);
 				let solids_sum: u8	= solids.iter().sum();
+				if solids_sum == 0 {
+					continue;
+				}
 
 				// Calculate solid modifier for each surrounding cell.
 				let left_solid: f32		= solids[0] as f32 / solids_sum as f32;
@@ -518,10 +519,13 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 
 				// Force incompressibility on this cell.
 				// BUG: These signs might be backwards...
-				grid.velocity_u[row as usize][col as usize]			+= divergence * left_solid;
-				grid.velocity_u[row as usize][(col + 1) as usize]	-= divergence * right_solid;
-				grid.velocity_v[row as usize][col as usize]			-= divergence * up_solid;
-				grid.velocity_v[(row + 1) as usize][col as usize]	+= divergence * down_solid;
+				let overrelaxation: f32	= 1.9;
+				let roe: f32			= overrelaxation * ((0.0 - divergence) / solids_sum as f32);
+				grid.velocity_u[row as usize][col as usize]			-= roe * left_solid;
+				grid.velocity_u[row as usize][(col + 1) as usize]	+= roe * right_solid;
+				grid.velocity_v[row as usize][col as usize]			+= roe * up_solid;
+				grid.velocity_v[(row + 1) as usize][col as usize]	-= roe * down_solid;
+				grid.cell_center[row as usize][col as usize]		= roe;
 			}
 		}
 	}
@@ -529,15 +533,11 @@ pub fn make_grid_velocities_incompressible(grid: &mut SimGrid, constraints: &Sim
 
 /** Calculate the divergence (inflow/outflow) of a grid cell.  If this number is not zero, then
 	the fluid must be made incompressible.  **A negative divergence indicates there is too much
-	inflow, whereas a positive divergence indicates too much outflow.**  Overrelaxation is used
-	to increase the convergence of our divergence algorithm (ironic) dramatically.
-	**Overrelaxation values must be between 1 and 2.** */
+	inflow, whereas a positive divergence indicates too much outflow.** */
 fn calculate_cell_divergence(
 	grid:			&SimGrid,
 	cell_row:		usize,
 	cell_col:		usize,
-	overrelaxation: f32,
-	stiffness:		f32
 ) -> f32 {
 
 	/* Retrieve velocities for each face of the current cell.  Note: this will not go out of
@@ -551,14 +551,7 @@ fn calculate_cell_divergence(
 	// BUG: The up and down flows may need to be reversed.
 	let x_divergence: f32	= right_velocity - left_velocity;
 	let y_divergence: f32	= up_velocity - down_velocity;
-
-	/* Calculate a stiffness factor to account for drift, where more dense regions need harder
-		pushes to become less dense. */
-	let target_density: f32		= 0.0;
-	let density_actual: f32		= 0.0;
-	let density_factor: f32		= stiffness * (density_actual - target_density);
-
-	let divergence: f32		= overrelaxation * (x_divergence + y_divergence) - density_factor;
+	let divergence: f32		= x_divergence + y_divergence;
 
 	// ==============================================================
 	// TODO: Adjust divergence based on particle density in the cell.
@@ -567,7 +560,8 @@ fn calculate_cell_divergence(
 	divergence
 }
 
-/// Returns the cell solid modifiers (0 or 1) for cells in the order of: left, right, up, down.
+/** Returns the cell solid modifiers (0 for solid, 1 otherwise) for cells in the order of: left, 
+	right, up, down. **/
 fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u8; 4] {
 
 	/* Calculate collision modifiers for each cell face.  Note that we must perform a wrapping

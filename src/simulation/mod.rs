@@ -28,7 +28,7 @@ fn setup(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	grid.change_dimensions((100, 100), 5);
+	grid.change_dimensions((100, 100), 2);
 	test_state_manager::construct_test_simulation_layout(
 		constraints.as_mut(),
 		grid.as_mut(),
@@ -52,7 +52,7 @@ fn update(
 
 	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
-
+	
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
 }
@@ -63,14 +63,13 @@ fn step_simulation_once(
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	delta_time:		f32) {
-
-    integrate_particles_and_update_spatial_lookup(constraints, particles, grid, delta_time);
+	
+    update_particles(constraints, particles, grid, delta_time);
     push_particles_apart(constraints, grid, particles, delta_time);
     handle_particle_collisions(constraints, grid, particles);
-    let change_grid: SimGrid = particles_to_grid(grid, particles);
-    make_grid_velocities_incompressible(grid, constraints);
-    grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
-
+    // let change_grid: SimGrid = particles_to_grid(grid, particles);
+    // make_grid_velocities_incompressible(grid, constraints);
+    // grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 }
 
 #[derive(Resource)]
@@ -90,8 +89,8 @@ impl Default for SimConstraints {
 			grid_particle_ratio:		0.8,
 			incomp_iters_per_frame:		5,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -9.81 },	// 9.81^2 = 96.2361
-			particle_radius:			2.5,
+			gravity:					Vec2 { x: 0.0, y: -9.81 },
+			particle_radius:			1.5,
 			particle_count:				0,
 		}
 	}
@@ -141,6 +140,7 @@ pub struct SimGrid {
 	pub	velocity_u:		Vec<Vec<f32>>,			// Hor. magnitude as row<column<>>; left -> right.
 	pub velocity_v:     Vec<Vec<f32>>,			// Vert. magnitude as row<column<>>; up -> down.
 	pub spatial_lookup:	Vec<Vec<Entity>>,		// [cell_hash_value[list_of_entities_within_cell]].
+	pub density:		Vec<f32>,				// Density for each grid cell.
 }
 
 impl Default for SimGrid {
@@ -154,6 +154,7 @@ impl Default for SimGrid {
 			velocity_u:		vec![vec![0.0; 26]; 25],
             velocity_v:     vec![vec![0.0; 25]; 26],
 			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 625],
+			density:		vec![0.0; 625],
 		}
 	}
 }
@@ -173,6 +174,7 @@ impl SimGrid {
 		self.velocity_u			= vec![vec![0.0; row_count + 1]; col_count];
 		self.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
 		self.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
+		self.density			= vec![0.0; row_count * col_count];
 	}
 
 	/// Set simulation grid cell type.
@@ -363,6 +365,27 @@ impl SimGrid {
 		}
 
 		cells_in_selection
+	}
+	
+	/// Set all density values within the grid to 0.0.
+	pub fn clear_density_values(&mut self) {
+		for density in self.density.iter_mut() {
+			*density = 0.0;
+		}
+	}
+	
+	/// Update each grid cell's density based on weighted particle influences.
+	pub fn update_grid_density(&mut self, particle_position: &Vec2, cell_lookup_index: usize) {
+		
+		// TODO: Make this work.
+		
+		self.density[cell_lookup_index] += 1.0;
+	}
+	
+	/// Gets the density value for a point within the grid's bounds.
+	pub fn get_density_at_coordinates(&self, cell_coordinates: Vec2) -> f32 {
+		let cell_lookup_index: usize = get_lookup_index(cell_coordinates, self.dimensions.0);
+		self.density[cell_lookup_index]
 	}
 
 	/// Add a new particle into our spatial lookup table.
