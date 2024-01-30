@@ -68,8 +68,8 @@ fn step_simulation_once(
     push_particles_apart(constraints, grid, particles, delta_time);
     handle_particle_collisions(constraints, grid, particles);
     let change_grid: SimGrid = particles_to_grid(grid, particles);
-    make_grid_velocities_incompressible(grid, constraints, delta_time);
-    grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
+    make_grid_velocities_incompressible(grid, constraints);
+    // grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 
 }
 
@@ -381,6 +381,12 @@ impl SimGrid {
 		// TODO: Make this work.
 		
 		self.density[cell_lookup_index] += 1.0;
+	}
+	
+	/// Gets the density value for a point within the grid's bounds.
+	pub fn get_density_at_coordinates(&self, cell_coordinates: Vec2) -> f32 {
+		let cell_lookup_index: usize = get_lookup_index(cell_coordinates, self.dimensions.0);
+		self.density[cell_lookup_index]
 	}
 
 	/// Add a new particle into our spatial lookup table.

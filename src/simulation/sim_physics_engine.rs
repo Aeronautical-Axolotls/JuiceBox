@@ -489,8 +489,7 @@ fn separate_particle_pair(
 	Gauss-Seidel method. */
 pub fn make_grid_velocities_incompressible(
 	grid:			&mut SimGrid,
-	constraints: 	&SimConstraints,
-	delta_time:		f32) {
+	constraints: 	&SimConstraints) {
 	
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.incomp_iters_per_frame {
@@ -499,21 +498,20 @@ pub fn make_grid_velocities_incompressible(
 			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
-
-				// Used to increase convergence time for our Gauss-Seidel implementation.
-				let overrelaxation: f32	= 2.0;
-				let stiffness: f32		= 1.0;
-				let divergence: f32		= delta_time * calculate_cell_divergence(
+				
+				// Determine the inflow/outflow of the current cell.
+				let divergence: f32 = calculate_cell_divergence(
 					&grid,
 					row as usize,
-					col as usize,
-					overrelaxation,
-					stiffness
+					col as usize
 				);
 
 				// Calculate and sum the solid modifier for each surrounding cell.
 				let solids: [u8; 4]	= calculate_cell_solids(&grid, row as usize, col as usize);
 				let solids_sum: u8	= solids.iter().sum();
+				if solids_sum == 0 {
+					continue;
+				}
 
 				// Calculate solid modifier for each surrounding cell.
 				let left_solid: f32		= solids[0] as f32 / solids_sum as f32;
@@ -523,10 +521,13 @@ pub fn make_grid_velocities_incompressible(
 
 				// Force incompressibility on this cell.
 				// BUG: These signs might be backwards...
-				grid.velocity_u[row as usize][col as usize]			+= divergence * left_solid;
-				grid.velocity_u[row as usize][(col + 1) as usize]	-= divergence * right_solid;
-				grid.velocity_v[row as usize][col as usize]			-= divergence * up_solid;
-				grid.velocity_v[(row + 1) as usize][col as usize]	+= divergence * down_solid;
+				let overrelaxation: f32	= 1.9;
+				let roe: f32			= overrelaxation * ((0.0 - divergence) / solids_sum as f32);
+				grid.velocity_u[row as usize][col as usize]			-= roe * left_solid;
+				grid.velocity_u[row as usize][(col + 1) as usize]	+= roe * right_solid;
+				grid.velocity_v[row as usize][col as usize]			+= roe * up_solid;
+				grid.velocity_v[(row + 1) as usize][col as usize]	-= roe * down_solid;
+				grid.cell_center[row as usize][col as usize]		= roe;
 			}
 		}
 	}
@@ -534,15 +535,11 @@ pub fn make_grid_velocities_incompressible(
 
 /** Calculate the divergence (inflow/outflow) of a grid cell.  If this number is not zero, then
 	the fluid must be made incompressible.  **A negative divergence indicates there is too much
-	inflow, whereas a positive divergence indicates too much outflow.**  Overrelaxation is used
-	to increase the convergence of our divergence algorithm (ironic) dramatically.
-	**Overrelaxation values must be between 1 and 2.** */
+	inflow, whereas a positive divergence indicates too much outflow.** */
 fn calculate_cell_divergence(
 	grid:			&SimGrid,
 	cell_row:		usize,
 	cell_col:		usize,
-	overrelaxation: f32,
-	stiffness:		f32
 ) -> f32 {
 
 	/* Retrieve velocities for each face of the current cell.  Note: this will not go out of
@@ -556,14 +553,7 @@ fn calculate_cell_divergence(
 	// BUG: The up and down flows may need to be reversed.
 	let x_divergence: f32	= right_velocity - left_velocity;
 	let y_divergence: f32	= up_velocity - down_velocity;
-
-	/* Calculate a stiffness factor to account for drift, where more dense regions need harder
-		pushes to become less dense. */
-	let target_density: f32		= 0.0;
-	let density_actual: f32		= 0.0;
-	let density_factor: f32		= stiffness * (density_actual - target_density);
-
-	let divergence: f32		= overrelaxation * (x_divergence + y_divergence) - density_factor;
+	let divergence: f32		= x_divergence + y_divergence;
 
 	// ==============================================================
 	// TODO: Adjust divergence based on particle density in the cell.
