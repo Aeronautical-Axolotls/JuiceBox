@@ -86,7 +86,7 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.9,
+			grid_particle_ratio:		0.8,
 			incomp_iters_per_frame:		5,
 			collision_iters_per_frame:	2,
 			gravity:					Vec2 { x: 0.0, y: -2.0 },
