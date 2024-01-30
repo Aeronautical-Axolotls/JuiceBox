@@ -90,7 +90,7 @@ impl Default for SimConstraints {
 			grid_particle_ratio:		0.9,
 			incomp_iters_per_frame:		5,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -23.0 },	// 9.81^2 = 96.2361
+			gravity:					Vec2 { x: 0.0, y: -9.81 },	// 9.81^2 = 96.2361
 			particle_radius:			2.5,
 			particle_count:				0,
 		}

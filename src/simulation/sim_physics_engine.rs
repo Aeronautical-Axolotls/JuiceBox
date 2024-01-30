@@ -342,8 +342,8 @@ pub fn integrate_particles_and_update_spatial_lookup(
 
 	for (id, mut particle) in particles.iter_mut() {
 		// Change each particle's velocity by gravity.
-		particle.velocity[0] += constraints.gravity[0] * delta_time;
-		particle.velocity[1] += constraints.gravity[1] * delta_time;
+		particle.velocity[0] += constraints.gravity[0];
+		particle.velocity[1] += constraints.gravity[1];
 
 		// Change each particle's position by velocity.
 		particle.position[0] += particle.velocity[0] * delta_time;

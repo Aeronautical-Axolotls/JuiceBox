@@ -66,91 +66,16 @@ pub fn interpolate_velocity(particle_pos: Vec2, grid: &SimGrid) -> Vec2 {
         (grid.get_cell_velocity(bottom_right.x as usize, bottom_right.y as usize), grid.get_cell_position_from_coordinates(bottom_right)),
     ];
 
-    let r1_u = (
-            (
-                (grid_points[2].1.x - particle_pos.x) / (grid_points[3].1.x - grid_points[0].1.x)
-            ) *
-            grid_points[0].0.x
-        ) +
-        (
-            (
-                (particle_pos.x - grid_points[0].1.x) / (grid_points[3].1.x - grid_points[0].1.x)
-            ) *
-            grid_points[1].0.x
-        );
+    let r1 = (((grid_points[3].1.x - particle_pos.x) / (grid_points[3].1.x - grid_points[0].1.x)) * grid_points[0].0)
+        + (((particle_pos.x - grid_points[0].1.x) / (grid_points[3].1.x - grid_points[0].1.x)) * grid_points[3].0);
 
-    let r1_v = (
-            (
-                (grid_points[2].1.x - particle_pos.x) / (grid_points[2].1.x - grid_points[0].1.x)
-            ) *
-            grid_points[0].0.y
-        ) +
-        (
-            (
-                (particle_pos.x - grid_points[0].1.x) / (grid_points[2].1.x - grid_points[0].1.x)
-            ) *
-            grid_points[1].0.y
-        );
+    let r2 = (((grid_points[2].1.x - particle_pos.x) / (grid_points[2].1.x - grid_points[1].1.x)) * grid_points[1].0)
+        + (((particle_pos.x - grid_points[1].1.x) / (grid_points[2].1.x - grid_points[1].1.x)) * grid_points[2].0);
 
-    let r2_u = (
-            (
-                (grid_points[2].1.x - particle_pos.x) / (grid_points[2].1.x - grid_points[0].1.x)
-            ) *
-            grid_points[2].0.x
-        ) +
-        (
-            (
-                (particle_pos.x - grid_points[0].1.x) / (grid_points[2].1.x - grid_points[0].1.x)
-            ) *
-            grid_points[3].0.x
-        );
+    let weight_y1 = (grid_points[1].1.y - particle_pos.y) / (grid_points[1].1.y - grid_points[0].1.y);
+    let weight_y2 = (grid_points[2].1.y - particle_pos.y) / (grid_points[2].1.y - grid_points[3].1.y);
 
-    let r2_v = (
-            (
-                (grid_points[2].1.x - particle_pos.x) / (grid_points[2].1.x - grid_points[0].1.x)
-            ) *
-            grid_points[2].0.y
-        ) +
-        (
-            (
-                (particle_pos.x - grid_points[0].1.x) / (grid_points[2].1.x - grid_points[0].1.x)
-            ) *
-            grid_points[3].0.y
-        );
-
-    let weight_y1 = (grid_points[2].1.y - particle_pos.y) / (grid_points[2].1.y - grid_points[0].1.y);
-    let weight_y2 = (particle_pos.y - grid_points[0].1.y) / (grid_points[2].1.y - grid_points[0].1.y);
-
-    let interp_velocity_u = (
-            (
-                weight_y1
-            ) *
-            r1_u
-        ) +
-        (
-            (
-                weight_y2
-            ) *
-            r2_u
-        );
-
-    let interp_velocity_v = (
-            (
-                weight_y1
-            ) *
-            r1_v
-        ) +
-        (
-            (
-                weight_y2
-            ) *
-            r2_v
-        );
-
-
-    let interp_velocity = Vec2::new(interp_velocity_u, interp_velocity_v);
-
-    // println!("{:?}", interp_velocity);
+    let interp_velocity = (weight_y1 * r1) + (weight_y2 * r2);
 
     interp_velocity
 
