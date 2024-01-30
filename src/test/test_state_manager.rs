@@ -20,12 +20,12 @@ pub fn construct_test_simulation_layout(
 	mut commands:	Commands) {
 
 	// Create a bunch of solid cells.
-	// grid.cell_type[82][12] = SimGridCellType::Solid;
-	// grid.cell_type[83][12] = SimGridCellType::Solid;
-	// grid.cell_type[83][13] = SimGridCellType::Solid;
-	// grid.cell_type[83][14] = SimGridCellType::Solid;
-	// grid.cell_type[83][15] = SimGridCellType::Solid;
-	// grid.cell_type[82][15] = SimGridCellType::Solid;
+	// grid.cell_type[82][45] = SimGridCellType::Solid;
+	// grid.cell_type[83][45] = SimGridCellType::Solid;
+	// grid.cell_type[83][46] = SimGridCellType::Solid;
+	// grid.cell_type[83][47] = SimGridCellType::Solid;
+	// grid.cell_type[83][48] = SimGridCellType::Solid;
+	// grid.cell_type[82][48] = SimGridCellType::Solid;
 
 	// Spawn a small test group of particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {

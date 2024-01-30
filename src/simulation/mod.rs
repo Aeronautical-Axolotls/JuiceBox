@@ -70,7 +70,6 @@ fn step_simulation_once(
     let change_grid: SimGrid = particles_to_grid(grid, particles);
     make_grid_velocities_incompressible(grid, constraints);
     // grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
-
 }
 
 #[derive(Resource)]
@@ -90,7 +89,7 @@ impl Default for SimConstraints {
 			grid_particle_ratio:		0.9,
 			incomp_iters_per_frame:		5,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -96.2361 },	// 9.81^2 = 96.2361
+			gravity:					Vec2 { x: 0.0, y: -9.81 },
 			particle_radius:			2.5,
 			particle_count:				0,
 		}

@@ -341,12 +341,12 @@ pub fn update_particles(
 	grid:			&mut SimGrid,
 	delta_time:		f32) {
 	
-	grid.clear_density_values();
+	// grid.clear_density_values();
 	
 	for (id, mut particle) in particles.iter_mut() {
 		// Change each particle's velocity by gravity.
-		particle.velocity[0] += constraints.gravity[0] * delta_time;
-		particle.velocity[1] += constraints.gravity[1] * delta_time;
+		particle.velocity[0] += constraints.gravity[0];
+		particle.velocity[1] += constraints.gravity[1];
 
 		// Change each particle's position by velocity.
 		particle.position[0] += particle.velocity[0] * delta_time;
@@ -360,7 +360,7 @@ pub fn update_particles(
 		update_particle_lookup(id, particle.as_mut(), grid);
 		
 		// Update the grid's density value for this current cell.
-		grid.update_grid_density(&particle.position, particle.lookup_index);
+		// grid.update_grid_density(&particle.position, particle.lookup_index);
 	}
 }
 
@@ -372,8 +372,8 @@ pub fn handle_particle_collisions(
 
 	for (_, mut particle) in particles.iter_mut() {
 
-		// TODO: Collide with solid cells.
-
+		// TODO: Collision checking w/ solids.
+		
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
@@ -562,7 +562,8 @@ fn calculate_cell_divergence(
 	divergence
 }
 
-/// Returns the cell solid modifiers (0 or 1) for cells in the order of: left, right, up, down.
+/** Returns the cell solid modifiers (0 for solid, 1 otherwise) for cells in the order of: left, 
+	right, up, down. **/
 fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u8; 4] {
 
 	/* Calculate collision modifiers for each cell face.  Note that we must perform a wrapping

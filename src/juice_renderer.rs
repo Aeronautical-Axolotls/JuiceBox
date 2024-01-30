@@ -265,7 +265,7 @@ fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, m
 	// For each column in each row, determine each cell's type.
 	for row in 0..grid.dimensions.0 {
 		for col in 0..grid.dimensions.1 {
-
+			
 			match grid.cell_type[row as usize][col as usize] {
 				SimGridCellType::Fluid	=> continue,			// Do nothing if fluid.
 				SimGridCellType::Air	=> continue,			// Do nothing if air.
