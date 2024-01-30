@@ -173,10 +173,6 @@ fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
 
             let mut change_in_u = new_grid.velocity_u[row_index][col_index] - old_grid.velocity_u[row_index][col_index];
 
-            if change_in_u.is_nan() {
-                change_in_u = 0.0;
-            }
-
             change_u[row_index][col_index] = change_in_u;
         }
     }
