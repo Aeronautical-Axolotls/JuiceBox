@@ -52,7 +52,7 @@ fn update(
 
 	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
-	
+
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
 }
@@ -63,13 +63,14 @@ fn step_simulation_once(
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	delta_time:		f32) {
-	
+
     update_particles(constraints, particles, grid, delta_time);
     push_particles_apart(constraints, grid, particles, delta_time);
     handle_particle_collisions(constraints, grid, particles);
-    // let change_grid: SimGrid = particles_to_grid(grid, particles);
-    // make_grid_velocities_incompressible(grid, constraints);
-    // grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
+    let old_grid: SimGrid = particles_to_grid(grid, particles);
+    make_grid_velocities_incompressible(grid, constraints);
+    let change_grid = create_change_grid(&old_grid, &grid);
+    grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 }
 
 #[derive(Resource)]
@@ -86,10 +87,10 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.8,
+			grid_particle_ratio:		0.1,
 			incomp_iters_per_frame:		5,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -9.81 },
+			gravity:					Vec2 { x: 0.0, y: -9.81},
 			particle_radius:			1.5,
 			particle_count:				0,
 		}
@@ -366,22 +367,22 @@ impl SimGrid {
 
 		cells_in_selection
 	}
-	
+
 	/// Set all density values within the grid to 0.0.
 	pub fn clear_density_values(&mut self) {
 		for density in self.density.iter_mut() {
 			*density = 0.0;
 		}
 	}
-	
+
 	/// Update each grid cell's density based on weighted particle influences.
 	pub fn update_grid_density(&mut self, particle_position: &Vec2, cell_lookup_index: usize) {
-		
+
 		// TODO: Make this work.
-		
+
 		self.density[cell_lookup_index] += 1.0;
 	}
-	
+
 	/// Gets the density value for a point within the grid's bounds.
 	pub fn get_density_at_coordinates(&self, cell_coordinates: Vec2) -> f32 {
 		let cell_lookup_index: usize = get_lookup_index(cell_coordinates, self.dimensions.0);

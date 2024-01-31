@@ -265,7 +265,7 @@ fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, m
 	// For each column in each row, determine each cell's type.
 	for row in 0..grid.dimensions.0 {
 		for col in 0..grid.dimensions.1 {
-			
+
 			match grid.cell_type[row as usize][col as usize] {
 				SimGridCellType::Fluid	=> continue,			// Do nothing if fluid.
 				SimGridCellType::Air	=> continue,			// Do nothing if air.
@@ -302,25 +302,25 @@ fn draw_solid_cell(grid: &SimGrid, cell_coordinates: Vec2, color: Color, gizmos:
 
 /// Draw grid cells based on SimGrid using Bevy's Gizmos!
 fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mut gizmos: Gizmos) {
-	
+
 	let grid_width: f32		= (grid.dimensions.0 * grid.cell_size) as f32;
 	let grid_height: f32	= (grid.dimensions.1 * grid.cell_size) as f32;
-	
+
 	// If we don't want to draw the grid cells, still outline the simulation.
 	if !grid_render_data.draw_grid {
-		
+
 		let top_left: Vec2		= Vec2 { x: 0.0,		y: grid_height };
 		let top_right: Vec2		= Vec2 { x: grid_width,	y: grid_height };
 		let bottom_right: Vec2	= Vec2 { x: grid_width,	y: 0.0 };
-		
+
 		gizmos.line_2d(Vec2::ZERO, bottom_right, grid_render_data.grid_color);
 		gizmos.line_2d(Vec2::ZERO, top_left, grid_render_data.grid_color);
 		gizmos.line_2d(top_left, top_right, grid_render_data.grid_color);
 		gizmos.line_2d(top_right, bottom_right, grid_render_data.grid_color);
-		
+
 		return;
 	}
-	
+
 	// Draw vertical grid lines.
 	for i in 0..((grid.dimensions.0 as u16) + 1) {
 		let cell_bottom_position: Vec2 = Vec2 {
@@ -360,7 +360,7 @@ fn draw_grid_vectors(
 
 	for row in 0..grid.dimensions.1 {
 		for col in 0..grid.dimensions.0 {
-			
+
 			/* Indices for each column/row of each u/v velocity component on the grid.  Note that
 				because each cell has two velocity components going in either direction, the
 				vectors containing said components are one element larger in either rows or
@@ -373,7 +373,7 @@ fn draw_grid_vectors(
 			let row_v0: usize		= row as usize;
 			let row_v1: usize		= (row + 1) as usize;
 			let column_v: usize		= col as usize;
-			
+
 			// Horizontal velocity components.
 			let velocities_u: [f32; 2]	= [
 				grid.velocity_u[row_u][column_u0],
@@ -393,12 +393,12 @@ fn draw_grid_vectors(
 
 			// Calculate velocity direction and magnitude based on u and v components.
 			let velocity_vector_polar: Vec2 = util::cartesian_to_polar(velocity_vector_cartesian);
-			
+
 			// Skip drawing if the vector is too short.
 			if velocity_vector_polar[0] < 0.2 {
 				continue;
 			}
-			
+
 			// Find the center of each grid cell to draw the vector arrows.
 			let half_cell_size: f32	= (grid.cell_size as f32) / 2.0;
 			let cell_x: f32			= (col * grid.cell_size) as f32;
@@ -408,7 +408,7 @@ fn draw_grid_vectors(
 				x: cell_x + half_cell_size,
 				y: grid_height - cell_y - half_cell_size,
 			};
-			
+
 			draw_vector_arrow(
 				cell_center_position,
 				velocity_vector_polar[1],
