@@ -8,4 +8,4 @@ JuiceBox is a 2D PIC/FLIP fluid simulator built in Rust using the Bevy game engi
 | Kade Samson		| Scribe		|
 | Matthew Fisk		| Tech Lead		|
 
-![JuiceBox Logo](./assets/juicebox_logo_4000.png "JuiceBox Logo")
+![JuiceBox Logo](./assets/juicebox_logo_1000.png "JuiceBox Logo")

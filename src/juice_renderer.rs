@@ -47,7 +47,7 @@ impl Default for FluidRenderData {
 		Self {
 			color_render_type:	FluidColorRenderType::Velocity,
 			arbitrary_color:	util::JUICE_YELLOW,
-			velocity_magnitude_color_scale:	100.0,
+			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
 		}
 	}
