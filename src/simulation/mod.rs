@@ -49,13 +49,19 @@ fn update(
 	constraints:		Res<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
-	time:				Res<Time>) {
+	time:				Res<Time>,
+	keys:				Res<Input<KeyCode>>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
-
-	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
+	
+	if !keys.pressed(KeyCode::F) {
+		let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
+		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
+	} else if keys.just_pressed(KeyCode::G) {
+		let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
+		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
+	}
 
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.

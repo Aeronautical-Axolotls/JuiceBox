@@ -4,7 +4,6 @@ use crate::simulation::sim_state_manager::{
 	select_particles,
 	delete_particle,
 };
-use crate::simulation::SimGridCellType;
 use crate::simulation::{
 	SimConstraints,
 	SimParticle,
