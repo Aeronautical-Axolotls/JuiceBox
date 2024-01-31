@@ -15,8 +15,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     // influences
 
     // This function, after applying particle velocities
-    // to the grid, returns a copy of the grid, but the
-    // values are all "change in" values
+    // to the grid, returns the previous grid
 
     // easy measurement for half the cell size
     let half_cell = grid.cell_size as f32 / 2.0;
@@ -149,7 +148,9 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     grid.velocity_v = velocity_v;
 
     // Return the change grid
-    create_change_grid(&old_grid, &grid)
+    // create_change_grid(&old_grid, &grid)
+
+    old_grid
 
 }
 
@@ -157,7 +158,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     Create a SimGrid with values containing the difference between
     The old grid and new grid
 */
-fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
+pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
 
     // Here we are creating a SimGrid that holds the delta or change
     // in values after applying the particle velocities to the grid.
@@ -171,7 +172,7 @@ fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     for row_index in 0..change_grid.velocity_u.len() {
         for col_index in 0..change_grid.velocity_u[row_index].len() {
 
-            let mut change_in_u = new_grid.velocity_u[row_index][col_index] - old_grid.velocity_u[row_index][col_index];
+            let mut change_in_u = old_grid.velocity_u[row_index][col_index] - new_grid.velocity_u[row_index][col_index];
 
             change_u[row_index][col_index] = change_in_u;
         }
@@ -180,11 +181,7 @@ fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     for row_index in 0..change_grid.velocity_v.len() {
         for col_index in 0..change_grid.velocity_v[row_index].len() {
 
-            let mut change_in_v = new_grid.velocity_v[row_index][col_index] - old_grid.velocity_v[row_index][col_index];
-
-            if change_in_v.is_nan() {
-                change_in_v = 0.0;
-            }
+            let mut change_in_v = old_grid.velocity_v[row_index][col_index] - new_grid.velocity_v[row_index][col_index];
 
             change_v[row_index][col_index] = change_in_v;
         }
@@ -329,16 +326,16 @@ pub fn get_lookup_index(cell_coordinates: Vec2, grid_row_count: u16) -> usize {
 	(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * grid_row_count)) as usize
 }
 
-/** For each particle: integrate velocity into position, update cell type, update spatial lookup, 
+/** For each particle: integrate velocity into position, update cell type, update spatial lookup,
 	and update density values for the four faces of the cell the particle is in. */
 pub fn update_particles(
 	constraints:	&SimConstraints,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	grid:			&mut SimGrid,
 	delta_time:		f32) {
-	
+
 	// grid.clear_density_values();
-	
+
 	for (id, mut particle) in particles.iter_mut() {
 		// Change each particle's velocity by gravity.
 		particle.velocity[0] += constraints.gravity[0];
@@ -354,7 +351,7 @@ pub fn update_particles(
 
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);
-		
+
 		// Update the grid's density value for this current cell.
 		// grid.update_grid_density(&particle.position, particle.lookup_index);
 	}
@@ -369,7 +366,7 @@ pub fn handle_particle_collisions(
 	for (_, mut particle) in particles.iter_mut() {
 
 		// TODO: Collision checking w/ solids.
-		
+
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
@@ -488,7 +485,7 @@ fn separate_particle_pair(
 pub fn make_grid_velocities_incompressible(
 	grid:			&mut SimGrid,
 	constraints: 	&SimConstraints) {
-	
+
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.incomp_iters_per_frame {
 
@@ -496,7 +493,7 @@ pub fn make_grid_velocities_incompressible(
 			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
-				
+
 				// Determine the inflow/outflow of the current cell.
 				let divergence: f32 = calculate_cell_divergence(
 					&grid,
@@ -560,7 +557,7 @@ fn calculate_cell_divergence(
 	divergence
 }
 
-/** Returns the cell solid modifiers (0 for solid, 1 otherwise) for cells in the order of: left, 
+/** Returns the cell solid modifiers (0 for solid, 1 otherwise) for cells in the order of: left,
 	right, up, down. **/
 fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u8; 4] {
 

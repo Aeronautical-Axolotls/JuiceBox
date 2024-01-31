@@ -32,7 +32,7 @@ pub fn construct_test_simulation_layout(
 		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
 		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
 	};
-	
+
 	let _moar_test_particles = add_particles_in_radius(
 		&mut commands,
         constraints,
