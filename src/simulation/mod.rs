@@ -8,6 +8,11 @@ use crate::error::Error;
 use sim_physics_engine::*;
 use crate::test::test_state_manager;
 
+use self::sim_state_manager::{
+	delete_particle,
+	delete_all_particles
+};
+
 pub type Result<T> = core::result::Result<T, Error>;
 
 pub struct Simulation;
@@ -24,11 +29,10 @@ impl Plugin for Simulation {
 
 /// Simulation state manager initialization.
 fn setup(
-	commands:		Commands,
+	commands:			Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	grid.change_dimensions((100, 100), 2);
 	test_state_manager::construct_test_simulation_layout(
 		constraints.as_mut(),
 		grid.as_mut(),
@@ -73,6 +77,19 @@ fn step_simulation_once(
     grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 }
 
+/// Reset all simulation components to their default state.
+pub fn reset_simulation_to_default(
+	commands:			&mut Commands,
+	mut constraints:	&mut SimConstraints,
+	mut grid:			&mut SimGrid,
+	particles:			&Query<(Entity, &mut SimParticle)>) {
+	
+	println!("Resetting simulation to default...");
+	delete_all_particles(commands, constraints, grid, particles);
+	*grid			= SimGrid::default();
+	*constraints	= SimConstraints::default();
+}
+
 #[derive(Resource)]
 pub struct SimConstraints {
 	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio.
@@ -88,7 +105,7 @@ impl Default for SimConstraints {
 	fn default() -> SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:		0.1,
-			incomp_iters_per_frame:		5,
+			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
 			gravity:					Vec2 { x: 0.0, y: -9.81},
 			particle_radius:			1.5,
@@ -148,14 +165,14 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (25, 25),
-			cell_size:		10,
-			cell_type:		vec![vec![SimGridCellType::Air; 25]; 25],
-            cell_center:    vec![vec![0.0; 25]; 25],
-			velocity_u:		vec![vec![0.0; 26]; 25],
-            velocity_v:     vec![vec![0.0; 25]; 26],
-			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 625],
-			density:		vec![0.0; 625],
+			dimensions:	    (100, 100),
+			cell_size:		2,
+			cell_type:		vec![vec![SimGridCellType::Air; 100]; 100],
+            cell_center:    vec![vec![0.0; 100]; 100],
+			velocity_u:		vec![vec![0.0; 101]; 100],
+            velocity_v:     vec![vec![0.0; 100]; 101],
+			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 10000],
+			density:		vec![0.0; 10000],
 		}
 	}
 }
@@ -383,10 +400,10 @@ impl SimGrid {
 		self.density[cell_lookup_index] += 1.0;
 	}
 
-	/// Gets the density value for a point within the grid's bounds.
-	pub fn get_density_at_coordinates(&self, cell_coordinates: Vec2) -> f32 {
-		let cell_lookup_index: usize = get_lookup_index(cell_coordinates, self.dimensions.0);
-		self.density[cell_lookup_index]
+	/// Gets in interpolated density value for a position within the grid's bounds.
+	pub fn get_density_at_position(&self, position: Vec2) -> f32 {
+		
+		1.0
 	}
 
 	/// Add a new particle into our spatial lookup table.
