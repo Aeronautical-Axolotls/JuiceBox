@@ -337,9 +337,10 @@ pub fn update_particles(
 	grid.clear_density_values();
 
 	for (id, mut particle) in particles.iter_mut() {
-		// Change each particle's velocity by gravity * dt.
-		particle.velocity[0] += constraints.gravity[0] * delta_time;
-		particle.velocity[1] += constraints.gravity[1] * delta_time;
+		/* Change each particle's velocity by gravity * dt.  Multiply by whatever framerate you 
+			want gravity to act normal at. */
+		particle.velocity[0] += constraints.gravity[0] * 60.0 * delta_time;
+		particle.velocity[1] += constraints.gravity[1] * 60.0 * delta_time;
 
 		// Change each particle's position by velocity * dt.
 		particle.position[0] += particle.velocity[0] * delta_time;
@@ -432,7 +433,7 @@ pub fn push_particles_apart(
 					};
 
 					// Push both particles apart.
-					separate_particle_pair(constraints, grid, particle_combo, delta_time);
+					separate_particle_pair(constraints, grid, particle_combo);
 				}
 			}
 		}
@@ -443,11 +444,10 @@ pub fn push_particles_apart(
 fn separate_particle_pair(
 	constraints:		&SimConstraints,
 	grid:				&SimGrid,
-	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2],
-	delta_time:			f32) {
+	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
 	
 	// Calculate a collision radius and distance to modify position (and break early if too far).
-	let radius_multiplier: f32			= 1.0;
+	let radius_multiplier: f32			= 2.0;
 	let collision_radius: f32			= constraints.particle_radius * radius_multiplier;
 	let collision_radius_squared: f32	= collision_radius * collision_radius;
 
@@ -483,7 +483,21 @@ pub fn make_grid_velocities_incompressible(
 	grid:			&mut SimGrid,
 	constraints: 	&SimConstraints,
 	delta_time:		f32) {
-
+	
+	// Get the "particle rest density" for the simulation domain.
+	let mut fluid_cell_count: f32		= 0.0;
+	let mut density_sum: f32			= 0.0;
+	let mut particle_rest_density: f32	= 0.0;
+	
+	for i in 0..grid.density.len() {
+		density_sum			+= grid.density[i];
+		fluid_cell_count	+= 1.0;
+	}
+	
+	if fluid_cell_count > 0.0 {
+		particle_rest_density = density_sum / fluid_cell_count;
+	}
+	
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.incomp_iters_per_frame {
 
@@ -518,12 +532,12 @@ pub fn make_grid_velocities_incompressible(
 				);
 				
 				// Density calculations.
-				let particle_rest_density: f32	= 1.0;
-				let stiffness_coefficient: f32	= 1.0;
-				let density: f32				= 1.0;// grid.get_density_from_lookup(position, lookup_index);
-				let compression: f32			= density - particle_rest_density;
-				if compression > 0.0 {
-					divergence -= stiffness_coefficient * compression;
+				if particle_rest_density > 0.0 {
+					let stiffness_coefficient: f32	= 1.0;
+					let compression: f32			= 0.0 - particle_rest_density;
+					if compression > 0.0 {
+						divergence -= stiffness_coefficient * compression;
+					}
 				}
 				
 				// Force incompressibility on this cell.

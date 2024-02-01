@@ -81,10 +81,10 @@ fn step_simulation_once(
     update_particles(constraints, particles, grid, delta_time);
     push_particles_apart(constraints, grid, particles, delta_time);
     handle_particle_collisions(constraints, grid, particles);
-    // let old_grid: SimGrid = particles_to_grid(grid, particles);
-    // make_grid_velocities_incompressible(grid, constraints, delta_time);
-    // let change_grid = create_change_grid(&old_grid, &grid);
-    // grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
+    let old_grid: SimGrid = particles_to_grid(grid, particles);
+    make_grid_velocities_incompressible(grid, constraints, delta_time);
+    let change_grid = create_change_grid(&old_grid, &grid);
+    grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 }
 
 /// Reset simulation components to their default state and delete all particles.
@@ -115,7 +115,7 @@ impl Default for SimConstraints {
 	fn default() -> SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:		0.1,
-			incomp_iters_per_frame:		10,
+			incomp_iters_per_frame:		5,
 			collision_iters_per_frame:	2,
 			gravity:					Vec2 { x: 0.0, y: -9.81},
 			particle_radius:			2.5,
