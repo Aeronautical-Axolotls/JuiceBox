@@ -78,11 +78,13 @@ fn step_simulation_once(
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	delta_time:		f32) {
 	
-    update_particles(constraints, particles, grid, delta_time);
-    push_particles_apart(constraints, grid, particles, delta_time);
+	let fixed_timestep: f32 = 1.0 / 120.0;
+	
+    update_particles(constraints, particles, grid, fixed_timestep);
+    push_particles_apart(constraints, grid, particles, fixed_timestep);
     handle_particle_collisions(constraints, grid, particles);
     let old_grid: SimGrid = particles_to_grid(grid, particles);
-    make_grid_velocities_incompressible(grid, constraints, delta_time);
+    make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 }
@@ -114,10 +116,10 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.1,
-			incomp_iters_per_frame:		5,
+			grid_particle_ratio:		0.0,
+			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -9.81},
+			gravity:					Vec2 { x: 0.0, y: -9.81 },
 			particle_radius:			2.5,
 			particle_count:				0,
 		}

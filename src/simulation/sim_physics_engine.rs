@@ -327,7 +327,7 @@ pub fn get_lookup_index(cell_coordinates: Vec2, grid_row_count: u16) -> usize {
 }
 
 /** For each particle: integrate velocity into position, update cell type, update spatial lookup,
-	and update density values for the four corners of the cell the particle is in. */
+	and update density value of the cell the particle is in. */
 pub fn update_particles(
 	constraints:	&SimConstraints,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
@@ -339,8 +339,8 @@ pub fn update_particles(
 	for (id, mut particle) in particles.iter_mut() {
 		/* Change each particle's velocity by gravity * dt.  Multiply by whatever framerate you 
 			want gravity to act normal at. */
-		particle.velocity[0] += constraints.gravity[0] * 60.0 * delta_time;
-		particle.velocity[1] += constraints.gravity[1] * 60.0 * delta_time;
+		particle.velocity[0] += constraints.gravity[0] * delta_time;
+		particle.velocity[1] += constraints.gravity[1] * delta_time;
 
 		// Change each particle's position by velocity * dt.
 		particle.position[0] += particle.velocity[0] * delta_time;
@@ -349,7 +349,7 @@ pub fn update_particles(
         // Update the grid cell this particle is in to be a fluid
         let coords = grid.get_cell_coordinates_from_position(&particle.position);
         grid.cell_type[coords.x as usize][coords.y as usize] = SimGridCellType::Fluid;
-
+		
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);
 
@@ -446,22 +446,21 @@ fn separate_particle_pair(
 	grid:				&SimGrid,
 	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
 	
-	// Calculate a collision radius and distance to modify position (and break early if too far).
-	let radius_multiplier: f32			= 2.0;
-	let collision_radius: f32			= constraints.particle_radius * radius_multiplier;
+	// Collision radii used to find the particle pair's push force on each other.
+	let collision_radius: f32			= constraints.particle_radius * 2.0;
 	let collision_radius_squared: f32	= collision_radius * collision_radius;
 
 	// Figure out if we even need to push the particles apart in the first place!
-	let mut delta_x: f32	= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
-	let mut delta_y: f32	= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
-	let delta_squared: f32	= (delta_x * delta_x) + (delta_y * delta_y);
-	if delta_squared > collision_radius_squared || delta_squared == 0.0 {
+	let mut delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
+	let mut delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
+	let distance_squared: f32	= (delta_x * delta_x) + (delta_y * delta_y);
+	if distance_squared > collision_radius_squared || distance_squared == 0.0 {
 		return;
 	}
 	
 	// Calculate the distance we need to separate the particles by.
-	let delta: f32				= delta_squared.sqrt();
-	let separation_scale: f32	= 0.5 * (collision_radius - delta) / delta;
+	let distance: f32			= distance_squared.sqrt();
+	let separation_scale: f32	= 0.5 * (collision_radius - distance) / distance;
 	delta_x *= separation_scale;
 	delta_y *= separation_scale;
 	
@@ -481,8 +480,7 @@ fn separate_particle_pair(
 	Gauss-Seidel method. */
 pub fn make_grid_velocities_incompressible(
 	grid:			&mut SimGrid,
-	constraints: 	&SimConstraints,
-	delta_time:		f32) {
+	constraints: 	&SimConstraints) {
 	
 	// Get the "particle rest density" for the simulation domain.
 	let mut fluid_cell_count: f32		= 0.0;
@@ -513,16 +511,15 @@ pub fn make_grid_velocities_incompressible(
 
 				// Calculate and sum the solid modifier for each surrounding cell.
 				let solids: [u8; 5]	= calculate_cell_solids(&grid, row as usize, col as usize);
-				let solids_sum: u8	= solids.iter().sum();
+				let left_solid: u8	= solids[1];
+				let right_solid: u8	= solids[2];
+				let up_solid: u8	= solids[3];
+				let down_solid: u8	= solids[4];
+				
+				let solids_sum: u8	= left_solid + right_solid + up_solid + down_solid;
 				if solids_sum == 0 {
 					continue;
 				}
-				
-				// Calculate solid modifier for each surrounding cell.
-				let left_solid: f32		= solids[1] as f32;
-				let right_solid: f32	= solids[2] as f32;
-				let up_solid: f32		= solids[3] as f32;
-				let down_solid: f32		= solids[4] as f32;
 				
 				// Determine the inflow/outflow of the current cell.
 				let mut divergence: f32 = calculate_cell_divergence(
@@ -533,22 +530,21 @@ pub fn make_grid_velocities_incompressible(
 				
 				// Density calculations.
 				if particle_rest_density > 0.0 {
-					let stiffness_coefficient: f32	= 1.0;
-					let compression: f32			= 0.0 - particle_rest_density;
+					let stiffness: f32		= 1.0;
+					let compression: f32	= 0.0 - particle_rest_density;
 					if compression > 0.0 {
-						divergence -= stiffness_coefficient * compression;
+						divergence -= stiffness * compression;
 					}
 				}
 				
 				// Force incompressibility on this cell.
-				// BUG: These signs might be backwards...
 				let overrelaxation: f32	= 1.9;
-				let momentum: f32		= overrelaxation * (0.0 - divergence) / solids_sum as f32;
+				let momentum: f32		= overrelaxation * ((0.0 - divergence) / solids_sum as f32);
 				
-				grid.velocity_u[row as usize][col as usize]			-= momentum * left_solid;
-				grid.velocity_u[row as usize][(col + 1) as usize]	+= momentum * right_solid;
-				grid.velocity_v[row as usize][col as usize]			+= momentum * up_solid;
-				grid.velocity_v[(row + 1) as usize][col as usize]	-= momentum * down_solid;
+				grid.velocity_u[row as usize][col as usize]			-= momentum * left_solid as f32;
+				grid.velocity_u[row as usize][(col + 1) as usize]	+= momentum * right_solid as f32;
+				grid.velocity_v[row as usize][col as usize]			+= momentum * up_solid as f32;
+				grid.velocity_v[(row + 1) as usize][col as usize]	-= momentum * down_solid as f32;
 			}
 		}
 	}
