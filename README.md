@@ -3,7 +3,7 @@
 <br id="readme-top" />
 <div align="center">
   <a href="https://github.com/Aeronautical-Axolotls/JuiceBox" target="_blank" rel="noreferrer noopener">
-    <img src="https://github.com/Aeronautical-Axolotls/JuiceBox/blob/main/assets/juicebox_logo_4000.png" alt="JuiceBox Logo" width="20%">
+    <img src="https://github.com/Aeronautical-Axolotls/JuiceBox/blob/main/assets/juicebox_logo_1000.png" alt="JuiceBox Logo" width="160px">
   </a>
 
   <h2 align="center">JuiceBox - Spilling Encouraged!</h2>
