@@ -55,16 +55,16 @@ fn update(
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
 	
+	let fixed_timestep: f32 = 1.0 / 120.0;
+	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
+	
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
-		
-		let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
+		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, fixed_timestep);
 		
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
-		let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
+		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, fixed_timestep);
 	}
 
 	// TODO: Check for and handle changes to gravity.
@@ -76,12 +76,10 @@ fn step_simulation_once(
 	constraints:	&SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
-	delta_time:		f32) {
+	timestep:		f32) {
 	
-	let fixed_timestep: f32 = 1.0 / 120.0;
-	
-    update_particles(constraints, particles, grid, fixed_timestep);
-    push_particles_apart(constraints, grid, particles, fixed_timestep);
+    update_particles(constraints, particles, grid, timestep);
+    push_particles_apart(constraints, grid, particles, timestep);
     handle_particle_collisions(constraints, grid, particles);
     let old_grid: SimGrid = particles_to_grid(grid, particles);
     make_grid_velocities_incompressible(grid, constraints);
@@ -116,10 +114,10 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.0,
+			grid_particle_ratio:		0.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC)
 			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -9.81 },
+			gravity:					Vec2 { x: 0.0, y: -96.0 },
 			particle_radius:			2.5,
 			particle_count:				0,
 		}
