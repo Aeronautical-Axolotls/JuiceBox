@@ -39,6 +39,7 @@ struct FluidRenderData {
 	arbitrary_color:	Color,
 	velocity_magnitude_color_scale:	f32,
 	pressure_magnitude_color_scale:	f32,
+	particle_render_scale: f32
 }
 
 impl Default for FluidRenderData {
@@ -47,8 +48,9 @@ impl Default for FluidRenderData {
 		Self {
 			color_render_type:	FluidColorRenderType::Velocity,
 			arbitrary_color:	util::JUICE_YELLOW,
-			velocity_magnitude_color_scale:	100.0,
+			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
+			particle_render_scale: 0.4,
 		}
 	}
 }
@@ -73,10 +75,10 @@ impl Default for GridRenderData {
 			grid_color:			Color::DARK_GRAY,
 			solid_cell_color:	Color::GOLD,
 
-			draw_vectors:			false,
+			draw_vectors:			true,
 			vector_type:			FluidGridVectorType::Velocity,
 			vector_color:			Color::WHITE,
-			vector_magnitude_scale:	10.0,
+			vector_magnitude_scale:	0.01,
 		}
 	}
 }
@@ -147,11 +149,12 @@ fn update_particle_position(
 
 /// Update the size of all particles to be rendered.
 fn update_particle_size(
-	mut particles:	Query<(&SimParticle, &mut Sprite)>,
-	constraints:	Res<SimConstraints>) {
+	mut particles:		Query<(&SimParticle, &mut Sprite)>,
+	constraints:		Res<SimConstraints>,
+	fluid_render_data:	Res<FluidRenderData>) {
 
 	for (_, mut sprite) in particles.iter_mut() {
-		let size: f32 = constraints.particle_radius;
+		let size: f32 = constraints.particle_radius * fluid_render_data.particle_render_scale;
 		sprite.custom_size = Some(Vec2::splat(size));
 	}
 }
@@ -412,7 +415,7 @@ fn draw_grid_vectors(
 			draw_vector_arrow(
 				cell_center_position,
 				velocity_vector_polar[1],
-				velocity_vector_polar[0] / grid_render_data.vector_magnitude_scale,
+				velocity_vector_polar[0] * grid_render_data.vector_magnitude_scale,
 				grid_render_data.vector_color,
 				&mut gizmos
 			);

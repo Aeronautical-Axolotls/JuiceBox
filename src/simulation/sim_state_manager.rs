@@ -123,6 +123,19 @@ pub fn delete_particle(
 	Err(Error::InvalidEntityID("Invalid particle entity ID!"))
 }
 
+/// Reset all simulation components to their default state.
+pub fn delete_all_particles(
+	commands:		&mut Commands,
+	constraints:	&mut SimConstraints,
+	grid:			&mut SimGrid,
+	particles:		&Query<(Entity, &mut SimParticle)>) {
+	
+	// KILL THEM ALL!!!
+	for (particle_id, _) in particles.iter() {
+		delete_particle(commands, constraints, particles, grid, particle_id);
+	}
+}
+
 /** Returns a vector of entity ID's of each particle within a circle centered at `position` with
 	radius `radius`; returns an empty vector if no particles are found. */
 pub fn select_particles<'a>(

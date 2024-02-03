@@ -327,33 +327,34 @@ pub fn get_lookup_index(cell_coordinates: Vec2, grid_row_count: u16) -> usize {
 }
 
 /** For each particle: integrate velocity into position, update cell type, update spatial lookup,
-	and update density values for the four faces of the cell the particle is in. */
+	and update density value of the cell the particle is in. */
 pub fn update_particles(
 	constraints:	&SimConstraints,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	grid:			&mut SimGrid,
 	delta_time:		f32) {
 
-	// grid.clear_density_values();
+	grid.clear_density_values();
 
 	for (id, mut particle) in particles.iter_mut() {
-		// Change each particle's velocity by gravity.
-		particle.velocity[0] += constraints.gravity[0];
-		particle.velocity[1] += constraints.gravity[1];
+		/* Change each particle's velocity by gravity * dt.  Multiply by whatever framerate you 
+			want gravity to act normal at. */
+		particle.velocity[0] += constraints.gravity[0] * delta_time;
+		particle.velocity[1] += constraints.gravity[1] * delta_time;
 
-		// Change each particle's position by velocity.
+		// Change each particle's position by velocity * dt.
 		particle.position[0] += particle.velocity[0] * delta_time;
 		particle.position[1] += particle.velocity[1] * delta_time;
 
         // Update the grid cell this particle is in to be a fluid
         let coords = grid.get_cell_coordinates_from_position(&particle.position);
         grid.cell_type[coords.x as usize][coords.y as usize] = SimGridCellType::Fluid;
-
+		
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);
 
 		// Update the grid's density value for this current cell.
-		// grid.update_grid_density(&particle.position, particle.lookup_index);
+		grid.update_grid_density(particle.position, particle.lookup_index);
 	}
 }
 
@@ -432,7 +433,7 @@ pub fn push_particles_apart(
 					};
 
 					// Push both particles apart.
-					separate_particle_pair(constraints, particle_combo, delta_time);
+					separate_particle_pair(constraints, grid, particle_combo);
 				}
 			}
 		}
@@ -442,42 +443,37 @@ pub fn push_particles_apart(
 /// Helper function for push_particles_apart().
 fn separate_particle_pair(
 	constraints:		&SimConstraints,
-	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2],
-	delta_time:			f32) {
-
-	// Calculate a collision radius and distance to modify position (and break early if too far).
-	let radius_multiplier: f32			= 2.0;
-	let effective_radius: f32			= constraints.particle_radius * radius_multiplier;
-	let collision_radius: f32			= effective_radius * radius_multiplier;
-	let collision_radius_squared: f32	= effective_radius * effective_radius;
+	grid:				&SimGrid,
+	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
+	
+	// Collision radii used to find the particle pair's push force on each other.
+	let collision_radius: f32			= constraints.particle_radius * 2.0;
+	let collision_radius_squared: f32	= collision_radius * collision_radius;
 
 	// Figure out if we even need to push the particles apart in the first place!
-	let mut delta_x: f32	= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
-	let mut delta_y: f32	= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
-	let delta_squared: f32	= delta_x * delta_x + delta_y * delta_y;
-	let delta: f32			= delta_squared.sqrt();
-	if delta_squared > collision_radius_squared || delta_squared == 0.0 {
+	let mut delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
+	let mut delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
+	let distance_squared: f32	= (delta_x * delta_x) + (delta_y * delta_y);
+	if distance_squared > collision_radius_squared || distance_squared == 0.0 {
 		return;
 	}
-
-	// Calculate the difference in position we need to separate the particles.
-	let push_factor: f32	= 0.5;
-	let delta_modifier: f32	= delta_time * push_factor * (collision_radius - delta) / delta;
-	delta_x *= delta_modifier;
-	delta_y *= delta_modifier;
-
+	
+	// Calculate the distance we need to separate the particles by.
+	let distance: f32			= distance_squared.sqrt();
+	let separation_scale: f32	= 0.5 * (collision_radius - distance) / distance;
+	delta_x *= separation_scale;
+	delta_y *= separation_scale;
+	
 	// Move the particles apart!
-	let position_multiplier: f32	= 1.0;
-	particle_combo[0].1.position[0] += delta_x * position_multiplier;
-	particle_combo[0].1.position[1] += delta_y * position_multiplier;
-	particle_combo[1].1.position[0] -= delta_x * position_multiplier;
-	particle_combo[1].1.position[1] -= delta_y * position_multiplier;
+	particle_combo[0].1.position[0] += delta_x;
+	particle_combo[0].1.position[1] += delta_y;
+	particle_combo[1].1.position[0] -= delta_x;
+	particle_combo[1].1.position[1] -= delta_y;
 
-	let velocity_multiplier: f32	= 1.0;
-	particle_combo[0].1.velocity[0] += delta_x * velocity_multiplier;
-	particle_combo[0].1.velocity[1] += delta_y * velocity_multiplier;
-	particle_combo[1].1.velocity[0] -= delta_x * velocity_multiplier;
-	particle_combo[1].1.velocity[1] -= delta_y * velocity_multiplier;
+	// particle_combo[0].1.velocity[0] += delta_x;
+	// particle_combo[0].1.velocity[1] += delta_y;
+	// particle_combo[1].1.velocity[0] -= delta_x;
+	// particle_combo[1].1.velocity[1] -= delta_y;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
@@ -485,7 +481,21 @@ fn separate_particle_pair(
 pub fn make_grid_velocities_incompressible(
 	grid:			&mut SimGrid,
 	constraints: 	&SimConstraints) {
-
+	
+	// Get the "particle rest density" for the simulation domain.
+	let mut fluid_cell_count: f32		= 0.0;
+	let mut density_sum: f32			= 0.0;
+	let mut particle_rest_density: f32	= 0.0;
+	
+	for i in 0..grid.density.len() {
+		density_sum			+= grid.density[i];
+		fluid_cell_count	+= 1.0;
+	}
+	
+	if fluid_cell_count > 0.0 {
+		particle_rest_density = density_sum / fluid_cell_count;
+	}
+	
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.incomp_iters_per_frame {
 
@@ -493,36 +503,48 @@ pub fn make_grid_velocities_incompressible(
 			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
+				
+				// Continue if we are not inside of a fluid cell.
+				if grid.cell_type[row as usize][col as usize] != SimGridCellType::Fluid {
+					continue;
+				}
 
+				// Calculate and sum the solid modifier for each surrounding cell.
+				let solids: [u8; 5]	= calculate_cell_solids(&grid, row as usize, col as usize);
+				let left_solid: u8	= solids[1];
+				let right_solid: u8	= solids[2];
+				let up_solid: u8	= solids[3];
+				let down_solid: u8	= solids[4];
+				
+				let solids_sum: u8	= left_solid + right_solid + up_solid + down_solid;
+				if solids_sum == 0 {
+					continue;
+				}
+				
 				// Determine the inflow/outflow of the current cell.
-				let divergence: f32 = calculate_cell_divergence(
+				let mut divergence: f32 = calculate_cell_divergence(
 					&grid,
 					row as usize,
 					col as usize
 				);
-
-				// Calculate and sum the solid modifier for each surrounding cell.
-				let solids: [u8; 4]	= calculate_cell_solids(&grid, row as usize, col as usize);
-				let solids_sum: u8	= solids.iter().sum();
-				if solids_sum == 0 {
-					continue;
+				
+				// Density calculations.
+				if particle_rest_density > 0.0 {
+					let stiffness: f32		= 1.0;
+					let compression: f32	= 0.0 - particle_rest_density;
+					if compression > 0.0 {
+						divergence -= stiffness * compression;
+					}
 				}
-
-				// Calculate solid modifier for each surrounding cell.
-				let left_solid: f32		= solids[0] as f32 / solids_sum as f32;
-				let right_solid: f32	= solids[1] as f32 / solids_sum as f32;
-				let up_solid: f32		= solids[2] as f32 / solids_sum as f32;
-				let down_solid: f32		= solids[3] as f32 / solids_sum as f32;
-
+				
 				// Force incompressibility on this cell.
-				// BUG: These signs might be backwards...
 				let overrelaxation: f32	= 1.9;
-				let roe: f32			= overrelaxation * ((0.0 - divergence) / solids_sum as f32);
-				grid.velocity_u[row as usize][col as usize]			-= roe * left_solid;
-				grid.velocity_u[row as usize][(col + 1) as usize]	+= roe * right_solid;
-				grid.velocity_v[row as usize][col as usize]			+= roe * up_solid;
-				grid.velocity_v[(row + 1) as usize][col as usize]	-= roe * down_solid;
-				grid.cell_center[row as usize][col as usize]		= roe;
+				let momentum: f32		= overrelaxation * ((0.0 - divergence) / solids_sum as f32);
+				
+				grid.velocity_u[row as usize][col as usize]			-= momentum * left_solid as f32;
+				grid.velocity_u[row as usize][(col + 1) as usize]	+= momentum * right_solid as f32;
+				grid.velocity_v[row as usize][col as usize]			+= momentum * up_solid as f32;
+				grid.velocity_v[(row + 1) as usize][col as usize]	-= momentum * down_solid as f32;
 			}
 		}
 	}
@@ -557,16 +579,17 @@ fn calculate_cell_divergence(
 	divergence
 }
 
-/** Returns the cell solid modifiers (0 for solid, 1 otherwise) for cells in the order of: left,
-	right, up, down. **/
-fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u8; 4] {
+/** Returns the cell solid modifiers (0 for solid, 1 otherwise) for cells in the order of: center, 
+	left, right, up, down. **/
+fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u8; 5] {
 
 	/* Calculate collision modifiers for each cell face.  Note that we must perform a wrapping
 		subtraction to prevent an underflow for our usize types. */
-	let collision_left: u8	= grid.get_cell_type_value(usize::wrapping_sub(cell_col, 1), cell_col);
-	let collision_right: u8	= grid.get_cell_type_value(cell_row, cell_col + 1);
-	let collision_up: u8	= grid.get_cell_type_value(cell_row, usize::wrapping_sub(cell_row, 1));
-	let collision_down: u8	= grid.get_cell_type_value(cell_row + 1, cell_col);
+	let collision_center: u8	= grid.get_cell_type_value(cell_row, cell_col);
+	let collision_left: u8		= grid.get_cell_type_value(usize::wrapping_sub(cell_col, 1), cell_col);
+	let collision_right: u8		= grid.get_cell_type_value(cell_row, cell_col + 1);
+	let collision_up: u8		= grid.get_cell_type_value(cell_row, usize::wrapping_sub(cell_row, 1));
+	let collision_down: u8		= grid.get_cell_type_value(cell_row + 1, cell_col);
 
-	[collision_left, collision_right, collision_up, collision_down]
+	[collision_center, collision_left, collision_right, collision_up, collision_down]
 }

@@ -9,8 +9,8 @@ pub mod error;
 pub mod test;
 pub mod ui;
 
-use simulation::Simulation;
 use ui::ui_base;
+use util::debug_state_controller;
 
 
 
@@ -32,6 +32,7 @@ fn main() {
 	
 	juicebox.add_systems(Update, ui_base);
 	juicebox.add_systems(Update, util::control_camera);
+	juicebox.add_systems(Update, debug_state_controller);
 
 	juicebox.run();
 }

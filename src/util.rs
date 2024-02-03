@@ -8,7 +8,7 @@ use bevy::{
 	time::Time,
 	transform::components::{Transform, GlobalTransform},
 	render::camera::{ OrthographicProjection, Camera },
-	ecs::{ system::{ Res, Query, NonSend }, query::With },
+	ecs::{ entity::Entity, query::With, system::{ Commands, NonSend, Query, Res, ResMut } },
 };
 use winit::window::Icon;
 use std::{
@@ -16,7 +16,7 @@ use std::{
 	time::SystemTime,
 };
 
-use crate::simulation::SimGrid;
+use crate::{simulation::{sim_state_manager, SimConstraints, SimGrid, SimParticle}, test::test_state_manager};
 
 pub const WINDOW_WIDTH: f32		= 640.0;
 pub const WINDOW_HEIGHT: f32	= 480.0;
@@ -34,6 +34,30 @@ pub fn vector_magnitude(vector: Vec2) -> f32 {
 	magnitude = magnitude.sqrt();
 
 	magnitude
+}
+
+/// Debugging state controller.
+pub fn debug_state_controller(
+	mut commands:		Commands,
+	keys:				Res<Input<KeyCode>>,
+	mut constraints:	ResMut<SimConstraints>,
+	mut grid:			ResMut<SimGrid>,
+	mut particles:		Query<(Entity, &mut SimParticle)>) {
+	
+	if keys.just_pressed(KeyCode::R) {
+		
+		crate::simulation::reset_simulation_to_default(
+			&mut commands,
+			constraints.as_mut(),
+			grid.as_mut(),
+			&mut particles
+		);
+		test_state_manager::construct_test_simulation_layout(
+			constraints.as_mut(),
+			grid.as_mut(),
+			commands
+		);
+	}
 }
 
 /// Basic camera controller.

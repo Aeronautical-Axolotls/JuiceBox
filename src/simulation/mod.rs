@@ -8,6 +8,11 @@ use crate::error::Error;
 use sim_physics_engine::*;
 use crate::test::test_state_manager;
 
+use self::{sim_state_manager::{
+	delete_particle,
+	delete_all_particles
+}, util::find_influence};
+
 pub type Result<T> = core::result::Result<T, Error>;
 
 pub struct Simulation;
@@ -24,11 +29,10 @@ impl Plugin for Simulation {
 
 /// Simulation state manager initialization.
 fn setup(
-	commands:		Commands,
+	commands:			Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	grid.change_dimensions((100, 100), 2);
 	test_state_manager::construct_test_simulation_layout(
 		constraints.as_mut(),
 		grid.as_mut(),
@@ -45,13 +49,23 @@ fn update(
 	constraints:		Res<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
-	time:				Res<Time>) {
+	time:				Res<Time>,
+	keys:				Res<Input<KeyCode>>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
-
-	let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-	step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, delta_time);
+	
+	let fixed_timestep: f32 = 1.0 / 120.0;
+	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
+	
+	// If F is not being held, run the simulation.
+	if !keys.pressed(KeyCode::F) {
+		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, fixed_timestep);
+		
+		// If F is being held and G is tapped, step the simulation once.
+	} else if keys.just_pressed(KeyCode::G) {
+		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, fixed_timestep);
+	}
 
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
@@ -62,15 +76,28 @@ fn step_simulation_once(
 	constraints:	&SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
-	delta_time:		f32) {
-
-    update_particles(constraints, particles, grid, delta_time);
-    push_particles_apart(constraints, grid, particles, delta_time);
+	timestep:		f32) {
+	
+    update_particles(constraints, particles, grid, timestep);
+    push_particles_apart(constraints, grid, particles, timestep);
     handle_particle_collisions(constraints, grid, particles);
     let old_grid: SimGrid = particles_to_grid(grid, particles);
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
+}
+
+/// Reset simulation components to their default state and delete all particles.
+pub fn reset_simulation_to_default(
+	commands:			&mut Commands,
+	mut constraints:	&mut SimConstraints,
+	mut grid:			&mut SimGrid,
+	particles:			&Query<(Entity, &mut SimParticle)>) {
+	
+	println!("Resetting simulation to default...");
+	delete_all_particles(commands, constraints, grid, particles);
+	*grid			= SimGrid::default();
+	*constraints	= SimConstraints::default();
 }
 
 #[derive(Resource)]
@@ -87,11 +114,11 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.1,
-			incomp_iters_per_frame:		5,
+			grid_particle_ratio:		0.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC)
+			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -9.81},
-			particle_radius:			1.5,
+			gravity:					Vec2 { x: 0.0, y: -96.0 },
+			particle_radius:			2.5,
 			particle_count:				0,
 		}
 	}
@@ -148,14 +175,14 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (25, 25),
-			cell_size:		10,
-			cell_type:		vec![vec![SimGridCellType::Air; 25]; 25],
-            cell_center:    vec![vec![0.0; 25]; 25],
-			velocity_u:		vec![vec![0.0; 26]; 25],
-            velocity_v:     vec![vec![0.0; 25]; 26],
-			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 625],
-			density:		vec![0.0; 625],
+			dimensions:	    (100, 100),
+			cell_size:		2,
+			cell_type:		vec![vec![SimGridCellType::Air; 100]; 100],
+            cell_center:    vec![vec![0.0; 100]; 100],
+			velocity_u:		vec![vec![0.0; 101]; 100],
+            velocity_v:     vec![vec![0.0; 100]; 101],
+			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 10000],
+			density:		vec![0.0; 10000],
 		}
 	}
 }
@@ -376,17 +403,21 @@ impl SimGrid {
 	}
 
 	/// Update each grid cell's density based on weighted particle influences.
-	pub fn update_grid_density(&mut self, particle_position: &Vec2, cell_lookup_index: usize) {
+	pub fn update_grid_density(&mut self, particle_position: Vec2, cell_lookup_index: usize) {
 
 		// TODO: Make this work.
-
-		self.density[cell_lookup_index] += 1.0;
+		let cell_coordinates: Vec2	= self.get_cell_coordinates_from_position(&particle_position);
+		let cell_position: Vec2		= self.get_cell_position_from_coordinates(cell_coordinates);
+		
+		self.density[cell_lookup_index] += cell_position.distance(particle_position).abs();
 	}
 
-	/// Gets the density value for a point within the grid's bounds.
-	pub fn get_density_at_coordinates(&self, cell_coordinates: Vec2) -> f32 {
-		let cell_lookup_index: usize = get_lookup_index(cell_coordinates, self.dimensions.0);
-		self.density[cell_lookup_index]
+	/// Gets an interpolated density value for a lookup index within the grid's bounds.
+	pub fn get_density_from_lookup(&self, position: Vec2, lookup_index: usize) -> f32 {
+		
+		// TODO: Make this factor in densities in the surrounding cells.
+		let density: f32 = self.density[lookup_index];
+		density
 	}
 
 	/// Add a new particle into our spatial lookup table.
