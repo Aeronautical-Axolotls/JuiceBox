@@ -82,6 +82,7 @@ fn step_simulation_once(
     push_particles_apart(constraints, grid, particles, timestep);
     handle_particle_collisions(constraints, grid, particles);
     let old_grid: SimGrid = particles_to_grid(grid, particles);
+    apply_gravity(grid, constraints);
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
@@ -115,9 +116,9 @@ impl Default for SimConstraints {
 	fn default() -> SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:		0.1,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC)
-			incomp_iters_per_frame:		2,
-			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -96.0 },
+			incomp_iters_per_frame:		10,
+			collision_iters_per_frame:	5,
+			gravity:					Vec2 { x: 0.0, y: -9.8 },
 			particle_radius:			2.5,
 			particle_count:				0,
 		}
@@ -175,7 +176,7 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (100, 100),
+			dimensions:	    (50, 50),
 			cell_size:		2,
 			cell_type:		vec![vec![SimGridCellType::Air; 100]; 100],
             cell_center:    vec![vec![0.0; 100]; 100],

@@ -66,13 +66,10 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                     pos,
                     grid.cell_size);
 
-                if influence == 0.0 {
-                    ()
+                if influence != 0.0 {
+                    scaled_influence_sum += influence;
+                    scaled_velocity_sum += particle.velocity[0] * influence;
                 }
-
-                scaled_influence_sum += influence;
-                scaled_velocity_sum += particle.velocity[0] * influence;
-
             });
 
             if scaled_influence_sum == 0.0 {
@@ -123,12 +120,11 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                     pos,
                     grid.cell_size);
 
-                if influence == 0.0 {
-                    ()
+                if influence != 0.0 {
+                    scaled_influence_sum += influence;
+                    scaled_velocity_sum += particle.velocity[1] * influence;
                 }
 
-                scaled_influence_sum += influence;
-                scaled_velocity_sum += particle.velocity[1] * influence;
             });
 
             if scaled_influence_sum == 0.0 {
@@ -147,9 +143,6 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     grid.velocity_u = velocity_u;
     grid.velocity_v = velocity_v;
 
-    // Return the change grid
-    // create_change_grid(&old_grid, &grid)
-
     old_grid
 
 }
@@ -165,23 +158,25 @@ pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     // These values are needed when interpolating the velocity
     // values transfered to the particles from the grid.
 
+    let (rows, cols) = old_grid.dimensions;
+
     let mut change_grid = old_grid.clone();
 	let mut change_u = vec![vec![0.0; (old_grid.dimensions.0 + 1) as usize]; old_grid.dimensions.1 as usize];
     let mut change_v = vec![vec![0.0; old_grid.dimensions.0 as usize]; (old_grid.dimensions.1 + 1) as usize];
 
-    for row_index in 0..change_grid.velocity_u.len() {
-        for col_index in 0..change_grid.velocity_u[row_index].len() {
+    for row_index in 0..rows as usize {
+        for col_index in 0..(cols as usize + 1) {
 
-            let change_in_u = old_grid.velocity_u[row_index][col_index] - new_grid.velocity_u[row_index][col_index];
+            let change_in_u = new_grid.velocity_u[row_index][col_index] - old_grid.velocity_u[row_index][col_index];
 
             change_u[row_index][col_index] = change_in_u;
         }
     }
 
-    for row_index in 0..change_grid.velocity_v.len() {
-        for col_index in 0..change_grid.velocity_v[row_index].len() {
+    for row_index in 0..(rows as usize + 1) {
+        for col_index in 0..cols as usize {
 
-            let change_in_v = old_grid.velocity_v[row_index][col_index] - new_grid.velocity_v[row_index][col_index];
+            let change_in_v =  new_grid.velocity_v[row_index][col_index] - old_grid.velocity_v[row_index][col_index];
 
             change_v[row_index][col_index] = change_in_v;
         }
@@ -191,6 +186,23 @@ pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     change_grid.velocity_v = change_v;
 
     change_grid
+
+}
+
+pub fn apply_gravity(grid: &mut SimGrid, constraints: &SimConstraints) {
+
+    for row in 0..grid.cell_type.len() {
+        for col in 0..grid.cell_type[row].len() {
+
+            if grid.cell_type[row][col] != SimGridCellType::Fluid {
+                continue;
+            }
+
+            grid.velocity_v[row][col] += constraints.gravity.y;
+            grid.velocity_v[row + 1][col] += constraints.gravity.y;
+
+        }
+    }
 
 }
 
@@ -343,8 +355,8 @@ pub fn update_particles(
 	for (id, mut particle) in particles.iter_mut() {
 		/* Change each particle's velocity by gravity * dt.  Multiply by whatever framerate you
 			want gravity to act normal at. */
-		particle.velocity[0] += constraints.gravity[0] * delta_time;
-		particle.velocity[1] += constraints.gravity[1] * delta_time;
+		// particle.velocity[0] += constraints.gravity[0] * delta_time;
+		// particle.velocity[1] += constraints.gravity[1] * delta_time;
 
 		// Change each particle's position by velocity * dt.
 		particle.position[0] += particle.velocity[0] * delta_time;
@@ -451,7 +463,7 @@ fn separate_particle_pair(
 	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
 
 	// Collision radii used to find the particle pair's push force on each other.
-	let collision_radius: f32			= constraints.particle_radius * 2.0;
+	let collision_radius: f32			= constraints.particle_radius * 0.5;
 	let collision_radius_squared: f32	= collision_radius * collision_radius;
 
 	// Figure out if we even need to push the particles apart in the first place!
