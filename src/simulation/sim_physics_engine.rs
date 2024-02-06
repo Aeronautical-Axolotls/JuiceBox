@@ -189,23 +189,6 @@ pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
 
 }
 
-pub fn apply_gravity(grid: &mut SimGrid, constraints: &SimConstraints) {
-
-    for row in 0..grid.cell_type.len() {
-        for col in 0..grid.cell_type[row].len() {
-
-            if grid.cell_type[row][col] != SimGridCellType::Fluid {
-                continue;
-            }
-
-            grid.velocity_v[row][col] += constraints.gravity.y;
-            grid.velocity_v[row + 1][col] += constraints.gravity.y;
-
-        }
-    }
-
-}
-
 /**
     Collects all the particles within a cell and returns
     a vector of particles with their ID and data
@@ -261,14 +244,7 @@ fn apply_grid<'a>(
 
         let pic_velocity = interp_vel;
         let flip_velocity =  particle.velocity + change_vel;
-        println!("PIC Velocity: {:?}", pic_velocity);
-        println!("FLIP Velocity: {:?}\n", flip_velocity);
-        let mut new_velocity = (pic_coef * pic_velocity) + ((1.0 - pic_coef) * flip_velocity);
-
-        if new_velocity.x.is_nan() || new_velocity.y.is_nan() {
-            new_velocity = Vec2::ZERO;
-        }
-
+        let new_velocity = (pic_coef * pic_velocity) + ((1.0 - pic_coef) * flip_velocity);
         particle.velocity = new_velocity;
 
     }
@@ -463,7 +439,7 @@ fn separate_particle_pair(
 	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
 
 	// Collision radii used to find the particle pair's push force on each other.
-	let collision_radius: f32			= constraints.particle_radius * 0.5;
+	let collision_radius: f32			= constraints.particle_radius * 2.0;
 	let collision_radius_squared: f32	= collision_radius * collision_radius;
 
 	// Figure out if we even need to push the particles apart in the first place!
