@@ -247,7 +247,11 @@ fn apply_grid<'a>(
         let interp_vel = interpolate_velocity(particle.position, &grid);
         let change_vel = interpolate_velocity(particle.position, &change_grid);
 
-        let mut new_velocity = (pic_coef * interp_vel) + ((1.0 - pic_coef) * (particle.velocity + change_vel));
+        let pic_velocity = interp_vel;
+        let flip_velocity =  particle.velocity + change_vel;
+        println!("PIC Velocity: {:?}", pic_velocity);
+        println!("FLIP Velocity: {:?}\n", flip_velocity);
+        let mut new_velocity = (pic_coef * pic_velocity) + ((1.0 - pic_coef) * flip_velocity);
 
         if new_velocity.x.is_nan() || new_velocity.y.is_nan() {
             new_velocity = Vec2::ZERO;
