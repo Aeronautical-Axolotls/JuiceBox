@@ -331,8 +331,8 @@ pub fn update_particles(
 	for (id, mut particle) in particles.iter_mut() {
 		/* Change each particle's velocity by gravity * dt.  Multiply by whatever framerate you
 			want gravity to act normal at. */
-		// particle.velocity[0] += constraints.gravity[0] * delta_time;
-		// particle.velocity[1] += constraints.gravity[1] * delta_time;
+		particle.velocity[0] += constraints.gravity[0] * delta_time;
+		particle.velocity[1] += constraints.gravity[1] * delta_time;
 
 		// Change each particle's position by velocity * dt.
 		particle.position[0] += particle.velocity[0] * delta_time;
