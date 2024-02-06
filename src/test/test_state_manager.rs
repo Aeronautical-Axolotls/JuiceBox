@@ -36,8 +36,8 @@ pub fn construct_test_simulation_layout(
 		&mut commands,
         constraints,
 		grid,
-		8.0,
-		25.0,
+		10.0,
+		15.0,
 		Vec2 { x: grid_center[0], y: grid_center[1] },
 		Vec2::ZERO
 	);

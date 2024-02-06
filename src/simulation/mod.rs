@@ -114,7 +114,7 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC)
+			grid_particle_ratio:		0.001,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC)
 			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
 			gravity:					Vec2 { x: 0.0, y: -96.0 },
@@ -175,8 +175,8 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (100, 100),
-			cell_size:		2,
+			dimensions:	    (50, 50),
+			cell_size:		5,
 			cell_type:		vec![vec![SimGridCellType::Air; 100]; 100],
             cell_center:    vec![vec![0.0; 100]; 100],
 			velocity_u:		vec![vec![0.0; 101]; 100],

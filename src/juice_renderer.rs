@@ -50,7 +50,7 @@ impl Default for FluidRenderData {
 			arbitrary_color:	util::JUICE_YELLOW,
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
-			particle_render_scale: 0.4,
+			particle_render_scale: 1.0,
 		}
 	}
 }
@@ -75,7 +75,7 @@ impl Default for GridRenderData {
 			grid_color:			Color::DARK_GRAY,
 			solid_cell_color:	Color::GOLD,
 
-			draw_vectors:			true,
+			draw_vectors:			false,
 			vector_type:			FluidGridVectorType::Velocity,
 			vector_color:			Color::WHITE,
 			vector_magnitude_scale:	0.01,
