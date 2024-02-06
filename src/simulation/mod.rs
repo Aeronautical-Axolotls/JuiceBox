@@ -54,14 +54,14 @@ fn update(
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
-	
+
 	let fixed_timestep: f32 = 1.0 / 120.0;
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-	
+
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
 		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, fixed_timestep);
-		
+
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
 		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, fixed_timestep);
@@ -77,7 +77,7 @@ fn step_simulation_once(
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	timestep:		f32) {
-	
+
     update_particles(constraints, particles, grid, timestep);
     push_particles_apart(constraints, grid, particles, timestep);
     handle_particle_collisions(constraints, grid, particles);
@@ -93,7 +93,7 @@ pub fn reset_simulation_to_default(
 	mut constraints:	&mut SimConstraints,
 	mut grid:			&mut SimGrid,
 	particles:			&Query<(Entity, &mut SimParticle)>) {
-	
+
 	println!("Resetting simulation to default...");
 	delete_all_particles(commands, constraints, grid, particles);
 	*grid			= SimGrid::default();
@@ -114,7 +114,7 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC)
+			grid_particle_ratio:		0.001,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC)
 			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
 			gravity:					Vec2 { x: 0.0, y: -96.0 },
@@ -175,8 +175,8 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (100, 100),
-			cell_size:		2,
+			dimensions:	    (50, 50),
+			cell_size:		5,
 			cell_type:		vec![vec![SimGridCellType::Air; 100]; 100],
             cell_center:    vec![vec![0.0; 100]; 100],
 			velocity_u:		vec![vec![0.0; 101]; 100],
@@ -408,13 +408,13 @@ impl SimGrid {
 		// TODO: Make this work.
 		let cell_coordinates: Vec2	= self.get_cell_coordinates_from_position(&particle_position);
 		let cell_position: Vec2		= self.get_cell_position_from_coordinates(cell_coordinates);
-		
+
 		self.density[cell_lookup_index] += cell_position.distance(particle_position).abs();
 	}
 
 	/// Gets an interpolated density value for a lookup index within the grid's bounds.
 	pub fn get_density_from_lookup(&self, position: Vec2, lookup_index: usize) -> f32 {
-		
+
 		// TODO: Make this factor in densities in the surrounding cells.
 		let density: f32 = self.density[lookup_index];
 		density

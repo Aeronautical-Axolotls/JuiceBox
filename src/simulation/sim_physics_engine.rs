@@ -66,13 +66,10 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                     pos,
                     grid.cell_size);
 
-                if influence == 0.0 {
-                    ()
+                if influence != 0.0 {
+                    scaled_influence_sum += influence;
+                    scaled_velocity_sum += particle.velocity[0] * influence;
                 }
-
-                scaled_influence_sum += influence;
-                scaled_velocity_sum += particle.velocity[0] * influence;
-
             });
 
             if scaled_influence_sum == 0.0 {
@@ -123,12 +120,11 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                     pos,
                     grid.cell_size);
 
-                if influence == 0.0 {
-                    ()
+                if influence != 0.0 {
+                    scaled_influence_sum += influence;
+                    scaled_velocity_sum += particle.velocity[1] * influence;
                 }
 
-                scaled_influence_sum += influence;
-                scaled_velocity_sum += particle.velocity[1] * influence;
             });
 
             if scaled_influence_sum == 0.0 {
@@ -147,9 +143,6 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     grid.velocity_u = velocity_u;
     grid.velocity_v = velocity_v;
 
-    // Return the change grid
-    // create_change_grid(&old_grid, &grid)
-
     old_grid
 
 }
@@ -165,23 +158,25 @@ pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     // These values are needed when interpolating the velocity
     // values transfered to the particles from the grid.
 
+    let (rows, cols) = old_grid.dimensions;
+
     let mut change_grid = old_grid.clone();
-    let mut change_u  = old_grid.velocity_u.clone();
-    let mut change_v = old_grid.velocity_v.clone();
+	let mut change_u = vec![vec![0.0; (old_grid.dimensions.0 + 1) as usize]; old_grid.dimensions.1 as usize];
+    let mut change_v = vec![vec![0.0; old_grid.dimensions.0 as usize]; (old_grid.dimensions.1 + 1) as usize];
 
-    for row_index in 0..change_grid.velocity_u.len() {
-        for col_index in 0..change_grid.velocity_u[row_index].len() {
+    for row_index in 0..rows as usize {
+        for col_index in 0..(cols as usize + 1) {
 
-            let mut change_in_u = old_grid.velocity_u[row_index][col_index] - new_grid.velocity_u[row_index][col_index];
+            let change_in_u = new_grid.velocity_u[row_index][col_index] - old_grid.velocity_u[row_index][col_index];
 
             change_u[row_index][col_index] = change_in_u;
         }
     }
 
-    for row_index in 0..change_grid.velocity_v.len() {
-        for col_index in 0..change_grid.velocity_v[row_index].len() {
+    for row_index in 0..(rows as usize + 1) {
+        for col_index in 0..cols as usize {
 
-            let mut change_in_v = old_grid.velocity_v[row_index][col_index] - new_grid.velocity_v[row_index][col_index];
+            let change_in_v =  new_grid.velocity_v[row_index][col_index] - old_grid.velocity_v[row_index][col_index];
 
             change_v[row_index][col_index] = change_in_v;
         }
@@ -247,12 +242,9 @@ fn apply_grid<'a>(
         let interp_vel = interpolate_velocity(particle.position, &grid);
         let change_vel = interpolate_velocity(particle.position, &change_grid);
 
-        let mut new_velocity = (pic_coef * interp_vel) + ((1.0 - pic_coef) * (particle.velocity + change_vel));
-
-        if new_velocity.x.is_nan() || new_velocity.y.is_nan() {
-            new_velocity = Vec2::ZERO;
-        }
-
+        let pic_velocity = interp_vel;
+        let flip_velocity =  particle.velocity + change_vel;
+        let new_velocity = (pic_coef * pic_velocity) + ((1.0 - pic_coef) * flip_velocity);
         particle.velocity = new_velocity;
 
     }
@@ -337,7 +329,7 @@ pub fn update_particles(
 	grid.clear_density_values();
 
 	for (id, mut particle) in particles.iter_mut() {
-		/* Change each particle's velocity by gravity * dt.  Multiply by whatever framerate you 
+		/* Change each particle's velocity by gravity * dt.  Multiply by whatever framerate you
 			want gravity to act normal at. */
 		particle.velocity[0] += constraints.gravity[0] * delta_time;
 		particle.velocity[1] += constraints.gravity[1] * delta_time;
@@ -349,7 +341,7 @@ pub fn update_particles(
         // Update the grid cell this particle is in to be a fluid
         let coords = grid.get_cell_coordinates_from_position(&particle.position);
         grid.cell_type[coords.x as usize][coords.y as usize] = SimGridCellType::Fluid;
-		
+
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);
 
@@ -445,7 +437,7 @@ fn separate_particle_pair(
 	constraints:		&SimConstraints,
 	grid:				&SimGrid,
 	mut particle_combo:	[(Entity, Mut<'_, SimParticle>); 2]) {
-	
+
 	// Collision radii used to find the particle pair's push force on each other.
 	let collision_radius: f32			= constraints.particle_radius * 2.0;
 	let collision_radius_squared: f32	= collision_radius * collision_radius;
@@ -457,13 +449,13 @@ fn separate_particle_pair(
 	if distance_squared > collision_radius_squared || distance_squared == 0.0 {
 		return;
 	}
-	
+
 	// Calculate the distance we need to separate the particles by.
 	let distance: f32			= distance_squared.sqrt();
 	let separation_scale: f32	= 0.5 * (collision_radius - distance) / distance;
 	delta_x *= separation_scale;
 	delta_y *= separation_scale;
-	
+
 	// Move the particles apart!
 	particle_combo[0].1.position[0] += delta_x;
 	particle_combo[0].1.position[1] += delta_y;
@@ -481,21 +473,21 @@ fn separate_particle_pair(
 pub fn make_grid_velocities_incompressible(
 	grid:			&mut SimGrid,
 	constraints: 	&SimConstraints) {
-	
+
 	// Get the "particle rest density" for the simulation domain.
 	let mut fluid_cell_count: f32		= 0.0;
 	let mut density_sum: f32			= 0.0;
 	let mut particle_rest_density: f32	= 0.0;
-	
+
 	for i in 0..grid.density.len() {
 		density_sum			+= grid.density[i];
 		fluid_cell_count	+= 1.0;
 	}
-	
+
 	if fluid_cell_count > 0.0 {
 		particle_rest_density = density_sum / fluid_cell_count;
 	}
-	
+
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
 	for _ in 0..constraints.incomp_iters_per_frame {
 
@@ -503,7 +495,7 @@ pub fn make_grid_velocities_incompressible(
 			surrounding cells are solid, then adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
-				
+
 				// Continue if we are not inside of a fluid cell.
 				if grid.cell_type[row as usize][col as usize] != SimGridCellType::Fluid {
 					continue;
@@ -515,19 +507,19 @@ pub fn make_grid_velocities_incompressible(
 				let right_solid: u8	= solids[2];
 				let up_solid: u8	= solids[3];
 				let down_solid: u8	= solids[4];
-				
+
 				let solids_sum: u8	= left_solid + right_solid + up_solid + down_solid;
 				if solids_sum == 0 {
 					continue;
 				}
-				
+
 				// Determine the inflow/outflow of the current cell.
 				let mut divergence: f32 = calculate_cell_divergence(
 					&grid,
 					row as usize,
 					col as usize
 				);
-				
+
 				// Density calculations.
 				if particle_rest_density > 0.0 {
 					let stiffness: f32		= 1.0;
@@ -536,11 +528,11 @@ pub fn make_grid_velocities_incompressible(
 						divergence -= stiffness * compression;
 					}
 				}
-				
+
 				// Force incompressibility on this cell.
 				let overrelaxation: f32	= 1.9;
 				let momentum: f32		= overrelaxation * ((0.0 - divergence) / solids_sum as f32);
-				
+
 				grid.velocity_u[row as usize][col as usize]			-= momentum * left_solid as f32;
 				grid.velocity_u[row as usize][(col + 1) as usize]	+= momentum * right_solid as f32;
 				grid.velocity_v[row as usize][col as usize]			+= momentum * up_solid as f32;
@@ -579,7 +571,7 @@ fn calculate_cell_divergence(
 	divergence
 }
 
-/** Returns the cell solid modifiers (0 for solid, 1 otherwise) for cells in the order of: center, 
+/** Returns the cell solid modifiers (0 for solid, 1 otherwise) for cells in the order of: center,
 	left, right, up, down. **/
 fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u8; 5] {
 
