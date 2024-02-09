@@ -346,7 +346,7 @@ pub fn update_particles(
 		update_particle_lookup(id, particle.as_mut(), grid);
 
 		// Update the grid's density value for this current cell.
-		grid.update_grid_density(particle.position, particle.lookup_index);
+		grid.update_grid_density(particle.position);
 	}
 }
 

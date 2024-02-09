@@ -51,7 +51,7 @@ pub fn add_particles_in_radius(
 }
 
 /// Add particles into the simulation.
-fn add_particle(
+pub fn add_particle(
 	commands:		&mut Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
