@@ -446,7 +446,7 @@ fn separate_particle_pair(
 	let mut delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
 	let mut delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
 	let distance_squared: f32	= (delta_x * delta_x) + (delta_y * delta_y);
-	if distance_squared > collision_radius_squared || distance_squared == 0.0 {
+	if distance_squared > collision_radius_squared || distance_squared <= 0.01 {
 		return;
 	}
 
@@ -461,11 +461,12 @@ fn separate_particle_pair(
 	particle_combo[0].1.position[1] += delta_y;
 	particle_combo[1].1.position[0] -= delta_x;
 	particle_combo[1].1.position[1] -= delta_y;
-
-	// particle_combo[0].1.velocity[0] += delta_x;
-	// particle_combo[0].1.velocity[1] += delta_y;
-	// particle_combo[1].1.velocity[0] -= delta_x;
-	// particle_combo[1].1.velocity[1] -= delta_y;
+	
+	// Uncomment for LOADS E MONEY B-)
+	// particle_combo[0].1.velocity[0] += delta_x * 4.0;
+	// particle_combo[0].1.velocity[1] += delta_y * 4.0;
+	// particle_combo[1].1.velocity[0] -= delta_x * 4.0;
+	// particle_combo[1].1.velocity[1] -= delta_y * 4.0;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
