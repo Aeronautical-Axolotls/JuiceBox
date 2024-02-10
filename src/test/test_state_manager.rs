@@ -48,7 +48,7 @@ pub fn construct_test_simulation_layout(
         constraints,
 		grid,
 		10.0,
-		20.0,
+		30.0,
 		Vec2 { x: grid_center[0], y: grid_center[1] },
 		Vec2::ZERO
 	);

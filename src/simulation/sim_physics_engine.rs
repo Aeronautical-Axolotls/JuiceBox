@@ -25,8 +25,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     let mut velocity_v = vec![vec![0.0; grid.dimensions.0 as usize]; (grid.dimensions.1 + 1) as usize];
 
     // Go through each horizontal u velocity point in the MAC grid
-    for row_index in 0..grid.velocity_u.len() {
-        for col_index in 0..grid.velocity_u[row_index].len() {
+    for row_index in 0..grid.dimensions.0 as usize {
+        for col_index in 0..grid.dimensions.1 as usize {
 
             // Get (x, y) of current velocity point
             let pos = grid.get_velocity_point_pos(
@@ -78,14 +78,14 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
             }
 
             let new_velocity = scaled_velocity_sum / scaled_influence_sum;
-
+			
             velocity_u[row_index][col_index] = new_velocity;
         }
     }
 
     // Do the same thing for vertical velocity points within the MAC grid
-    for row_index in 0..grid.velocity_v.len() {
-        for col_index in 0..grid.velocity_v[row_index].len() {
+    for row_index in 0..grid.dimensions.0 as usize {
+        for col_index in 0..grid.dimensions.1 as usize {
 
             let pos = grid.get_velocity_point_pos(
                 row_index,
@@ -473,12 +473,11 @@ fn separate_particle_pair(
 	Gauss-Seidel method. */
 pub fn make_grid_velocities_incompressible(
 	grid:			&mut SimGrid,
-	constraints: 	&SimConstraints) {
+	constraints: 	&mut SimConstraints) {
 
 	// Get the "particle rest density" for the simulation domain.
 	let mut fluid_cell_count: f32		= 0.0;
 	let mut density_sum: f32			= 0.0;
-	let mut particle_rest_density: f32	= 0.0;
 
 	for i in 0..grid.density.len() {
 		density_sum			+= grid.density[i];
@@ -486,7 +485,7 @@ pub fn make_grid_velocities_incompressible(
 	}
 
 	if fluid_cell_count > 0.0 {
-		particle_rest_density = density_sum / fluid_cell_count;
+		constraints.particle_rest_density = density_sum / fluid_cell_count;
 	}
 
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
@@ -522,9 +521,9 @@ pub fn make_grid_velocities_incompressible(
 				);
 
 				// Density calculations.
-				if particle_rest_density > 0.0 {
+				if constraints.particle_rest_density > 0.0 {
 					let stiffness: f32		= 1.0;
-					let compression: f32	= 0.0 - particle_rest_density;
+					let compression: f32	= 0.0 - constraints.particle_rest_density;
 					if compression > 0.0 {
 						divergence -= stiffness * compression;
 					}

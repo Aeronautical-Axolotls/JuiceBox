@@ -1,11 +1,20 @@
 use bevy::{
 	prelude::*,
-	core_pipeline::prelude::ClearColor, render::color,
+	core_pipeline::prelude::ClearColor,
 };
 use crate::{
 	simulation::{
-		sim_physics_engine::get_lookup_index, SimConstraints, SimGrid, SimGridCellType, SimParticle
-	}, util::{self, vector_magnitude, JUICE_BLUE, JUICE_GREEN}
+		sim_physics_engine::get_lookup_index,
+		SimConstraints,
+		SimGrid,
+		SimGridCellType,
+		SimParticle,
+	},
+	util::{
+		self,
+		JUICE_BLUE,
+		JUICE_GREEN
+	},
 };
 
 pub struct JuiceRenderer;
@@ -49,7 +58,7 @@ impl Default for FluidRenderData {
 			arbitrary_color:	util::JUICE_YELLOW,
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
-			density_magnitude_color_scale: 36000.0,
+			density_magnitude_color_scale: 200.0,
 			particle_render_scale: 1.0,
 		}
 	}
@@ -71,11 +80,11 @@ impl Default for GridRenderData {
 
 	fn default() -> Self {
 		Self {
-			draw_grid:			false,
+			draw_grid:			true,
 			grid_color:			Color::DARK_GRAY,
 			solid_cell_color:	Color::GOLD,
 
-			draw_vectors:			true,
+			draw_vectors:			false,
 			vector_type:			FluidGridVectorType::Velocity,
 			vector_color:			Color::WHITE,
 			vector_magnitude_scale:	0.01,
@@ -161,9 +170,10 @@ fn update_particle_size(
 
 /// Update the color of all particles to be rendered.
 fn update_particle_color(
-	mut particles: Query<(&SimParticle, &mut Sprite)>,
-	grid: Res<SimGrid>,
-	particle_render_data: Res<FluidRenderData>) {
+	particles:				Query<(&SimParticle, &mut Sprite)>,
+	grid:					Res<SimGrid>,
+	constraints:			Res<SimConstraints>,
+	particle_render_data:	Res<FluidRenderData>) {
 
 	match particle_render_data.color_render_type {
 		FluidColorRenderType::Velocity	=> color_particles_by_velocity(
@@ -180,13 +190,13 @@ fn update_particle_color(
 		FluidColorRenderType::Density	=> color_particles_by_density(
 			particles,
 			grid.as_ref(),
-			particle_render_data.density_magnitude_color_scale,
+			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density,
 			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
 		),
 		FluidColorRenderType::Spume		=> color_particles_by_density(
 			particles,
 			grid.as_ref(),
-			particle_render_data.density_magnitude_color_scale,
+			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density,
 			&vec![Color::ANTIQUE_WHITE, util::JUICE_SKY_BLUE, util::JUICE_BLUE, util::JUICE_BLUE]
 		),
 		FluidColorRenderType::Arbitrary	=> color_particles(

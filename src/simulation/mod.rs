@@ -32,7 +32,7 @@ fn setup(
 	commands:			Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
-
+	
 	test_state_manager::construct_test_simulation_layout(
 		constraints.as_mut(),
 		grid.as_mut(),
@@ -46,7 +46,7 @@ fn setup(
 
 /// Simulation state manager update; handles user interactions with the simulation.
 fn update(
-	constraints:		Res<SimConstraints>,
+	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
 	time:				Res<Time>,
@@ -60,11 +60,11 @@ fn update(
 
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
-		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, fixed_timestep);
+		step_simulation_once(constraints.as_mut(), grid.as_mut(), &mut particles, fixed_timestep);
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
-		step_simulation_once(constraints.as_ref(), grid.as_mut(), &mut particles, fixed_timestep);
+		step_simulation_once(constraints.as_mut(), grid.as_mut(), &mut particles, fixed_timestep);
 	}
 
 	// TODO: Check for and handle changes to gravity.
@@ -73,7 +73,7 @@ fn update(
 
 /// Step the fluid simulation one time!
 fn step_simulation_once(
-	constraints:	&SimConstraints,
+	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	timestep:		f32) {
@@ -108,6 +108,7 @@ pub struct SimConstraints {
 	pub gravity:					Vec2,	// Cartesian gravity vector.
 	pub particle_radius:			f32,	// Particle collision radii.
 	pub particle_count:				usize,	// Number of particles in the simulation.
+	pub particle_rest_density:		f32,	// Rest density of particles in simulation.
 }
 
 impl Default for SimConstraints {
@@ -118,8 +119,9 @@ impl Default for SimConstraints {
 			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
 			gravity:					Vec2 { x: 0.0, y: -96.0 },
-			particle_radius:			2.5,
+			particle_radius:			1.5,
 			particle_count:				0,
+			particle_rest_density:		0.0,
 		}
 	}
 }
@@ -415,12 +417,12 @@ impl SimGrid {
 			// Get the center of the cell so we can weight density properly.
 			let cell_position: Vec2		= self.get_cell_position_from_coordinates(*cell);
 			let cell_center: Vec2		= Vec2 {
-				x: cell_position.x + (0.5 * self.cell_size as f32),
-				y: cell_position.y - (0.5 * self.cell_size as f32)
+				x: cell_position.x,
+				y: cell_position.y
 			};
 			
 			// Distance squared to save ourselves the sqrt(); density is arbitrary here anyways.
-			self.density[cell_lookup_index] += cell_center.distance_squared(particle_position);
+			self.density[cell_lookup_index] += cell_center.distance(particle_position);
 		}
 	}
 	
