@@ -26,7 +26,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
 
     // Go through each horizontal u velocity point in the MAC grid
     for row_index in 0..grid.dimensions.0 as usize {
-        for col_index in 0..grid.dimensions.1 as usize {
+        for col_index in 0..grid.dimensions.1 as usize + 1 {
 
             // Get (x, y) of current velocity point
             let pos = grid.get_velocity_point_pos(
@@ -84,7 +84,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     }
 
     // Do the same thing for vertical velocity points within the MAC grid
-    for row_index in 0..grid.dimensions.0 as usize {
+    for row_index in 0..grid.dimensions.0 as usize + 1 {
         for col_index in 0..grid.dimensions.1 as usize {
 
             let pos = grid.get_velocity_point_pos(

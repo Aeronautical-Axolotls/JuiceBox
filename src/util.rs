@@ -46,6 +46,10 @@ pub fn debug_state_controller(
 	
 	if keys.just_pressed(KeyCode::R) {
 		
+		/* BUG: The more times you reset the simulation the slower it runs.  I suspect this 
+			is caused by either the sprites not being properly unloaded when each particle 
+			component is despawned, OR the fact that we are repeatedly creating new grid and 
+			constraint resources, effectively leaking memory.  Not sure which; figure it out! */
 		crate::simulation::reset_simulation_to_default(
 			&mut commands,
 			constraints.as_mut(),

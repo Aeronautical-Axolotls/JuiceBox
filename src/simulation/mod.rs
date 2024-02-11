@@ -49,7 +49,6 @@ fn update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
-	time:				Res<Time>,
 	keys:				Res<Input<KeyCode>>) {
 
 	// TODO: Check for and handle simulation saving/loading.
@@ -422,7 +421,7 @@ impl SimGrid {
 			};
 			
 			// Distance squared to save ourselves the sqrt(); density is arbitrary here anyways.
-			self.density[cell_lookup_index] += cell_center.distance(particle_position);
+			self.density[cell_lookup_index] += cell_center.distance_squared(particle_position);
 		}
 	}
 	

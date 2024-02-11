@@ -132,7 +132,7 @@ pub fn delete_all_particles(
 	
 	// KILL THEM ALL!!!
 	for (particle_id, _) in particles.iter() {
-		delete_particle(commands, constraints, particles, grid, particle_id);
+		let _ = delete_particle(commands, constraints, particles, grid, particle_id);
 	}
 }
 

@@ -58,7 +58,7 @@ impl Default for FluidRenderData {
 			arbitrary_color:	util::JUICE_YELLOW,
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
-			density_magnitude_color_scale: 200.0,
+			density_magnitude_color_scale: 1000.0,
 			particle_render_scale: 1.0,
 		}
 	}
@@ -80,7 +80,7 @@ impl Default for GridRenderData {
 
 	fn default() -> Self {
 		Self {
-			draw_grid:			true,
+			draw_grid:			false,
 			grid_color:			Color::DARK_GRAY,
 			solid_cell_color:	Color::GOLD,
 
@@ -190,13 +190,13 @@ fn update_particle_color(
 		FluidColorRenderType::Density	=> color_particles_by_density(
 			particles,
 			grid.as_ref(),
-			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density,
+			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density / constraints.particle_radius,
 			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
 		),
 		FluidColorRenderType::Spume		=> color_particles_by_density(
 			particles,
 			grid.as_ref(),
-			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density,
+			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density / constraints.particle_radius,
 			&vec![Color::ANTIQUE_WHITE, util::JUICE_SKY_BLUE, util::JUICE_BLUE, util::JUICE_BLUE]
 		),
 		FluidColorRenderType::Arbitrary	=> color_particles(
