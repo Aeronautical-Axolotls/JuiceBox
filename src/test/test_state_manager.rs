@@ -8,7 +8,10 @@ use crate::simulation::{
 	SimConstraints,
 	SimParticle,
 	SimGrid,
-	sim_state_manager::add_particles_in_radius,
+	sim_state_manager::{
+		add_particles_in_radius,
+		add_particle,
+	},
 };
 use crate::util::get_cursor_position;
 
@@ -31,14 +34,22 @@ pub fn construct_test_simulation_layout(
 		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
 		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
 	};
+	
+	// let _ = add_particle(
+	// 	&mut commands,
+	// 	constraints,
+	// 	grid,
+	// 	Vec2 { x: 100.0, y: 100.0 },
+	// 	Vec2 { x: 0.0, y: 0.0 }
+	// );
 
 	let _moar_test_particles = add_particles_in_radius(
 		&mut commands,
         constraints,
 		grid,
 		10.0,
-		15.0,
-		Vec2 { x: grid_center[0], y: grid_center[1] },
+		20.0,
+		Vec2 { x: grid_center[0] / 2.0, y: grid_center[1] },
 		Vec2::ZERO
 	);
 
@@ -92,6 +103,7 @@ pub fn test_select_grid_cells(
 
 		let half_cell_size: f32 = grid.cell_size as f32 * 0.5;
 		let mut cell_position: Vec2 = grid.get_cell_position_from_coordinates(selected_cells[i]);
+		
 		cell_position.x += half_cell_size;
 		cell_position.y += half_cell_size;
 
@@ -102,7 +114,7 @@ pub fn test_select_grid_cells(
 				x: grid.cell_size as f32,
 				y: grid.cell_size as f32,
 			},
-			Color::BLACK
+			Color::ANTIQUE_WHITE
 		);
 	}
 }

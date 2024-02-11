@@ -51,7 +51,7 @@ pub fn add_particles_in_radius(
 }
 
 /// Add particles into the simulation.
-fn add_particle(
+pub fn add_particle(
 	commands:		&mut Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
@@ -132,7 +132,7 @@ pub fn delete_all_particles(
 	
 	// KILL THEM ALL!!!
 	for (particle_id, _) in particles.iter() {
-		delete_particle(commands, constraints, particles, grid, particle_id);
+		let _ = delete_particle(commands, constraints, particles, grid, particle_id);
 	}
 }
 

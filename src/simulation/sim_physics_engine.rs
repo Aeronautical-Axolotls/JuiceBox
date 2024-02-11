@@ -25,8 +25,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     let mut velocity_v = vec![vec![0.0; grid.dimensions.0 as usize]; (grid.dimensions.1 + 1) as usize];
 
     // Go through each horizontal u velocity point in the MAC grid
-    for row_index in 0..grid.velocity_u.len() {
-        for col_index in 0..grid.velocity_u[row_index].len() {
+    for row_index in 0..grid.dimensions.0 as usize {
+        for col_index in 0..grid.dimensions.1 as usize + 1 {
 
             // Get (x, y) of current velocity point
             let pos = grid.get_velocity_point_pos(
@@ -78,14 +78,14 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
             }
 
             let new_velocity = scaled_velocity_sum / scaled_influence_sum;
-
+			
             velocity_u[row_index][col_index] = new_velocity;
         }
     }
 
     // Do the same thing for vertical velocity points within the MAC grid
-    for row_index in 0..grid.velocity_v.len() {
-        for col_index in 0..grid.velocity_v[row_index].len() {
+    for row_index in 0..grid.dimensions.0 as usize + 1 {
+        for col_index in 0..grid.dimensions.1 as usize {
 
             let pos = grid.get_velocity_point_pos(
                 row_index,
@@ -346,7 +346,7 @@ pub fn update_particles(
 		update_particle_lookup(id, particle.as_mut(), grid);
 
 		// Update the grid's density value for this current cell.
-		grid.update_grid_density(particle.position, particle.lookup_index);
+		grid.update_grid_density(particle.position);
 	}
 }
 
@@ -446,7 +446,7 @@ fn separate_particle_pair(
 	let mut delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
 	let mut delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
 	let distance_squared: f32	= (delta_x * delta_x) + (delta_y * delta_y);
-	if distance_squared > collision_radius_squared || distance_squared == 0.0 {
+	if distance_squared > collision_radius_squared || distance_squared <= 0.01 {
 		return;
 	}
 
@@ -461,23 +461,23 @@ fn separate_particle_pair(
 	particle_combo[0].1.position[1] += delta_y;
 	particle_combo[1].1.position[0] -= delta_x;
 	particle_combo[1].1.position[1] -= delta_y;
-
-	// particle_combo[0].1.velocity[0] += delta_x;
-	// particle_combo[0].1.velocity[1] += delta_y;
-	// particle_combo[1].1.velocity[0] -= delta_x;
-	// particle_combo[1].1.velocity[1] -= delta_y;
+	
+	// Uncomment for LOADS E MONEY B-)
+	// particle_combo[0].1.velocity[0] += delta_x * 4.0;
+	// particle_combo[0].1.velocity[1] += delta_y * 4.0;
+	// particle_combo[1].1.velocity[0] -= delta_x * 4.0;
+	// particle_combo[1].1.velocity[1] -= delta_y * 4.0;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
 	Gauss-Seidel method. */
 pub fn make_grid_velocities_incompressible(
 	grid:			&mut SimGrid,
-	constraints: 	&SimConstraints) {
+	constraints: 	&mut SimConstraints) {
 
 	// Get the "particle rest density" for the simulation domain.
 	let mut fluid_cell_count: f32		= 0.0;
 	let mut density_sum: f32			= 0.0;
-	let mut particle_rest_density: f32	= 0.0;
 
 	for i in 0..grid.density.len() {
 		density_sum			+= grid.density[i];
@@ -485,7 +485,7 @@ pub fn make_grid_velocities_incompressible(
 	}
 
 	if fluid_cell_count > 0.0 {
-		particle_rest_density = density_sum / fluid_cell_count;
+		constraints.particle_rest_density = density_sum / fluid_cell_count;
 	}
 
 	// Allows the user to make the simulation go BRRRRRRR or brrr.
@@ -521,9 +521,9 @@ pub fn make_grid_velocities_incompressible(
 				);
 
 				// Density calculations.
-				if particle_rest_density > 0.0 {
+				if constraints.particle_rest_density > 0.0 {
 					let stiffness: f32		= 1.0;
-					let compression: f32	= 0.0 - particle_rest_density;
+					let compression: f32	= 0.0 - constraints.particle_rest_density;
 					if compression > 0.0 {
 						divergence -= stiffness * compression;
 					}

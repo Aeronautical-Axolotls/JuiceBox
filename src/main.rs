@@ -12,8 +12,6 @@ pub mod ui;
 use ui::ui_base;
 use util::debug_state_controller;
 
-
-
 fn main() {
     let mut juicebox: App = App::new();
 
