@@ -103,6 +103,7 @@ pub fn test_select_grid_cells(
 
 		let half_cell_size: f32 = grid.cell_size as f32 * 0.5;
 		let mut cell_position: Vec2 = grid.get_cell_position_from_coordinates(selected_cells[i]);
+		
 		cell_position.x += half_cell_size;
 		cell_position.y += half_cell_size;
 
@@ -113,7 +114,7 @@ pub fn test_select_grid_cells(
 				x: grid.cell_size as f32,
 				y: grid.cell_size as f32,
 			},
-			Color::BLACK
+			Color::ANTIQUE_WHITE
 		);
 	}
 }

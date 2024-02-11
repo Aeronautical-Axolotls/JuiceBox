@@ -4,7 +4,7 @@ pub mod util;
 
 use bevy::prelude::*;
 use bevy::math::Vec2;
-use crate::error::Error;
+use crate::{error::Error, test::test_state_manager::test_select_grid_cells};
 use sim_physics_engine::*;
 use crate::test::test_state_manager;
 
@@ -49,22 +49,48 @@ fn update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
-	keys:				Res<Input<KeyCode>>) {
+	keys:				Res<Input<KeyCode>>,
+	
+	mut commands:	Commands,
+	mut gizmos:		Gizmos,
+	windows:		Query<&Window>,
+	cameras:		Query<(&Camera, &GlobalTransform)>
+	) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
-
-	let fixed_timestep: f32 = 1.0 / 120.0;
+	
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-
+	let fixed_timestep: f32 = constraints.timestep;
+	
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
-		step_simulation_once(constraints.as_mut(), grid.as_mut(), &mut particles, fixed_timestep);
+		step_simulation_once(
+			constraints.as_mut(),
+			grid.as_mut(),
+			&mut particles,
+			fixed_timestep
+		);
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
-		step_simulation_once(constraints.as_mut(), grid.as_mut(), &mut particles, fixed_timestep);
+		step_simulation_once(
+			constraints.as_mut(),
+			grid.as_mut(),
+			&mut particles,
+			fixed_timestep
+		);
 	}
+	
+	// test_select_grid_cells(
+	// 	&mut commands,
+	// 	constraints.as_mut(),
+	// 	grid.as_mut(),
+	// 	&particles,
+	// 	&windows,
+	// 	&cameras,
+	// 	&mut gizmos
+	// );
 
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
@@ -101,7 +127,8 @@ pub fn reset_simulation_to_default(
 
 #[derive(Resource)]
 pub struct SimConstraints {
-	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio.
+	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio (0.0 = FLIP, 1.0 = PIC).
+	pub timestep:					f32,	// Timestep for simulation updates.
 	pub incomp_iters_per_frame:		u8, 	// Simulation incompressibility iterations per frame.
 	pub collision_iters_per_frame:	u8,		// Collision iterations per frame.
 	pub gravity:					Vec2,	// Cartesian gravity vector.
@@ -114,7 +141,8 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC)
+			grid_particle_ratio:		0.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
+			timestep:					1.0 / 120.0,
 			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
 			gravity:					Vec2 { x: 0.0, y: -96.0 },
@@ -338,7 +366,11 @@ impl SimGrid {
 	}
 
 	/** Selects grid cells that entirely cover the a circle of radius `radius` centered at `position`;
-		returns a Vector containing each cell's coordinates. */
+		returns a Vector containing each cell's coordinates.  Note: the returned vector is of a 
+		static size.  If any cells in the selection are outside of the grid, then the closest valid 
+		cells will be added into the result.  **This can result in duplicated cell values, which is 
+		necessary to ensure accurate density calculations (corner cells would otherwise be 
+		considered much less dense than cells with selections entirely contained within the grid).** */
 	pub fn select_grid_cells(&self, position: Vec2, radius: f32) -> Vec<Vec2> {
 
 		/* If we are less than a cell in radius, the function will only search 1 cell.  That is
@@ -348,9 +380,9 @@ impl SimGrid {
 		let min_selection_size: f32 = self.cell_size as f32 / 2.0;
 		let adj_radius: f32			= f32::max(min_selection_size, radius);
 
-		/* Find our min/max world coordinates for cells to search.  Subtract cell size to account for
+		/* Find our min/max world coordinates for cells to search.  Add the cell size to account for 
 			the selection area potentially not being perfectly centered; this will ensure we always
-			check the full possible number of cells our selection may be concerned with. We will check
+			check the full possible number of cells our selection may be concerned with. We may check
 			one or two extra cells, but I believe consistent behavior is worth 4 extra cell checks. */
 		let selection_max_bound: Vec2 = Vec2 {
 			x: position.x + adj_radius + self.cell_size as f32,
@@ -362,11 +394,11 @@ impl SimGrid {
 		};
 
 		// Find the number of cells we need to check.
-		let mut x_cell_count: f32			= selection_max_bound.x - selection_min_bound.x;
-		let mut y_cell_count: f32			= selection_max_bound.y - selection_min_bound.y;
-		x_cell_count						/= self.cell_size as f32;
-		y_cell_count						/= self.cell_size as f32;
-		let cells_in_selection_count: usize	= (x_cell_count * y_cell_count) as usize;
+		let mut x_cell_count: usize			= (selection_max_bound.x - selection_min_bound.x) as usize;
+		let mut y_cell_count: usize			= (selection_max_bound.y - selection_min_bound.y) as usize;
+		x_cell_count						/= self.cell_size as usize;
+		y_cell_count						/= self.cell_size as usize;
+		let cells_in_selection_count: usize	= x_cell_count * y_cell_count;
 
 		// Figure out which grid cells we are actually going to be checking.
 		let mut cells_in_selection: Vec<Vec2>	= vec![Vec2::ZERO; cells_in_selection_count];
@@ -378,16 +410,18 @@ impl SimGrid {
 				of cells checked, however the extra cell jutting out does not (making me think the
 				latter is a rendering issue).  Finally, the algorithm breaks down a little bit extra
 				if the radius is not a multiple of the grid cell size. */
-
-			/* For each cell, get the grid coordinates from the selection's minimum bound. */
-			let mut cell_coordinates: Vec2 = self.get_cell_coordinates_from_position(
-				&selection_min_bound
-			);
-
-			// Move row-major to the right and up for each cell in our selection list.
-			cell_coordinates.x -= f32::floor((cell_index as f32 / y_cell_count as f32) %
-				y_cell_count as f32);
-			cell_coordinates.y += f32::floor(cell_index as f32 % x_cell_count);
+			
+			// Per cell, get the x and y indices through our cell selection array.
+			let cell_y_index: usize	= (cell_index / y_cell_count) % y_cell_count;
+			let cell_x_index: usize	= cell_index % x_cell_count;
+			
+			// Convert the cell's x and y indices into a position, and then into a grid coordinate.
+			let cell_position: Vec2 = Vec2 {
+				x: selection_min_bound.x + cell_x_index as f32 * self.cell_size as f32,
+				y: selection_min_bound.y + cell_y_index as f32 * self.cell_size as f32
+			};
+			
+			let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
 
 			// Add our selected cell's coordinates to our list of cell coordinates!
 			cells_in_selection[cell_index] = cell_coordinates;
@@ -406,8 +440,9 @@ impl SimGrid {
 	/// Update each grid cell's density based on weighted particle influences.
 	pub fn update_grid_density(&mut self, particle_position: Vec2) {
 
-		// Select all 9 nearby cells so we can weight their densities.
-		let nearby_cells = self.select_grid_cells(particle_position, self.cell_size as f32);
+		/* Select all 9 nearby cells so we can weight their densities; a radius of 0.0 
+			automatically clamps to a 3x3 grid of cells surrounding the position vector. */
+		let nearby_cells = self.select_grid_cells(particle_position, 0.0);
 		
 		// For each nearby cell, add weighted density value based on distance to particle_position.
 		for cell in nearby_cells.iter() {
