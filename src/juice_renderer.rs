@@ -59,7 +59,7 @@ impl Default for FluidRenderData {
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
 			density_magnitude_color_scale: 1000.0,
-			particle_render_scale: 1.0,
+			particle_render_scale: 0.5,
 		}
 	}
 }
@@ -80,14 +80,14 @@ impl Default for GridRenderData {
 
 	fn default() -> Self {
 		Self {
-			draw_grid:			false,
+			draw_grid:			true,
 			grid_color:			Color::DARK_GRAY,
 			solid_cell_color:	Color::GOLD,
 
 			draw_vectors:			false,
 			vector_type:			FluidGridVectorType::Velocity,
 			vector_color:			Color::WHITE,
-			vector_magnitude_scale:	0.01,
+			vector_magnitude_scale:	0.05,
 		}
 	}
 }
@@ -160,7 +160,7 @@ fn update_particle_size(
 	fluid_render_data:	Res<FluidRenderData>) {
 
 	for (_, mut sprite) in particles.iter_mut() {
-		let size: f32 = constraints.particle_radius * fluid_render_data.particle_render_scale;
+		let size: f32 = constraints.particle_radius * fluid_render_data.particle_render_scale * 2.0;
 		sprite.custom_size = Some(Vec2::splat(size));
 	}
 }
