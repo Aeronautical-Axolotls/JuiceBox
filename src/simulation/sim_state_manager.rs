@@ -151,7 +151,7 @@ pub fn select_particles<'a>(
 
 	for i in 0..selected_cell_coordinates.len() {
 
-		let cell_lookup_index: usize = get_lookup_index(selected_cell_coordinates[i], grid.dimensions.0);
+		let cell_lookup_index: usize = grid.get_lookup_index(selected_cell_coordinates[i]);
 		for particle_id in grid.get_particles_in_lookup(cell_lookup_index).iter() {
 
 			// TODO: Error checking here.  Don't use unwrap() in production!

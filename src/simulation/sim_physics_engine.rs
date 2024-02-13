@@ -201,7 +201,7 @@ fn collect_particles<'a>(
 
     let mut particle_bag = Vec::new();
 
-    let index = get_lookup_index(center, grid.dimensions.0);
+    let index = grid.get_lookup_index(center);
 
     let particle_ids = grid.get_particles_in_lookup(index);
 
@@ -302,7 +302,7 @@ pub fn update_particle_lookup(particle_id: Entity, particle: &mut SimParticle, g
 
 	// Find the cell that this particle belongs to and update our spatial lookup accordingly.
 	let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
-	let lookup_index: usize		= get_lookup_index(cell_coordinates, grid.dimensions.0);
+	let lookup_index: usize		= grid.get_lookup_index(cell_coordinates);
 
 	// Remove the particle from its old lookup cell and place it here in its new one.
 	if !grid.spatial_lookup[lookup_index].contains(&particle_id) {
@@ -311,11 +311,6 @@ pub fn update_particle_lookup(particle_id: Entity, particle: &mut SimParticle, g
 		grid.spatial_lookup[lookup_index].push(particle_id);
 		particle.lookup_index = lookup_index;
 	}
-}
-
-// Get a cell lookup index into our spatial lookup table.
-pub fn get_lookup_index(cell_coordinates: Vec2, grid_row_count: u16) -> usize {
-	(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * grid_row_count)) as usize
 }
 
 /** For each particle: integrate velocity into position, update cell type, update spatial lookup,

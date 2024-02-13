@@ -4,7 +4,6 @@ use bevy::{
 };
 use crate::{
 	simulation::{
-		sim_physics_engine::get_lookup_index,
 		SimConstraints,
 		SimGrid,
 		SimGridCellType,
@@ -59,7 +58,7 @@ impl Default for FluidRenderData {
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
 			density_magnitude_color_scale: 1000.0,
-			particle_render_scale: 0.5,
+			particle_render_scale: 1.0,
 		}
 	}
 }
@@ -160,7 +159,9 @@ fn update_particle_size(
 	fluid_render_data:	Res<FluidRenderData>) {
 
 	for (_, mut sprite) in particles.iter_mut() {
-		let size: f32 = constraints.particle_radius * fluid_render_data.particle_render_scale * 2.0;
+		/* Multiply this by 2, because we are dealing with the radius.  To account for the full 
+			size of the particle, we need to multiply the radius by 2. */
+		let size: f32 = constraints.particle_radius * 2.0 * fluid_render_data.particle_render_scale;
 		sprite.custom_size = Some(Vec2::splat(size));
 	}
 }
@@ -257,7 +258,7 @@ fn color_particles_by_density(
 	for (particle, mut sprite) in particles.iter_mut() {
 
 		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
-		let lookup_index: usize		= get_lookup_index(cell_coordinates, grid.dimensions.0);
+		let lookup_index: usize		= grid.get_lookup_index(cell_coordinates);
 		let density: f32			= grid.get_density_at_position(particle.position);
 
 		let color: Color = util::generate_color_from_gradient(

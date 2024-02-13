@@ -4,14 +4,11 @@ pub mod util;
 
 use bevy::prelude::*;
 use bevy::math::Vec2;
-use crate::{error::Error, test::test_state_manager::test_select_grid_cells};
+use crate::error::Error;
 use sim_physics_engine::*;
 use crate::test::test_state_manager;
 
-use self::{sim_state_manager::{
-	delete_particle,
-	delete_all_particles
-}, util::find_influence};
+use self::sim_state_manager::delete_all_particles;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -460,7 +457,7 @@ impl SimGrid {
 		
 		// For each nearby cell, add weighted density value based on distance to particle_position.
 		for cell in nearby_cells.iter() {
-			let cell_lookup_index = get_lookup_index(*cell, self.dimensions.0);
+			let cell_lookup_index = self.get_lookup_index(*cell);
 			
 			// Get the center of the cell so we can weight density properly.
 			let cell_position: Vec2		= self.get_cell_position_from_coordinates(*cell);
@@ -470,7 +467,7 @@ impl SimGrid {
 			};
 			
 			// Distance squared to save ourselves the sqrt(); density is arbitrary here anyways.
-			self.density[cell_lookup_index] += cell_center.distance_squared(particle_position);
+			self.density[cell_lookup_index] += cell_center.distance(particle_position);
 		}
 	}
 	
@@ -492,12 +489,18 @@ impl SimGrid {
 				y: cell_position.y - (0.5 * self.cell_size as f32)
 			};
 			
-			let cell_lookup_index = get_lookup_index(*cell, self.dimensions.0);
+			let cell_lookup_index = self.get_lookup_index(*cell);
 			density += self.density[cell_lookup_index];
 		}
 		
 		density
 	}
+	
+	// Get a cell lookup index into our spatial lookup table.
+	pub fn get_lookup_index(&self, cell_coordinates: Vec2) -> usize {
+		(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * self.dimensions.0)) as usize
+	}
+
 
 	/// Add a new particle into our spatial lookup table.
 	pub fn add_particle_to_lookup(&mut self, particle_id: Entity, lookup_index: usize) {
