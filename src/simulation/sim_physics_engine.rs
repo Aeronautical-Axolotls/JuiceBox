@@ -354,29 +354,68 @@ pub fn update_particles(
 pub fn handle_particle_collisions(
 	constraints:	&SimConstraints,
 	grid:			&SimGrid,
-	particles:		&mut Query<(Entity, &mut SimParticle)>) {
+	particles:		&mut Query<(Entity, &mut SimParticle)>,
+	delta_time:		f32) {
 
 	for (_, mut particle) in particles.iter_mut() {
 
 		// TODO: Collision checking w/ solids.
-
+		let mut cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
+		let mut cell_type: u8			= grid.get_cell_type_value(cell_coordinates.x as usize, cell_coordinates.y as usize);
+		
+		// While we are in a solid cell, inch out of it!
+		if cell_type == 0 {
+			let cell_center: Vec2	= grid.get_cell_center_position_from_coordinates(&cell_coordinates);
+			let prev_particle_position: Vec2 = Vec2 {
+				x: particle.position.x - (particle.velocity.x * delta_time),
+				y: particle.position.y - (particle.velocity.y * delta_time)
+			};
+			
+			// Check which direction the particle moved into the cell from this frame.
+			let cell_half_size: f32	= (grid.cell_size as f32) / 2.0;
+			let cell_left: f32		= cell_center.x - constraints.particle_radius - cell_half_size;
+			let cell_right: f32		= cell_center.x + constraints.particle_radius + cell_half_size;
+			let cell_up: f32		= cell_center.y + constraints.particle_radius + cell_half_size;
+			let cell_down: f32		= cell_center.y - constraints.particle_radius - cell_half_size;
+			
+			// Left/right collision checks.
+			if prev_particle_position.x < cell_left {
+				particle.position.x = cell_left;
+				particle.velocity.x = 0.0;
+			} else if prev_particle_position.x > cell_right {
+				particle.position.x = cell_right;
+				particle.velocity.x = 0.0;
+			}
+			
+			// Up/down collision checks.
+			if prev_particle_position.y < cell_down {
+				particle.position.y = cell_down;
+				particle.velocity.y = 0.0;
+			} else if prev_particle_position.y > cell_up {
+				particle.position.y = cell_up;
+				particle.velocity.y = 0.0;
+			}
+		}
+		
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
+		
+		// Left/right collision checks.
 		if particle.position[0] < constraints.particle_radius {
 			particle.position[0] = constraints.particle_radius;
 			particle.velocity[0] = 0.0;
-		}
-		if particle.position[0] > grid_width {
-			particle.position[0] = grid_width;
+		} else if particle.position[0] > grid_width - constraints.particle_radius {
+			particle.position[0] = grid_width - constraints.particle_radius;
 			particle.velocity[0] = 0.0;
 		}
+		
+		// Up/down collision checks.
 		if particle.position[1] < constraints.particle_radius {
 			particle.position[1] = constraints.particle_radius;
 			particle.velocity[1] = 0.0;
-		}
-		if particle.position[1] > grid_height {
-			particle.position[1] = grid_height;
+		} else if particle.position[1] > grid_height - constraints.particle_radius {
+			particle.position[1] = grid_height - constraints.particle_radius;
 			particle.velocity[1] = 0.0;
 		}
 	}

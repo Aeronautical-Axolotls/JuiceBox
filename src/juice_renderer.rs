@@ -141,13 +141,10 @@ fn update_particle_position(
 	constraints: Res<SimConstraints>,
 	mut particles: Query<(&SimParticle, &mut Transform)>) {
 
-	// Particles will be drawn from their upper-left corner.  Subtracting this offset will fix that!
-	let particle_half_size: f32 = constraints.particle_radius * 0.5;
-
 	for (particle, mut transform) in particles.iter_mut() {
 		transform.translation = Vec3 {
-			x: particle.position.x - particle_half_size,
-			y: particle.position.y - particle_half_size,
+			x: particle.position.x,
+			y: particle.position.y,
 			/* IMPORTANT: Keep this at the same z-value for all particles.  This allows Bevy to do
 				sprite batching, cutting render costs by quite a bit.  If we change the z-index we
 				will likely see a large performance drop. */
@@ -441,6 +438,7 @@ fn draw_grid_vectors(
 			}
 
 			// Find the center of each grid cell to draw the vector arrows.
+			// TODO: Refactor to use grid.get_cell_center_position_from_coordinates().
 			let half_cell_size: f32	= (grid.cell_size as f32) / 2.0;
 			let cell_x: f32			= (col * grid.cell_size) as f32;
 			let cell_y: f32			= (row * grid.cell_size) as f32;

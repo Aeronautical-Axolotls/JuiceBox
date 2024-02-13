@@ -4,6 +4,7 @@ use crate::simulation::sim_state_manager::{
 	select_particles,
 	delete_particle,
 };
+use crate::simulation::SimGridCellType;
 use crate::simulation::{
 	SimConstraints,
 	SimParticle,
@@ -22,12 +23,20 @@ pub fn construct_test_simulation_layout(
 	mut commands:	Commands) {
 
 	// Create a bunch of solid cells.
-	// grid.cell_type[82][45] = SimGridCellType::Solid;
-	// grid.cell_type[83][45] = SimGridCellType::Solid;
-	// grid.cell_type[83][46] = SimGridCellType::Solid;
-	// grid.cell_type[83][47] = SimGridCellType::Solid;
-	// grid.cell_type[83][48] = SimGridCellType::Solid;
-	// grid.cell_type[82][48] = SimGridCellType::Solid;
+	grid.cell_type[80][72] = SimGridCellType::Solid;
+	grid.cell_type[81][72] = SimGridCellType::Solid;
+	grid.cell_type[82][72] = SimGridCellType::Solid;
+	grid.cell_type[83][72] = SimGridCellType::Solid;
+	grid.cell_type[83][73] = SimGridCellType::Solid;
+	grid.cell_type[83][74] = SimGridCellType::Solid;
+	grid.cell_type[83][75] = SimGridCellType::Solid;
+	grid.cell_type[83][76] = SimGridCellType::Solid;
+	grid.cell_type[83][77] = SimGridCellType::Solid;
+	grid.cell_type[83][78] = SimGridCellType::Solid;
+	grid.cell_type[83][79] = SimGridCellType::Solid;
+	grid.cell_type[82][79] = SimGridCellType::Solid;
+	grid.cell_type[81][79] = SimGridCellType::Solid;
+	grid.cell_type[80][79] = SimGridCellType::Solid;
 
 	// Spawn a small test group of particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {
@@ -48,7 +57,7 @@ pub fn construct_test_simulation_layout(
         constraints,
 		grid,
 		10.0,
-		20.0,
+		30.0,
 		Vec2 { x: grid_center[0] / 2.0, y: grid_center[1] },
 		Vec2::ZERO
 	);

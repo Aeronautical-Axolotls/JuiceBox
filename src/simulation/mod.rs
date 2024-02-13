@@ -105,7 +105,7 @@ fn step_simulation_once(
 
     update_particles(constraints, particles, grid, timestep);
     push_particles_apart(constraints, grid, particles, timestep);
-    handle_particle_collisions(constraints, grid, particles);
+    handle_particle_collisions(constraints, grid, particles, timestep);
     let old_grid: SimGrid = particles_to_grid(grid, particles);
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
@@ -204,7 +204,7 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (50, 50),
+			dimensions:	    (100, 100),
 			cell_size:		5,
 			cell_type:		vec![vec![SimGridCellType::Air; 100]; 100],
             cell_center:    vec![vec![0.0; 100]; 100],
@@ -363,6 +363,20 @@ impl SimGrid {
 		position.y = f32::min(grid_max_y_bound, position.y);
 
 		position
+	}
+	
+	/// Find the center position of a cell given its coordinates.
+	pub fn get_cell_center_position_from_coordinates(&self, coordinates: &Vec2) -> Vec2 {
+		let half_cell_size: f32	= (self.cell_size as f32) / 2.0;
+		let cell_x: f32			= coordinates.y * self.cell_size as f32;
+		let cell_y: f32			= coordinates.x * self.cell_size as f32;
+		let grid_height: f32	= (self.dimensions.0 * self.cell_size) as f32;
+		
+		let cell_center_position: Vec2 = Vec2 {
+			x: cell_x + half_cell_size,
+			y: grid_height - cell_y - half_cell_size,
+		};
+		cell_center_position
 	}
 
 	/** Selects grid cells that entirely cover the a circle of radius `radius` centered at `position`;
