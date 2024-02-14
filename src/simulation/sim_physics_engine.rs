@@ -78,7 +78,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
             }
 
             let new_velocity = scaled_velocity_sum / scaled_influence_sum;
-			
+
             velocity_u[row_index][col_index] = new_velocity;
         }
     }
@@ -144,6 +144,36 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     grid.velocity_v = velocity_v;
 
     old_grid
+
+}
+
+pub fn label_cells(grid: &mut SimGrid) {
+
+    let (rows, cols) = grid.dimensions;
+
+    let mut cell_types = vec![vec![SimGridCellType::Air; rows as usize]; cols as usize];
+
+    for row in 0..rows as usize {
+        for col in 0..cols as usize {
+
+            let lookup_index = get_lookup_index(Vec2::new(row as f32, col as f32), grid.dimensions.1);
+
+            let particles = grid.get_particles_in_lookup(lookup_index);
+
+            if particles.len() == 0 {
+
+                // Add condition for solids
+
+                cell_types[row][col] = SimGridCellType::Air;
+            }
+            else {
+                cell_types[row][col] = SimGridCellType::Fluid;
+            }
+
+        }
+    }
+
+    grid.cell_type = cell_types;
 
 }
 
@@ -286,10 +316,10 @@ pub fn grid_to_particles(
 
             // if we find an old fluid cell without any particles in it
             // make it an air cell
-            if particles_in_cell.len() == 0 {
-                grid.cell_type[row_index][col_index] = SimGridCellType::Air;
-                continue;
-            }
+            // if particles_in_cell.len() == 0 {
+            //     grid.cell_type[row_index][col_index] = SimGridCellType::Air;
+            //     continue;
+            // }
 
             // Solve for the new velocities of the particles
             apply_grid(particles_in_cell, grid, change_grid, flip_pic_coef);
@@ -339,8 +369,8 @@ pub fn update_particles(
 		particle.position[1] += particle.velocity[1] * delta_time;
 
         // Update the grid cell this particle is in to be a fluid
-        let coords = grid.get_cell_coordinates_from_position(&particle.position);
-        grid.cell_type[coords.x as usize][coords.y as usize] = SimGridCellType::Fluid;
+        // let coords = grid.get_cell_coordinates_from_position(&particle.position);
+        // grid.cell_type[coords.x as usize][coords.y as usize] = SimGridCellType::Fluid;
 
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);
@@ -461,7 +491,7 @@ fn separate_particle_pair(
 	particle_combo[0].1.position[1] += delta_y;
 	particle_combo[1].1.position[0] -= delta_x;
 	particle_combo[1].1.position[1] -= delta_y;
-	
+
 	// Uncomment for LOADS E MONEY B-)
 	// particle_combo[0].1.velocity[0] += delta_x * 4.0;
 	// particle_combo[0].1.velocity[1] += delta_y * 4.0;
