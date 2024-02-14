@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use sim_physics_engine::*;
-use crate::test::test_state_manager;
+use crate::test::test_state_manager::{self, test_select_grid_cells};
 
 use self::sim_state_manager::delete_all_particles;
 

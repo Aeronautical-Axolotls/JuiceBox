@@ -557,7 +557,12 @@ pub fn make_grid_velocities_incompressible(
 				// Density calculations.
 				if constraints.particle_rest_density > 0.0 {
 					let stiffness: f32		= 1.0;
-					let compression: f32	= 0.0 - constraints.particle_rest_density;
+					let cell_coordinates: Vec2 = Vec2 {
+						x: row as f32,
+						y: col as f32
+					};
+					let density: f32		= grid.density[grid.get_lookup_index(cell_coordinates)];
+					let compression: f32	= density - constraints.particle_rest_density;
 					if compression > 0.0 {
 						divergence -= stiffness * compression;
 					}
@@ -566,7 +571,7 @@ pub fn make_grid_velocities_incompressible(
 				// Force incompressibility on this cell.
 				let overrelaxation: f32	= 1.9;
 				let momentum: f32		= overrelaxation * ((0.0 - divergence) / solids_sum as f32);
-
+				
 				grid.velocity_u[row as usize][col as usize]			-= momentum * left_solid as f32;
 				grid.velocity_u[row as usize][(col + 1) as usize]	+= momentum * right_solid as f32;
 				grid.velocity_v[row as usize][col as usize]			+= momentum * up_solid as f32;
@@ -597,10 +602,6 @@ fn calculate_cell_divergence(
 	let x_divergence: f32	= right_velocity - left_velocity;
 	let y_divergence: f32	= up_velocity - down_velocity;
 	let divergence: f32		= x_divergence + y_divergence;
-
-	// ==============================================================
-	// TODO: Adjust divergence based on particle density in the cell.
-	// ==============================================================
 
 	divergence
 }
