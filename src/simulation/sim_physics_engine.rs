@@ -314,13 +314,6 @@ pub fn grid_to_particles(
             // Grab all the particles within this specific cell
             let particles_in_cell = collect_particles(grid, coords, particles);
 
-            // if we find an old fluid cell without any particles in it
-            // make it an air cell
-            // if particles_in_cell.len() == 0 {
-            //     grid.cell_type[row_index][col_index] = SimGridCellType::Air;
-            //     continue;
-            // }
-
             // Solve for the new velocities of the particles
             apply_grid(particles_in_cell, grid, change_grid, flip_pic_coef);
         }
@@ -367,10 +360,6 @@ pub fn update_particles(
 		// Change each particle's position by velocity * dt.
 		particle.position[0] += particle.velocity[0] * delta_time;
 		particle.position[1] += particle.velocity[1] * delta_time;
-
-        // Update the grid cell this particle is in to be a fluid
-        // let coords = grid.get_cell_coordinates_from_position(&particle.position);
-        // grid.cell_type[coords.x as usize][coords.y as usize] = SimGridCellType::Fluid;
 
 		// Update this particle's spatial lookup.
 		update_particle_lookup(id, particle.as_mut(), grid);

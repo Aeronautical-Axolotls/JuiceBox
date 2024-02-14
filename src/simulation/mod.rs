@@ -106,7 +106,7 @@ fn step_simulation_once(
     update_particles(constraints, particles, grid, timestep);
     push_particles_apart(constraints, grid, particles, timestep);
     handle_particle_collisions(constraints, grid, particles);
-    label_cells(grid);
+    grid.label_cells();
     let old_grid: SimGrid = particles_to_grid(grid, particles);
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
@@ -608,6 +608,39 @@ impl SimGrid {
 
 		nearby_particles
 	}
+
+    /**
+        Goes through the entire grid and labels the cells with their respective type
+    **/
+    pub fn label_cells(&mut self) {
+
+        let (rows, cols) = self.dimensions;
+
+        let mut cell_types = vec![vec![SimGridCellType::Air; rows as usize]; cols as usize];
+
+        for row in 0..rows as usize {
+            for col in 0..cols as usize {
+
+                let lookup_index = get_lookup_index(Vec2::new(row as f32, col as f32), self.dimensions.1);
+
+                let particles = self.get_particles_in_lookup(lookup_index);
+
+                if particles.len() == 0 {
+
+                    // Add condition for solids
+
+                    cell_types[row][col] = SimGridCellType::Air;
+                }
+                else {
+                    cell_types[row][col] = SimGridCellType::Fluid;
+                }
+
+            }
+        }
+
+        self.cell_type = cell_types;
+
+    }
 }
 
 #[derive(Component, Debug)]
