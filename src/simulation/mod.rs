@@ -104,7 +104,7 @@ fn step_simulation_once(
     push_particles_apart(constraints, grid, particles, timestep);
     handle_particle_collisions(constraints, grid, particles, timestep);
     let old_grid: SimGrid = particles_to_grid(grid, particles);
-    make_grid_velocities_incompressible(grid, constraints);
+	make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 }
@@ -453,7 +453,8 @@ impl SimGrid {
 
 		/* Select all 9 nearby cells so we can weight their densities; a radius of 0.0 
 			automatically clamps to a 3x3 grid of cells surrounding the position vector. */
-		let nearby_cells = self.select_grid_cells(particle_position, 0.0);
+		let nearby_cells	= self.select_grid_cells(particle_position, 0.0);
+		let center_cell		= self.get_cell_coordinates_from_position(&particle_position);
 		
 		// For each nearby cell, add weighted density value based on distance to particle_position.
 		for cell in nearby_cells.iter() {
@@ -462,12 +463,14 @@ impl SimGrid {
 			// Get the center of the cell so we can weight density properly.
 			let cell_position: Vec2		= self.get_cell_position_from_coordinates(*cell);
 			let cell_center: Vec2		= Vec2 {
-				x: cell_position.x,
-				y: cell_position.y
+				x: cell_position.x + (0.5 * self.cell_size as f32),
+				y: cell_position.y - (0.5 * self.cell_size as f32)
 			};
 			
-			// Distance squared to save ourselves the sqrt(); density is arbitrary here anyways.
-			self.density[cell_lookup_index] += cell_center.distance(particle_position);
+			/* Weight density based on the center cell's distance to neighbors.  Distance squared 
+				to save ourselves the sqrt(); density is arbitrary here anyways. */
+			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
+			self.density[cell_lookup_index]	+= 1.0 / density_weight;
 		}
 	}
 	
@@ -477,20 +480,17 @@ impl SimGrid {
 		let mut density: f32 = 0.0;
 		
 		// Select all 9 nearby cells so we can query their densities.
-		let nearby_cells = self.select_grid_cells(position, self.cell_size as f32);
+		let nearby_cells	= self.select_grid_cells(position, 0.0);
+		let center_cell		= self.get_cell_coordinates_from_position(&position);
 		
 		// For each nearby cell, add its density weighted based on position to final density value.
 		for cell in nearby_cells.iter() {
 			
-			// Get the center of the cell so we can weight density properly.
-			let cell_position: Vec2		= self.get_cell_position_from_coordinates(*cell);
-			let cell_center: Vec2		= Vec2 {
-				x: cell_position.x + (0.5 * self.cell_size as f32),
-				y: cell_position.y - (0.5 * self.cell_size as f32)
-			};
-			
+			/* Weight density based on the center cell's distance to neighbors.  Distance squared 
+				to save ourselves the sqrt(); density is arbitrary here anyways. */
 			let cell_lookup_index = self.get_lookup_index(*cell);
-			density += self.density[cell_lookup_index];
+			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
+			density += self.density[cell_lookup_index] / density_weight;
 		}
 		
 		density

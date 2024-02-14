@@ -57,8 +57,8 @@ impl Default for FluidRenderData {
 			arbitrary_color:	util::JUICE_YELLOW,
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
-			density_magnitude_color_scale: 1000.0,
-			particle_render_scale: 1.0,
+			density_magnitude_color_scale: 	300.0,
+			particle_render_scale: 0.5,
 		}
 	}
 }
@@ -79,7 +79,7 @@ impl Default for GridRenderData {
 
 	fn default() -> Self {
 		Self {
-			draw_grid:			true,
+			draw_grid:			false,
 			grid_color:			Color::DARK_GRAY,
 			solid_cell_color:	Color::GOLD,
 
@@ -257,10 +257,7 @@ fn color_particles_by_density(
 
 	for (particle, mut sprite) in particles.iter_mut() {
 
-		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
-		let lookup_index: usize		= grid.get_lookup_index(cell_coordinates);
-		let density: f32			= grid.get_density_at_position(particle.position);
-
+		let density: f32 = grid.get_density_at_position(particle.position);
 		let color: Color = util::generate_color_from_gradient(
 			color_list,
 			density / density_magnitude_color_scale,
