@@ -104,7 +104,7 @@ fn step_simulation_once(
 	let old_grid = grid.clone();
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process 
-		particle collisions. */
+		collisions. */
     update_particles(constraints, particles, grid, timestep);
     push_particles_apart(constraints, grid, particles);
     handle_particle_grid_collisions(constraints, grid, particles);
@@ -210,14 +210,14 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (100, 100),
+			dimensions:	    (50, 50),
 			cell_size:		5,
-			cell_type:		vec![vec![SimGridCellType::Air; 100]; 100],
-            cell_center:    vec![vec![0.0; 100]; 100],
-			velocity_u:		vec![vec![0.0; 101]; 100],
-            velocity_v:     vec![vec![0.0; 100]; 101],
-			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 10000],
-			density:		vec![0.0; 10000],
+			cell_type:		vec![vec![SimGridCellType::Air; 50]; 50],
+            cell_center:    vec![vec![0.0; 50]; 50],
+			velocity_u:		vec![vec![0.0; 51]; 50],
+            velocity_v:     vec![vec![0.0; 50]; 51],
+			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 2500],
+			density:		vec![0.0; 2500],
 		}
 	}
 }

@@ -500,8 +500,8 @@ fn separate_particle_pair(
 	delta_position *= separation_scale;
 
 	// Move the particles apart!
-	let target_velocity0: Vec2 = particle_combo[0].1.velocity + delta_position;
-	let target_velocity1: Vec2 = particle_combo[1].1.velocity - delta_position;
+	let target_velocity0: Vec2 = particle_combo[0].1.velocity;
+	let target_velocity1: Vec2 = particle_combo[1].1.velocity;
 	
 	let target_position0: Vec2 = particle_combo[0].1.position + delta_position;
 	let target_position1: Vec2 = particle_combo[1].1.position - delta_position;
@@ -520,17 +520,6 @@ fn separate_particle_pair(
 		&target_position1,
 		&target_velocity1
 	);
-	
-	// particle_combo[0].1.position[0] += delta_x;
-	// particle_combo[0].1.position[1] += delta_y;
-	// particle_combo[1].1.position[0] -= delta_x;
-	// particle_combo[1].1.position[1] -= delta_y;
-
-	// Smooth collision out just a touch.
-	// particle_combo[0].1.velocity[0] += delta_x;
-	// particle_combo[0].1.velocity[1] += delta_y;
-	// particle_combo[1].1.velocity[0] -= delta_x;
-	// particle_combo[1].1.velocity[1] -= delta_y;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
