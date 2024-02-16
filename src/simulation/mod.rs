@@ -104,10 +104,11 @@ fn step_simulation_once(
 	timestep:		f32) {
 
     update_particles(constraints, particles, grid, timestep);
+    let old_grid = grid.clone();
     push_particles_apart(constraints, grid, particles, timestep);
     handle_particle_collisions(constraints, grid, particles);
     grid.label_cells();
-    let old_grid: SimGrid = particles_to_grid(grid, particles);
+    particles_to_grid(grid, particles);
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
@@ -616,19 +617,25 @@ impl SimGrid {
 
         let (rows, cols) = self.dimensions;
 
-        let mut cell_types = vec![vec![SimGridCellType::Air; rows as usize]; cols as usize];
+        // Create a new label array
+        let mut cell_types = vec![vec![SimGridCellType::Air; cols as usize]; rows as usize];
 
         for row in 0..rows as usize {
             for col in 0..cols as usize {
 
+                // Check if cell is solid
+                if self.cell_type[row][col] == SimGridCellType::Solid {
+                    cell_types[row][col] = SimGridCellType::Solid;
+                    continue;
+                }
+
                 let lookup_index = get_lookup_index(Vec2::new(row as f32, col as f32), self.dimensions.1);
 
+                // Get the particles within the current cell
                 let particles = self.get_particles_in_lookup(lookup_index);
 
+                // Determine if non-solid cell is Air or fluid.
                 if particles.len() == 0 {
-
-                    // Add condition for solids
-
                     cell_types[row][col] = SimGridCellType::Air;
                 }
                 else {
@@ -638,6 +645,7 @@ impl SimGrid {
             }
         }
 
+        // Set the label array to new label area
         self.cell_type = cell_types;
 
     }
