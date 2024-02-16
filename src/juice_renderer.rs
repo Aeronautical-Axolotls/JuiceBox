@@ -1,10 +1,8 @@
 use bevy::{
-	prelude::*,
-	core_pipeline::prelude::ClearColor,
+	core_pipeline::prelude::ClearColor, prelude::*, sprite::MaterialMesh2dBundle
 };
 use crate::{
 	simulation::{
-		sim_physics_engine::get_lookup_index,
 		SimConstraints,
 		SimGrid,
 		SimGridCellType,
@@ -38,7 +36,7 @@ impl Plugin for JuiceRenderer {
 }
 
 enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure, Density, GridCell, Spume }
-enum FluidGridVectorType	{ Velocity }
+enum FluidGridVectorType	{ Velocity, Gravity }
 
 #[derive(Resource)]
 struct FluidRenderData {
@@ -58,7 +56,7 @@ impl Default for FluidRenderData {
 			arbitrary_color:	util::JUICE_YELLOW,
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
-			density_magnitude_color_scale: 1000.0,
+			density_magnitude_color_scale: 	300.0,
 			particle_render_scale: 1.0,
 		}
 	}
@@ -80,14 +78,14 @@ impl Default for GridRenderData {
 
 	fn default() -> Self {
 		Self {
-			draw_grid:			true,
+			draw_grid:			false,
 			grid_color:			Color::DARK_GRAY,
 			solid_cell_color:	Color::GOLD,
 
-			draw_vectors:			true,
+			draw_vectors:			false,
 			vector_type:			FluidGridVectorType::Velocity,
 			vector_color:			Color::WHITE,
-			vector_magnitude_scale:	0.01,
+			vector_magnitude_scale:	0.05,
 		}
 	}
 }
@@ -113,7 +111,11 @@ fn toggle_draw_grid_vectors(grid: &mut GridRenderData) {
 }
 
 /// Custom rendering pipeline initialization.
-fn setup_renderer(mut commands: Commands, grid: Res<SimGrid>) {
+fn setup_renderer(
+	mut commands:	Commands,
+	grid:			Res<SimGrid>,
+	mut meshes:		ResMut<Assets<Mesh>>,
+	mut materials:	ResMut<Assets<ColorMaterial>>) {
 
 	// Spawn a camera to view our simulation world!
 	commands.spawn(Camera2dBundle {
@@ -141,13 +143,10 @@ fn update_particle_position(
 	constraints: Res<SimConstraints>,
 	mut particles: Query<(&SimParticle, &mut Transform)>) {
 
-	// Particles will be drawn from their upper-left corner.  Subtracting this offset will fix that!
-	let particle_half_size: f32 = constraints.particle_radius * 0.5;
-
 	for (particle, mut transform) in particles.iter_mut() {
 		transform.translation = Vec3 {
-			x: particle.position.x - particle_half_size,
-			y: particle.position.y - particle_half_size,
+			x: particle.position.x,
+			y: particle.position.y,
 			/* IMPORTANT: Keep this at the same z-value for all particles.  This allows Bevy to do
 				sprite batching, cutting render costs by quite a bit.  If we change the z-index we
 				will likely see a large performance drop. */
@@ -163,7 +162,9 @@ fn update_particle_size(
 	fluid_render_data:	Res<FluidRenderData>) {
 
 	for (_, mut sprite) in particles.iter_mut() {
-		let size: f32 = constraints.particle_radius * fluid_render_data.particle_render_scale;
+		/* Multiply this by 2, because we are dealing with the radius.  To account for the full 
+			size of the particle, we need to multiply the radius by 2. */
+		let size: f32 = constraints.particle_radius * 2.0 * fluid_render_data.particle_render_scale;
 		sprite.custom_size = Some(Vec2::splat(size));
 	}
 }
@@ -259,10 +260,7 @@ fn color_particles_by_density(
 
 	for (particle, mut sprite) in particles.iter_mut() {
 
-		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
-		let lookup_index: usize		= get_lookup_index(cell_coordinates, grid.dimensions.0);
-		let density: f32			= grid.get_density_at_position(particle.position);
-
+		let density: f32 = grid.get_density_at_position(particle.position);
 		let color: Color = util::generate_color_from_gradient(
 			color_list,
 			density / density_magnitude_color_scale,
@@ -441,6 +439,7 @@ fn draw_grid_vectors(
 			}
 
 			// Find the center of each grid cell to draw the vector arrows.
+			// TODO: Refactor to use grid.get_cell_center_position_from_coordinates().
 			let half_cell_size: f32	= (grid.cell_size as f32) / 2.0;
 			let cell_x: f32			= (col * grid.cell_size) as f32;
 			let cell_y: f32			= (row * grid.cell_size) as f32;
