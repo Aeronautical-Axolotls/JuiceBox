@@ -79,11 +79,11 @@ impl Default for GridRenderData {
 
 	fn default() -> Self {
 		Self {
-			draw_grid:			false,
+			draw_grid:			true,
 			grid_color:			Color::DARK_GRAY,
 			solid_cell_color:	Color::GOLD,
 
-			draw_vectors:			false,
+			draw_vectors:			true,
 			vector_type:			FluidGridVectorType::Velocity,
 			vector_color:			Color::WHITE,
 			vector_magnitude_scale:	0.05,

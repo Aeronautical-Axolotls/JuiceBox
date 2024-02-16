@@ -29,7 +29,7 @@ fn setup(
 	commands:			Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
-	
+
 	test_state_manager::construct_test_simulation_layout(
 		constraints.as_mut(),
 		grid.as_mut(),
@@ -47,7 +47,7 @@ fn update(
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
 	keys:				Res<Input<KeyCode>>,
-	
+
 	mut commands:	Commands,
 	mut gizmos:		Gizmos,
 	windows:		Query<&Window>,
@@ -56,10 +56,10 @@ fn update(
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
-	
+
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	let fixed_timestep: f32 = constraints.timestep;
-	
+
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
 		step_simulation_once(
@@ -78,7 +78,7 @@ fn update(
 			fixed_timestep
 		);
 	}
-	
+
 	// test_select_grid_cells(
 	// 	&mut commands,
 	// 	constraints.as_mut(),
@@ -101,10 +101,12 @@ fn step_simulation_once(
 	timestep:		f32) {
 
     update_particles(constraints, particles, grid, timestep);
+    let old_grid = grid.clone();
     push_particles_apart(constraints, grid, particles, timestep);
-    handle_particle_collisions(constraints, grid, particles, timestep);
-    let old_grid: SimGrid = particles_to_grid(grid, particles);
-	make_grid_velocities_incompressible(grid, constraints);
+    handle_particle_collisions(constraints, grid, particles);
+    grid.label_cells();
+    particles_to_grid(grid, particles);
+    make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
 }
@@ -377,10 +379,10 @@ impl SimGrid {
 	}
 
 	/** Selects grid cells that entirely cover the a circle of radius `radius` centered at `position`;
-		returns a Vector containing each cell's coordinates.  Note: the returned vector is of a 
-		static size.  If any cells in the selection are outside of the grid, then the closest valid 
-		cells will be added into the result.  **This can result in duplicated cell values, which is 
-		necessary to ensure accurate density calculations (corner cells would otherwise be 
+		returns a Vector containing each cell's coordinates.  Note: the returned vector is of a
+		static size.  If any cells in the selection are outside of the grid, then the closest valid
+		cells will be added into the result.  **This can result in duplicated cell values, which is
+		necessary to ensure accurate density calculations (corner cells would otherwise be
 		considered much less dense than cells with selections entirely contained within the grid).** */
 	pub fn select_grid_cells(&self, position: Vec2, radius: f32) -> Vec<Vec2> {
 
@@ -391,7 +393,7 @@ impl SimGrid {
 		let min_selection_size: f32 = self.cell_size as f32 / 2.0;
 		let adj_radius: f32			= f32::max(min_selection_size, radius);
 
-		/* Find our min/max world coordinates for cells to search.  Add the cell size to account for 
+		/* Find our min/max world coordinates for cells to search.  Add the cell size to account for
 			the selection area potentially not being perfectly centered; this will ensure we always
 			check the full possible number of cells our selection may be concerned with. We may check
 			one or two extra cells, but I believe consistent behavior is worth 4 extra cell checks. */
@@ -421,17 +423,17 @@ impl SimGrid {
 				of cells checked, however the extra cell jutting out does not (making me think the
 				latter is a rendering issue).  Finally, the algorithm breaks down a little bit extra
 				if the radius is not a multiple of the grid cell size. */
-			
+
 			// Per cell, get the x and y indices through our cell selection array.
 			let cell_y_index: usize	= (cell_index / y_cell_count) % y_cell_count;
 			let cell_x_index: usize	= cell_index % x_cell_count;
-			
+
 			// Convert the cell's x and y indices into a position, and then into a grid coordinate.
 			let cell_position: Vec2 = Vec2 {
 				x: selection_min_bound.x + cell_x_index as f32 * self.cell_size as f32,
 				y: selection_min_bound.y + cell_y_index as f32 * self.cell_size as f32
 			};
-			
+
 			let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
 
 			// Add our selected cell's coordinates to our list of cell coordinates!
@@ -451,7 +453,7 @@ impl SimGrid {
 	/// Update each grid cell's density based on weighted particle influences.
 	pub fn update_grid_density(&mut self, particle_position: Vec2) {
 
-		/* Select all 9 nearby cells so we can weight their densities; a radius of 0.0 
+		/* Select all 9 nearby cells so we can weight their densities; a radius of 0.0
 			automatically clamps to a 3x3 grid of cells surrounding the position vector. */
 		let nearby_cells	= self.select_grid_cells(particle_position, 0.0);
 		let center_cell		= self.get_cell_coordinates_from_position(&particle_position);
@@ -473,12 +475,12 @@ impl SimGrid {
 			self.density[cell_lookup_index]	+= 1.0 / density_weight;
 		}
 	}
-	
+
 	/// Gets an interpolated density value for a lookup index within the grid's bounds.
 	pub fn get_density_at_position(&self, position: Vec2) -> f32 {
-		
+
 		let mut density: f32 = 0.0;
-		
+
 		// Select all 9 nearby cells so we can query their densities.
 		let nearby_cells	= self.select_grid_cells(position, 0.0);
 		let center_cell		= self.get_cell_coordinates_from_position(&position);
@@ -492,7 +494,7 @@ impl SimGrid {
 			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
 			density += self.density[cell_lookup_index] / density_weight;
 		}
-		
+
 		density
 	}
 	
@@ -624,6 +626,46 @@ impl SimGrid {
 
 		nearby_particles
 	}
+
+    /**
+        Goes through the entire grid and labels the cells with their respective type
+    **/
+    pub fn label_cells(&mut self) {
+
+        let (rows, cols) = self.dimensions;
+
+        // Create a new label array
+        let mut cell_types = vec![vec![SimGridCellType::Air; cols as usize]; rows as usize];
+
+        for row in 0..rows as usize {
+            for col in 0..cols as usize {
+
+                // Check if cell is solid
+                if self.cell_type[row][col] == SimGridCellType::Solid {
+                    cell_types[row][col] = SimGridCellType::Solid;
+                    continue;
+                }
+
+                let lookup_index = get_lookup_index(Vec2::new(row as f32, col as f32), self.dimensions.1);
+
+                // Get the particles within the current cell
+                let particles = self.get_particles_in_lookup(lookup_index);
+
+                // Determine if non-solid cell is Air or fluid.
+                if particles.len() == 0 {
+                    cell_types[row][col] = SimGridCellType::Air;
+                }
+                else {
+                    cell_types[row][col] = SimGridCellType::Fluid;
+                }
+
+            }
+        }
+
+        // Set the label array to new label area
+        self.cell_type = cell_types;
+
+    }
 }
 
 #[derive(Component, Debug)]
