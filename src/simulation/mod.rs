@@ -100,12 +100,19 @@ fn step_simulation_once(
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	timestep:		f32) {
 
+	// Store a copy of the grid from the previous simulation step for "change grid" creation.
+	let old_grid = grid.clone();
+
+	/* Integrate particles, update their lookup indices, update grid density values, and process 
+		particle collisions. */
     update_particles(constraints, particles, grid, timestep);
-    let old_grid = grid.clone();
-    push_particles_apart(constraints, grid, particles, timestep);
-    handle_particle_collisions(constraints, grid, particles);
-    grid.label_cells();
-    particles_to_grid(grid, particles);
+    push_particles_apart(constraints, grid, particles);
+    handle_particle_grid_collisions(constraints, grid, particles);
+
+	/* Label grid cells, transfer particle velocities to the grid, project/diffuse/advect them, 
+		then transfer velocities back. */
+	grid.label_cells();
+	particles_to_grid(grid, particles);
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
@@ -646,7 +653,7 @@ impl SimGrid {
                     continue;
                 }
 
-                let lookup_index = get_lookup_index(Vec2::new(row as f32, col as f32), self.dimensions.1);
+                let lookup_index = self.get_lookup_index(Vec2::new(row as f32, col as f32));
 
                 // Get the particles within the current cell
                 let particles = self.get_particles_in_lookup(lookup_index);

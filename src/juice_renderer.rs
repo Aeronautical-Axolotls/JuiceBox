@@ -37,7 +37,7 @@ impl Plugin for JuiceRenderer {
 }
 
 enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure, Density, GridCell, Spume }
-enum FluidGridVectorType	{ Velocity }
+enum FluidGridVectorType	{ Velocity, Gravity }
 
 #[derive(Resource)]
 struct FluidRenderData {
@@ -58,7 +58,7 @@ impl Default for FluidRenderData {
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
 			density_magnitude_color_scale: 	300.0,
-			particle_render_scale: 0.5,
+			particle_render_scale: 1.0,
 		}
 	}
 }
@@ -83,7 +83,7 @@ impl Default for GridRenderData {
 			grid_color:			Color::DARK_GRAY,
 			solid_cell_color:	Color::GOLD,
 
-			draw_vectors:			true,
+			draw_vectors:			false,
 			vector_type:			FluidGridVectorType::Velocity,
 			vector_color:			Color::WHITE,
 			vector_magnitude_scale:	0.05,

@@ -147,36 +147,6 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
 
 }
 
-pub fn label_cells(grid: &mut SimGrid) {
-
-    let (rows, cols) = grid.dimensions;
-
-    let mut cell_types = vec![vec![SimGridCellType::Air; rows as usize]; cols as usize];
-
-    for row in 0..rows as usize {
-        for col in 0..cols as usize {
-
-            let lookup_index = get_lookup_index(Vec2::new(row as f32, col as f32), grid.dimensions.1);
-
-            let particles = grid.get_particles_in_lookup(lookup_index);
-
-            if particles.len() == 0 {
-
-                // Add condition for solids
-
-                cell_types[row][col] = SimGridCellType::Air;
-            }
-            else {
-                cell_types[row][col] = SimGridCellType::Fluid;
-            }
-
-        }
-    }
-
-    grid.cell_type = cell_types;
-
-}
-
 /**
     Create a SimGrid with values containing the difference between
     The old grid and new grid
@@ -347,16 +317,19 @@ pub fn update_particles(
 	grid.clear_density_values();
 
 	for (id, mut particle) in particles.iter_mut() {
-		/* Change each particle's velocity by gravity * dt.  Multiply by whatever framerate you
-			want gravity to act normal at. */
-		particle.velocity[0] += constraints.gravity[0] * delta_time;
-		particle.velocity[1] += constraints.gravity[1] * delta_time;
+		
+		// Integrate the particles while handling collisions.
+		let target_velocity: Vec2 = particle.velocity + constraints.gravity * delta_time;
+		let target_position: Vec2 = particle.position + target_velocity * delta_time;
+		integrate_particle_with_collisions(
+			constraints,
+			grid,
+			particle.as_mut(),
+			&target_position,
+			&target_velocity
+		);
 
-		// Change each particle's position by velocity * dt.
-		particle.position[0] += particle.velocity[0] * delta_time;
-		particle.position[1] += particle.velocity[1] * delta_time;
-
-		// Update this particle's spatial lookup.
+		// Update the grid's spatial lookup based on this particle's position!
 		update_particle_lookup(id, particle.as_mut(), grid);
 
 		// Update the grid's density value for this current cell.
@@ -364,52 +337,69 @@ pub fn update_particles(
 	}
 }
 
-/// Handle particle collisions with walls.
-pub fn handle_particle_collisions(
+/// Find the maximum distance a particle can move before hitting a solid!
+fn integrate_particle_with_collisions(
+	constraints:		&SimConstraints,
+	grid:				&SimGrid,
+	particle:			&mut SimParticle,
+	target_position:	&Vec2,
+	target_velocity:	&Vec2) {
+
+	let target_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&target_position);
+	let target_cell_type: u8		= grid.get_cell_type_value(
+		target_coordinates.x as usize,
+		target_coordinates.y as usize
+	);
+	
+	// If the target position is not inside of a solid cell, move as normal.
+	if target_cell_type != 0 {
+		particle.position = *target_position;
+		particle.velocity = *target_velocity;
+		
+		// While we are headed for a solid cell, collide with it!
+	} else {
+		let cell_center: Vec2 = grid.get_cell_center_position_from_coordinates(&target_coordinates);
+		
+		// Check which direction the particle moved into the cell from this frame.
+		let cell_half_size: f32	= (grid.cell_size as f32) / 2.0;
+		let cell_left: f32		= cell_center.x - cell_half_size;// - constraints.particle_radius;
+		let cell_right: f32		= cell_center.x + cell_half_size;// + constraints.particle_radius;
+		let cell_top: f32		= cell_center.y + cell_half_size;// + constraints.particle_radius;
+		let cell_bottom: f32	= cell_center.y - cell_half_size;// - constraints.particle_radius;
+		
+		let tolerance: f32		= 0.1;
+		
+		if particle.position.x <= cell_left && target_position.x >= cell_left {
+			particle.position.x = cell_left - tolerance;
+			particle.velocity.x = 0.0;
+		} else if particle.position.x >= cell_right && target_position.x <= cell_right {
+			particle.position.x = cell_right + tolerance;
+			particle.velocity.x = 0.0;
+		} else {
+			particle.velocity.x = target_velocity.x;
+			particle.position.x = target_position.x;
+		}
+		
+		if particle.position.y <= cell_bottom && target_position.y >= cell_bottom {
+			particle.position.y = cell_bottom - tolerance;
+			particle.velocity.y = 0.0;
+		} else if particle.position.y >= cell_top && target_position.y <= cell_top {
+			particle.position.y = cell_top + tolerance;
+			particle.velocity.y = 0.0;
+		} else {
+			particle.velocity.y = target_velocity.y;
+			particle.position.y = target_position.y;
+		}
+	}
+}
+
+/// Handle particle collisions with the grid.
+pub fn handle_particle_grid_collisions(
 	constraints:	&SimConstraints,
 	grid:			&SimGrid,
-	particles:		&mut Query<(Entity, &mut SimParticle)>,
-	delta_time:		f32) {
+	particles:		&mut Query<(Entity, &mut SimParticle)>) {
 
 	for (_, mut particle) in particles.iter_mut() {
-
-		// TODO: Collision checking w/ solids.
-		let mut cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
-		let mut cell_type: u8			= grid.get_cell_type_value(cell_coordinates.x as usize, cell_coordinates.y as usize);
-		
-		// While we are in a solid cell, inch out of it!
-		if cell_type == 0 {
-			let cell_center: Vec2	= grid.get_cell_center_position_from_coordinates(&cell_coordinates);
-			let prev_particle_position: Vec2 = Vec2 {
-				x: particle.position.x - (particle.velocity.x * delta_time),
-				y: particle.position.y - (particle.velocity.y * delta_time)
-			};
-			
-			// Check which direction the particle moved into the cell from this frame.
-			let cell_half_size: f32	= (grid.cell_size as f32) / 2.0;
-			let cell_left: f32		= cell_center.x - constraints.particle_radius - cell_half_size;
-			let cell_right: f32		= cell_center.x + constraints.particle_radius + cell_half_size;
-			let cell_up: f32		= cell_center.y + constraints.particle_radius + cell_half_size;
-			let cell_down: f32		= cell_center.y - constraints.particle_radius - cell_half_size;
-			
-			// Left/right collision checks.
-			if prev_particle_position.x < cell_left {
-				particle.position.x = cell_left;
-				particle.velocity.x = 0.0;
-			} else if prev_particle_position.x > cell_right {
-				particle.position.x = cell_right;
-				particle.velocity.x = 0.0;
-			}
-			
-			// Up/down collision checks.
-			if prev_particle_position.y < cell_down {
-				particle.position.y = cell_down;
-				particle.velocity.y = 0.0;
-			} else if prev_particle_position.y > cell_up {
-				particle.position.y = cell_up;
-				particle.velocity.y = 0.0;
-			}
-		}
 		
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
@@ -441,8 +431,7 @@ pub fn handle_particle_collisions(
 pub fn push_particles_apart(
 	constraints:	&SimConstraints,
 	grid:			&SimGrid,
-	particles:		&mut Query<(Entity, &mut SimParticle)>,
-	delta_time:		f32) {
+	particles:		&mut Query<(Entity, &mut SimParticle)>) {
 
 	for i in 0..constraints.collision_iters_per_frame {
 
@@ -496,9 +485,11 @@ fn separate_particle_pair(
 	let collision_radius_squared: f32	= collision_radius * collision_radius;
 
 	// Figure out if we even need to push the particles apart in the first place!
-	let mut delta_x: f32		= particle_combo[0].1.position[0] - particle_combo[1].1.position[0];
-	let mut delta_y: f32		= particle_combo[0].1.position[1] - particle_combo[1].1.position[1];
-	let distance_squared: f32	= (delta_x * delta_x) + (delta_y * delta_y);
+	let mut delta_position: Vec2 = Vec2 {
+		x: particle_combo[0].1.position[0] - particle_combo[1].1.position[0],
+		y: particle_combo[0].1.position[1] - particle_combo[1].1.position[1]
+	};
+	let distance_squared: f32	= (delta_position.x * delta_position.x) + (delta_position.y * delta_position.y);
 	if distance_squared > collision_radius_squared || distance_squared <= 0.01 {
 		return;
 	}
@@ -506,20 +497,40 @@ fn separate_particle_pair(
 	// Calculate the distance we need to separate the particles by.
 	let distance: f32			= distance_squared.sqrt();
 	let separation_scale: f32	= 0.5 * (collision_radius - distance) / distance;
-	delta_x *= separation_scale;
-	delta_y *= separation_scale;
+	delta_position *= separation_scale;
 
 	// Move the particles apart!
-	particle_combo[0].1.position[0] += delta_x;
-	particle_combo[0].1.position[1] += delta_y;
-	particle_combo[1].1.position[0] -= delta_x;
-	particle_combo[1].1.position[1] -= delta_y;
+	let target_velocity0: Vec2 = particle_combo[0].1.velocity + delta_position;
+	let target_velocity1: Vec2 = particle_combo[1].1.velocity - delta_position;
+	
+	let target_position0: Vec2 = particle_combo[0].1.position + delta_position;
+	let target_position1: Vec2 = particle_combo[1].1.position - delta_position;
+	
+	integrate_particle_with_collisions(
+		constraints,
+		grid,
+		particle_combo[0].1.as_mut(),
+		&target_position0,
+		&target_velocity0
+	);
+	integrate_particle_with_collisions(
+		constraints,
+		grid,
+		particle_combo[1].1.as_mut(),
+		&target_position1,
+		&target_velocity1
+	);
+	
+	// particle_combo[0].1.position[0] += delta_x;
+	// particle_combo[0].1.position[1] += delta_y;
+	// particle_combo[1].1.position[0] -= delta_x;
+	// particle_combo[1].1.position[1] -= delta_y;
 
-	// Uncomment for LOADS E MONEY B-)
-	// particle_combo[0].1.velocity[0] += delta_x * 4.0;
-	// particle_combo[0].1.velocity[1] += delta_y * 4.0;
-	// particle_combo[1].1.velocity[0] -= delta_x * 4.0;
-	// particle_combo[1].1.velocity[1] -= delta_y * 4.0;
+	// Smooth collision out just a touch.
+	// particle_combo[0].1.velocity[0] += delta_x;
+	// particle_combo[0].1.velocity[1] += delta_y;
+	// particle_combo[1].1.velocity[0] -= delta_x;
+	// particle_combo[1].1.velocity[1] -= delta_y;
 }
 
 /** Force velocity incompressibility for each grid cell within the simulation.  Uses the
