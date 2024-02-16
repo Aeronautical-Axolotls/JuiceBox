@@ -367,6 +367,7 @@ fn integrate_particle_with_collisions(
 		let cell_top: f32		= cell_center.y + cell_half_size;// + constraints.particle_radius;
 		let cell_bottom: f32	= cell_center.y - cell_half_size;// - constraints.particle_radius;
 		
+		// Set a small collision tolerance so our particles don't get stuck to walls.
 		let tolerance: f32		= 0.1;
 		
 		if particle.position.x <= cell_left && target_position.x >= cell_left {
