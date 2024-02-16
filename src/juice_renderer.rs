@@ -1,6 +1,5 @@
 use bevy::{
-	prelude::*,
-	core_pipeline::prelude::ClearColor,
+	core_pipeline::prelude::ClearColor, prelude::*, sprite::MaterialMesh2dBundle
 };
 use crate::{
 	simulation::{
@@ -112,7 +111,11 @@ fn toggle_draw_grid_vectors(grid: &mut GridRenderData) {
 }
 
 /// Custom rendering pipeline initialization.
-fn setup_renderer(mut commands: Commands, grid: Res<SimGrid>) {
+fn setup_renderer(
+	mut commands:	Commands,
+	grid:			Res<SimGrid>,
+	mut meshes:		ResMut<Assets<Mesh>>,
+	mut materials:	ResMut<Assets<ColorMaterial>>) {
 
 	// Spawn a camera to view our simulation world!
 	commands.spawn(Camera2dBundle {

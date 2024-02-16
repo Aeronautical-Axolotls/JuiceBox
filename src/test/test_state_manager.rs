@@ -22,21 +22,34 @@ pub fn construct_test_simulation_layout(
 	grid:			&mut SimGrid,
 	mut commands:	Commands) {
 
-	// Create a bunch of solid cells.
-	grid.cell_type[40][32] = SimGridCellType::Solid;
-	grid.cell_type[41][32] = SimGridCellType::Solid;
-	grid.cell_type[42][32] = SimGridCellType::Solid;
-	grid.cell_type[43][32] = SimGridCellType::Solid;
-	grid.cell_type[43][33] = SimGridCellType::Solid;
-	grid.cell_type[43][34] = SimGridCellType::Solid;
-	grid.cell_type[43][35] = SimGridCellType::Solid;
-	grid.cell_type[43][36] = SimGridCellType::Solid;
-	grid.cell_type[43][37] = SimGridCellType::Solid;
-	grid.cell_type[43][38] = SimGridCellType::Solid;
-	grid.cell_type[43][39] = SimGridCellType::Solid;
-	grid.cell_type[42][39] = SimGridCellType::Solid;
-	grid.cell_type[41][39] = SimGridCellType::Solid;
-	grid.cell_type[40][39] = SimGridCellType::Solid;
+	// Create a lil cup
+	grid.set_grid_cell_type(40, 32, SimGridCellType::Solid);
+	grid.set_grid_cell_type(41, 32, SimGridCellType::Solid);
+	grid.set_grid_cell_type(42, 32, SimGridCellType::Solid);
+	grid.set_grid_cell_type(43, 32, SimGridCellType::Solid);
+	grid.set_grid_cell_type(43, 33, SimGridCellType::Solid);
+	grid.set_grid_cell_type(43, 34, SimGridCellType::Solid);
+	grid.set_grid_cell_type(43, 35, SimGridCellType::Solid);
+	grid.set_grid_cell_type(43, 36, SimGridCellType::Solid);
+	grid.set_grid_cell_type(43, 37, SimGridCellType::Solid);
+	grid.set_grid_cell_type(43, 38, SimGridCellType::Solid);
+	grid.set_grid_cell_type(43, 39, SimGridCellType::Solid);
+	grid.set_grid_cell_type(42, 39, SimGridCellType::Solid);
+	grid.set_grid_cell_type(41, 39, SimGridCellType::Solid);
+	grid.set_grid_cell_type(40, 39, SimGridCellType::Solid);
+
+	// Create a BIG wall
+	grid.set_grid_cell_type(40, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(41, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(42, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(43, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(44, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(45, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(46, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(47, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(48, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(49, 14, SimGridCellType::Solid);
+	grid.set_grid_cell_type(50, 14, SimGridCellType::Solid);
 
 	// Spawn a small test group of particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {
