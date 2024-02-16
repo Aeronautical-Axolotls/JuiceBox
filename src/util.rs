@@ -1,14 +1,5 @@
 use bevy::{
-	math::{ Vec2, Vec4 },
-	window::{ Window, WindowPlugin, MonitorSelection, WindowPosition },
-	winit::WinitWindows,
-	prelude::Color,
-	utils::default,
-	input::{ keyboard::KeyCode, Input },
-	time::Time,
-	transform::components::{Transform, GlobalTransform},
-	render::camera::{ OrthographicProjection, Camera },
-	ecs::{ entity::Entity, query::With, system::{ Commands, NonSend, Query, Res, ResMut } },
+	ecs::{ entity::Entity, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, Input }, math::{ Vec2, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
 };
 use winit::window::Icon;
 use std::{
@@ -16,7 +7,7 @@ use std::{
 	time::SystemTime,
 };
 
-use crate::{simulation::{sim_state_manager, SimConstraints, SimGrid, SimParticle}, test::test_state_manager};
+use crate::{juice_renderer::draw_vector_arrow, simulation::{sim_state_manager, SimConstraints, SimGrid, SimParticle}, test::test_state_manager};
 
 pub const WINDOW_WIDTH: f32		= 640.0;
 pub const WINDOW_HEIGHT: f32	= 480.0;
@@ -44,6 +35,7 @@ pub fn debug_state_controller(
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>) {
 	
+	// Reset simulation when we press R.
 	if keys.just_pressed(KeyCode::R) {
 		
 		/* BUG: The more times you reset the simulation the slower it runs.  I suspect this 
@@ -62,6 +54,17 @@ pub fn debug_state_controller(
 			commands
 		);
 	}
+	
+	// Rotate/scale gravity when we press the arrow keys.
+	let gravity_rotation: i8	= keys.pressed(KeyCode::Right) as i8 - keys.pressed(KeyCode::Left) as i8;
+	let gravity_magnitude: i8	= keys.pressed(KeyCode::Up) as i8 - keys.pressed(KeyCode::Down) as i8;
+	let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
+	polar_gravity.x				+= 200.0 * gravity_magnitude as f32 * constraints.timestep;
+	polar_gravity.y				+= 4.0 * gravity_rotation as f32 * constraints.timestep;
+	
+	// Limit the magnitude of the vector to prevent ugly behavior near 0.0.
+	polar_gravity.x				= f32::max(0.0, polar_gravity.x);
+	constraints.gravity			= polar_to_cartesian(polar_gravity);
 }
 
 /// Basic camera controller.
