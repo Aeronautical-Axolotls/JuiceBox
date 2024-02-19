@@ -56,6 +56,7 @@ pub fn debug_state_controller(
 			grid.as_mut(),
 			commands
 		);
+		return;
 	}
 	
 	// Rotate/scale gravity when we press the arrow keys.
@@ -82,8 +83,8 @@ pub fn debug_state_controller(
 			SimGridCellType::Solid
 		);
 		
-		// let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
-		// grid.remove_particles_in_cell(lookup_index);
+		let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
+		grid.delete_all_particles_in_cell(&mut commands, constraints.as_mut(), &particles, lookup_index);
 		
 	} else if should_remove_cell {
 		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
