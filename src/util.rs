@@ -1,5 +1,5 @@
 use bevy::{
-	ecs::{ entity::Entity, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::MouseButton, Input }, math::{ Vec2, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
+	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Vec2, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
 };
 use winit::window::Icon;
 use std::{
@@ -32,6 +32,7 @@ pub fn debug_state_controller(
 	mut commands:		Commands,
 	keys:				Res<Input<KeyCode>>,
 	mouse:				Res<Input<MouseButton>>,
+	mut mouse_motion:	EventReader<MouseMotion>,
 	windows:			Query<&Window>,
 	cameras:			Query<(&Camera, &GlobalTransform)>,
 	mut constraints:	ResMut<SimConstraints>,
@@ -60,8 +61,10 @@ pub fn debug_state_controller(
 	}
 	
 	// Rotate/scale gravity when we press the arrow keys.
-	let gravity_rotation: i8	= keys.pressed(KeyCode::Right) as i8 - keys.pressed(KeyCode::Left) as i8;
-	let gravity_magnitude: i8	= keys.pressed(KeyCode::Up) as i8 - keys.pressed(KeyCode::Down) as i8;
+	let gravity_rotation: i8	= keys.pressed(KeyCode::Right) as i8 - 
+									keys.pressed(KeyCode::Left) as i8;
+	let gravity_magnitude: i8	= keys.pressed(KeyCode::Up) as i8 - 
+									keys.pressed(KeyCode::Down) as i8;
 	let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
 	polar_gravity.x				+= 200.0 * gravity_magnitude as f32 * constraints.timestep;
 	polar_gravity.y				+= 4.0 * gravity_rotation as f32 * constraints.timestep;
@@ -74,6 +77,13 @@ pub fn debug_state_controller(
 	let should_place_cell: bool		= mouse.pressed(MouseButton::Left);
 	let should_remove_cell: bool	= mouse.pressed(MouseButton::Right);
 	
+	// Get the mouse's motion between this and the last frame.
+	let mut cursor_delta: Vec2 = Vec2::ZERO;
+	for event in mouse_motion.read() {
+		cursor_delta.x = event.delta.x;
+		cursor_delta.y = event.delta.y;
+	}
+	
 	if should_place_cell {
 		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
 		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&cursor_position);
@@ -83,8 +93,14 @@ pub fn debug_state_controller(
 			SimGridCellType::Solid
 		);
 		
+		// Delete all particles in the cell we are turning into a solid.
 		let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
-		grid.delete_all_particles_in_cell(&mut commands, constraints.as_mut(), &particles, lookup_index);
+		grid.delete_all_particles_in_cell(
+			&mut commands,
+			constraints.as_mut(),
+			&particles,
+			lookup_index
+		);
 		
 	} else if should_remove_cell {
 		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
