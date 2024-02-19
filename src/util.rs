@@ -1,5 +1,5 @@
 use bevy::{
-	ecs::{ entity::Entity, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, Input }, math::{ Vec2, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
+	ecs::{ entity::Entity, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::MouseButton, Input }, math::{ Vec2, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
 };
 use winit::window::Icon;
 use std::{
@@ -7,7 +7,7 @@ use std::{
 	time::SystemTime,
 };
 
-use crate::{juice_renderer::draw_vector_arrow, simulation::{sim_state_manager, SimConstraints, SimGrid, SimParticle}, test::test_state_manager};
+use crate::{juice_renderer::draw_vector_arrow, simulation::{sim_state_manager, SimConstraints, SimGrid, SimGridCellType, SimParticle}, test::test_state_manager};
 
 pub const WINDOW_WIDTH: f32		= 640.0;
 pub const WINDOW_HEIGHT: f32	= 480.0;
@@ -31,6 +31,9 @@ pub fn vector_magnitude(vector: Vec2) -> f32 {
 pub fn debug_state_controller(
 	mut commands:		Commands,
 	keys:				Res<Input<KeyCode>>,
+	mouse:				Res<Input<MouseButton>>,
+	windows:			Query<&Window>,
+	cameras:			Query<(&Camera, &GlobalTransform)>,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>) {
@@ -65,6 +68,32 @@ pub fn debug_state_controller(
 	// Limit the magnitude of the vector to prevent ugly behavior near 0.0.
 	polar_gravity.x				= f32::max(0.0, polar_gravity.x);
 	constraints.gravity			= polar_to_cartesian(polar_gravity);
+	
+	// Place/remove grid cells if the mouse is clicked on a cell.
+	let should_place_cell: bool		= mouse.pressed(MouseButton::Left);
+	let should_remove_cell: bool	= mouse.pressed(MouseButton::Right);
+	
+	if should_place_cell {
+		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
+		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&cursor_position);
+		let _ = grid.set_grid_cell_type(
+			cell_coordinates.x as usize,
+			cell_coordinates.y as usize,
+			SimGridCellType::Solid
+		);
+		
+		// let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
+		// grid.remove_particles_in_cell(lookup_index);
+		
+	} else if should_remove_cell {
+		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
+		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&cursor_position);
+		let _ = grid.set_grid_cell_type(
+			cell_coordinates.x as usize,
+			cell_coordinates.y as usize,
+			SimGridCellType::Air
+		);
+	}
 }
 
 /// Basic camera controller.
