@@ -199,6 +199,7 @@ pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
 
 /**
     Extrapolates values in velocity_u and velocity_v up to the stated depth
+    using the Fast Sweeping algorithm
 */
 
 pub fn extrapolate_values(grid: &mut SimGrid, depth: i32) {
@@ -208,7 +209,7 @@ pub fn extrapolate_values(grid: &mut SimGrid, depth: i32) {
     let mut d_u = vec![vec![0; (cols + 1) as usize]; rows as usize];
     let mut d_v = vec![vec![0; cols as usize]; (rows + 1) as usize];
 
-
+    // Initialize caches for u and v components
     for row in 0..rows as usize {
         for col in 0..cols as usize + 1 {
             if grid.velocity_u[row][col] != f32::MIN {
@@ -234,6 +235,7 @@ pub fn extrapolate_values(grid: &mut SimGrid, depth: i32) {
     let mut wave_u: Vec<Vec2> = Vec::new();
     let mut wave_v: Vec<Vec2> = Vec::new();
 
+    // Set up surrounding index offsets
     let surrounding = [
         [-1, 1],
         [-1, 0],
@@ -245,6 +247,7 @@ pub fn extrapolate_values(grid: &mut SimGrid, depth: i32) {
         [1, -1],
     ];
 
+    // Create first waves for u and v components
     for row in 0..rows as usize {
         for col in 0..cols as usize + 1 {
             if d_u[row][col] != 0 {
@@ -267,6 +270,8 @@ pub fn extrapolate_values(grid: &mut SimGrid, depth: i32) {
         }
     }
 
+    // For both u and v components, extend their
+    // velocities to empty neighbor velocity points
     let mut wavefronts_u: Vec<Vec<Vec2>> = Vec::new();
     wavefronts_u.push(wave_u);
     let mut wavefronts_v: Vec<Vec<Vec2>> = Vec::new();
@@ -356,6 +361,9 @@ pub fn extrapolate_values(grid: &mut SimGrid, depth: i32) {
 
 }
 
+/**
+    Helper function to check surrounding velocity points
+*/
 fn check_surrounding(grid: &Vec<Vec<i32>>, surroundings: [[i32; 2]; 8], index: (usize, usize), value: i32) -> Vec<i32> {
     let mut valid_neighbors: Vec<i32> = Vec::new();
     let grid_width = grid[0].len() as i32;
