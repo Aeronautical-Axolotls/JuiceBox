@@ -100,22 +100,29 @@ fn step_simulation_once(
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	timestep:		f32) {
 
-	// Store a copy of the grid from the previous simulation step for "change grid" creation.
-	let old_grid = grid.clone();
-
-	/* Integrate particles, update their lookup indices, update grid density values, and process 
+	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
     update_particles(constraints, particles, grid, timestep);
     push_particles_apart(constraints, grid, particles);
     handle_particle_grid_collisions(constraints, grid, particles);
 
-	/* Label grid cells, transfer particle velocities to the grid, project/diffuse/advect them, 
+	/* Label grid cells, transfer particle velocities to the grid, project/diffuse/advect them,
 		then transfer velocities back. */
 	grid.label_cells();
 	particles_to_grid(grid, particles);
+    extrapolate_values(grid, 1);
+
+	// Store a copy of the grid from the previous simulation step for "change grid" creation.
+	let old_grid = grid.clone();
+
+    grid.apply_gravity(constraints);
+
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
-    grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
+    grid_to_particles(grid, &change_grid, particles, constraints);
+    extrapolate_values(grid, 1);
+
+
 }
 
 /// Reset simulation components to their default state and delete all particles.
@@ -147,7 +154,7 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
+			grid_particle_ratio:		1.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
 			timestep:					1.0 / 120.0,
 			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
@@ -370,14 +377,14 @@ impl SimGrid {
 
 		position
 	}
-	
+
 	/// Find the center position of a cell given its coordinates.
 	pub fn get_cell_center_position_from_coordinates(&self, coordinates: &Vec2) -> Vec2 {
 		let half_cell_size: f32	= (self.cell_size as f32) / 2.0;
 		let cell_x: f32			= coordinates.y * self.cell_size as f32;
 		let cell_y: f32			= coordinates.x * self.cell_size as f32;
 		let grid_height: f32	= (self.dimensions.0 * self.cell_size) as f32;
-		
+
 		let cell_center_position: Vec2 = Vec2 {
 			x: cell_x + half_cell_size,
 			y: grid_height - cell_y - half_cell_size,
@@ -464,19 +471,19 @@ impl SimGrid {
 			automatically clamps to a 3x3 grid of cells surrounding the position vector. */
 		let nearby_cells	= self.select_grid_cells(particle_position, 0.0);
 		let center_cell		= self.get_cell_coordinates_from_position(&particle_position);
-		
+
 		// For each nearby cell, add weighted density value based on distance to particle_position.
 		for cell in nearby_cells.iter() {
 			let cell_lookup_index = self.get_lookup_index(*cell);
-			
+
 			// Get the center of the cell so we can weight density properly.
 			let cell_position: Vec2		= self.get_cell_position_from_coordinates(*cell);
 			let cell_center: Vec2		= Vec2 {
 				x: cell_position.x + (0.5 * self.cell_size as f32),
 				y: cell_position.y - (0.5 * self.cell_size as f32)
 			};
-			
-			/* Weight density based on the center cell's distance to neighbors.  Distance squared 
+
+			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
 			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
 			self.density[cell_lookup_index]	+= 1.0 / density_weight;
@@ -491,11 +498,11 @@ impl SimGrid {
 		// Select all 9 nearby cells so we can query their densities.
 		let nearby_cells	= self.select_grid_cells(position, 0.0);
 		let center_cell		= self.get_cell_coordinates_from_position(&position);
-		
+
 		// For each nearby cell, add its density weighted based on position to final density value.
 		for cell in nearby_cells.iter() {
-			
-			/* Weight density based on the center cell's distance to neighbors.  Distance squared 
+
+			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
 			let cell_lookup_index = self.get_lookup_index(*cell);
 			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
@@ -504,7 +511,7 @@ impl SimGrid {
 
 		density
 	}
-	
+
 	// Get a cell lookup index into our spatial lookup table.
 	pub fn get_lookup_index(&self, cell_coordinates: Vec2) -> usize {
 		(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * self.dimensions.0)) as usize
@@ -672,6 +679,24 @@ impl SimGrid {
         // Set the label array to new label area
         self.cell_type = cell_types;
 
+    }
+
+    pub fn apply_gravity(&mut self, constraints: &SimConstraints) {
+        let grav = constraints.gravity;
+        let dt = constraints.timestep;
+
+        for row in 0..self.dimensions.0 as usize {
+            for col in 0..self.dimensions.1 as usize {
+
+                if self.cell_type[row][col] == SimGridCellType::Fluid {
+                    self.velocity_u[row][col] += grav.x * dt;
+                    self.velocity_u[row][col + 1] += grav.x * dt;
+                    self.velocity_v[row][col] += grav.y * dt;
+                    self.velocity_v[row + 1][col] += grav.y * dt;
+                }
+
+            }
+        }
     }
 }
 

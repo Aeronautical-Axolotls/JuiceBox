@@ -23,20 +23,20 @@ pub fn construct_test_simulation_layout(
 	mut commands:	Commands) {
 
 	// Create a lil cup
-	grid.set_grid_cell_type(40, 32, SimGridCellType::Solid);
-	grid.set_grid_cell_type(41, 32, SimGridCellType::Solid);
-	grid.set_grid_cell_type(42, 32, SimGridCellType::Solid);
-	grid.set_grid_cell_type(43, 32, SimGridCellType::Solid);
-	grid.set_grid_cell_type(43, 33, SimGridCellType::Solid);
-	grid.set_grid_cell_type(43, 34, SimGridCellType::Solid);
-	grid.set_grid_cell_type(43, 35, SimGridCellType::Solid);
-	grid.set_grid_cell_type(43, 36, SimGridCellType::Solid);
-	grid.set_grid_cell_type(43, 37, SimGridCellType::Solid);
-	grid.set_grid_cell_type(43, 38, SimGridCellType::Solid);
-	grid.set_grid_cell_type(43, 39, SimGridCellType::Solid);
-	grid.set_grid_cell_type(42, 39, SimGridCellType::Solid);
-	grid.set_grid_cell_type(41, 39, SimGridCellType::Solid);
-	grid.set_grid_cell_type(40, 39, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(40, 32, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(41, 32, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(42, 32, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(43, 32, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(43, 33, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(43, 34, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(43, 35, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(43, 36, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(43, 37, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(43, 38, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(43, 39, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(42, 39, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(41, 39, SimGridCellType::Solid);
+	// grid.set_grid_cell_type(40, 39, SimGridCellType::Solid);
 
 	// Create a BIG wall
 	grid.set_grid_cell_type(40, 14, SimGridCellType::Solid);
@@ -56,7 +56,7 @@ pub fn construct_test_simulation_layout(
 		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
 		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
 	};
-	
+
 	// let _ = add_particle(
 	// 	&mut commands,
 	// 	constraints,
@@ -125,7 +125,7 @@ pub fn test_select_grid_cells(
 
 		let half_cell_size: f32 = grid.cell_size as f32 * 0.5;
 		let mut cell_position: Vec2 = grid.get_cell_position_from_coordinates(selected_cells[i]);
-		
+
 		cell_position.x += half_cell_size;
 		cell_position.y += half_cell_size;
 
