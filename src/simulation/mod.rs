@@ -100,12 +100,6 @@ fn step_simulation_once(
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	timestep:		f32) {
 
-	/* Integrate particles, update their lookup indices, update grid density values, and process
-		collisions. */
-    update_particles(constraints, particles, grid, timestep);
-    push_particles_apart(constraints, grid, particles);
-    handle_particle_grid_collisions(constraints, grid, particles);
-
 	/* Label grid cells, transfer particle velocities to the grid, project/diffuse/advect them,
 		then transfer velocities back. */
 	grid.label_cells();
@@ -115,13 +109,16 @@ fn step_simulation_once(
 	// Store a copy of the grid from the previous simulation step for "change grid" creation.
 	let old_grid = grid.clone();
 
-    grid.apply_gravity(constraints);
-
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints);
     extrapolate_values(grid, 1);
 
+	/* Integrate particles, update their lookup indices, update grid density values, and process
+		collisions. */
+    update_particles(constraints, particles, grid, timestep);
+    push_particles_apart(constraints, grid, particles);
+    handle_particle_grid_collisions(constraints, grid, particles);
 
 }
 
@@ -154,11 +151,11 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		1.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
+			grid_particle_ratio:		0.1,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
 			timestep:					1.0 / 120.0,
 			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -96.0 },
+			gravity:					Vec2 { x: 0.0, y: -9.8 },
 			particle_radius:			1.5,
 			particle_count:				0,
 			particle_rest_density:		0.0,
@@ -220,9 +217,9 @@ impl Default for SimGrid {
 			dimensions:	    (50, 50),
 			cell_size:		5,
 			cell_type:		vec![vec![SimGridCellType::Air; 50]; 50],
-            cell_center:    vec![vec![0.0; 50]; 50],
-			velocity_u:		vec![vec![0.0; 51]; 50],
-            velocity_v:     vec![vec![0.0; 50]; 51],
+            cell_center:    vec![vec![f32::MIN; 50]; 50],
+			velocity_u:		vec![vec![f32::MIN; 51]; 50],
+            velocity_v:     vec![vec![f32::MIN; 50]; 51],
 			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 2500],
 			density:		vec![0.0; 2500],
 		}
@@ -569,19 +566,19 @@ impl SimGrid {
 
 		lookup_vector
 	}
-	
+
 	/// Delete all particles within a cell, given that cell's lookup index.
 	pub fn delete_all_particles_in_cell(&mut self, commands: &mut Commands, constraints: &mut SimConstraints, particles: &Query<(Entity, &mut SimParticle)>, lookup_index: usize) {
-		
+
 		for particle_id in self.spatial_lookup[lookup_index].iter_mut() {
 			// Look for the particle in our particles query.
 			if let Ok(particle) = particles.get(*particle_id) {
 
-				/* Despawn particle; since we are already mutably borrowing the lookup table, we 
-					can't remove any particles from the lookup table until we are done iterating 
+				/* Despawn particle; since we are already mutably borrowing the lookup table, we
+					can't remove any particles from the lookup table until we are done iterating
 					through the table. */
 				commands.entity(*particle_id).despawn();
-				
+
 				/* BUG: This overflowed once while testing, and I'm betting it's because I misuse
 					Entity::PLACEHOLDER.  Here is my silly little fix: */
 				if constraints.particle_count > 0 {
@@ -589,11 +586,11 @@ impl SimGrid {
 				}
 			}
 		}
-		
+
 		// Clear the spatial lookup table at the current index.
 		self.spatial_lookup[lookup_index].clear();
 	}
-	
+
     /// Get velocity of the cell
     pub fn get_cell_velocity(&self, row: usize, column: usize) -> Vec2 {
 
