@@ -56,7 +56,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                 continue;
             }
 
-            if grid.cell_type[left_center_coords.x as usize][left_center_coords.y as usize] == SimGridCellType::Solid || grid.cell_type[right_center_coords.x as usize][right_center_coords.y as usize] == SimGridCellType::Solid {
+            if grid.cell_type[left_center_coords.x as usize][left_center_coords.y as usize] == SimGridCellType::Solid && grid.cell_type[right_center_coords.x as usize][right_center_coords.y as usize] == SimGridCellType::Solid {
                 continue;
             }
 
@@ -114,7 +114,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                 continue;
             }
 
-            if grid.cell_type[bottom_center_coords.x as usize][bottom_center_coords.y as usize] == SimGridCellType::Solid || grid.cell_type[top_center_coords.x as usize][top_center_coords.y as usize] == SimGridCellType::Solid {
+            if grid.cell_type[bottom_center_coords.x as usize][bottom_center_coords.y as usize] == SimGridCellType::Solid && grid.cell_type[top_center_coords.x as usize][top_center_coords.y as usize] == SimGridCellType::Solid {
                 continue;
             }
 
