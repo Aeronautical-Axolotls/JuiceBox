@@ -100,22 +100,28 @@ fn step_simulation_once(
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	timestep:		f32) {
 
-	// Store a copy of the grid from the previous simulation step for "change grid" creation.
-	let old_grid = grid.clone();
 
-	/* Integrate particles, update their lookup indices, update grid density values, and process 
+	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
     update_particles(constraints, particles, grid, timestep);
     push_particles_apart(constraints, grid, particles);
     handle_particle_grid_collisions(constraints, grid, particles);
 
-	/* Label grid cells, transfer particle velocities to the grid, project/diffuse/advect them, 
+	/* Label grid cells, transfer particle velocities to the grid, project/diffuse/advect them,
 		then transfer velocities back. */
 	grid.label_cells();
 	particles_to_grid(grid, particles);
+    extrapolate_values(grid, 1);
+
+    // Store a copy of the grid from the previous simulation step for "change grid" creation.
+	let old_grid = grid.clone();
+
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
-    grid_to_particles(grid, &change_grid, particles, constraints.grid_particle_ratio);
+    grid_to_particles(grid, &change_grid, particles, constraints);
+    extrapolate_values(grid, 1);
+
+
 }
 
 /// Reset simulation components to their default state and delete all particles.
@@ -147,7 +153,7 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
+			grid_particle_ratio:		0.3,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
 			timestep:					1.0 / 120.0,
 			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
@@ -370,14 +376,14 @@ impl SimGrid {
 
 		position
 	}
-	
+
 	/// Find the center position of a cell given its coordinates.
 	pub fn get_cell_center_position_from_coordinates(&self, coordinates: &Vec2) -> Vec2 {
 		let half_cell_size: f32	= (self.cell_size as f32) / 2.0;
 		let cell_x: f32			= coordinates.y * self.cell_size as f32;
 		let cell_y: f32			= coordinates.x * self.cell_size as f32;
 		let grid_height: f32	= (self.dimensions.0 * self.cell_size) as f32;
-		
+
 		let cell_center_position: Vec2 = Vec2 {
 			x: cell_x + half_cell_size,
 			y: grid_height - cell_y - half_cell_size,
@@ -464,19 +470,19 @@ impl SimGrid {
 			automatically clamps to a 3x3 grid of cells surrounding the position vector. */
 		let nearby_cells	= self.select_grid_cells(particle_position, 0.0);
 		let center_cell		= self.get_cell_coordinates_from_position(&particle_position);
-		
+
 		// For each nearby cell, add weighted density value based on distance to particle_position.
 		for cell in nearby_cells.iter() {
 			let cell_lookup_index = self.get_lookup_index(*cell);
-			
+
 			// Get the center of the cell so we can weight density properly.
 			let cell_position: Vec2		= self.get_cell_position_from_coordinates(*cell);
 			let cell_center: Vec2		= Vec2 {
 				x: cell_position.x + (0.5 * self.cell_size as f32),
 				y: cell_position.y - (0.5 * self.cell_size as f32)
 			};
-			
-			/* Weight density based on the center cell's distance to neighbors.  Distance squared 
+
+			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
 			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
 			self.density[cell_lookup_index]	+= 1.0 / density_weight;
@@ -491,11 +497,11 @@ impl SimGrid {
 		// Select all 9 nearby cells so we can query their densities.
 		let nearby_cells	= self.select_grid_cells(position, 0.0);
 		let center_cell		= self.get_cell_coordinates_from_position(&position);
-		
+
 		// For each nearby cell, add its density weighted based on position to final density value.
 		for cell in nearby_cells.iter() {
-			
-			/* Weight density based on the center cell's distance to neighbors.  Distance squared 
+
+			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
 			let cell_lookup_index = self.get_lookup_index(*cell);
 			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
@@ -504,7 +510,7 @@ impl SimGrid {
 
 		density
 	}
-	
+
 	// Get a cell lookup index into our spatial lookup table.
 	pub fn get_lookup_index(&self, cell_coordinates: Vec2) -> usize {
 		(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * self.dimensions.0)) as usize
@@ -562,19 +568,19 @@ impl SimGrid {
 
 		lookup_vector
 	}
-	
+
 	/// Delete all particles within a cell, given that cell's lookup index.
 	pub fn delete_all_particles_in_cell(&mut self, commands: &mut Commands, constraints: &mut SimConstraints, particles: &Query<(Entity, &mut SimParticle)>, lookup_index: usize) {
-		
+
 		for particle_id in self.spatial_lookup[lookup_index].iter_mut() {
 			// Look for the particle in our particles query.
 			if let Ok(particle) = particles.get(*particle_id) {
 
-				/* Despawn particle; since we are already mutably borrowing the lookup table, we 
-					can't remove any particles from the lookup table until we are done iterating 
+				/* Despawn particle; since we are already mutably borrowing the lookup table, we
+					can't remove any particles from the lookup table until we are done iterating
 					through the table. */
 				commands.entity(*particle_id).despawn();
-				
+
 				/* BUG: This overflowed once while testing, and I'm betting it's because I misuse
 					Entity::PLACEHOLDER.  Here is my silly little fix: */
 				if constraints.particle_count > 0 {
@@ -582,11 +588,11 @@ impl SimGrid {
 				}
 			}
 		}
-		
+
 		// Clear the spatial lookup table at the current index.
 		self.spatial_lookup[lookup_index].clear();
 	}
-	
+
     /// Get velocity of the cell
     pub fn get_cell_velocity(&self, row: usize, column: usize) -> Vec2 {
 
@@ -697,6 +703,7 @@ impl SimGrid {
         self.cell_type = cell_types;
 
     }
+
 }
 
 #[derive(Component, Debug)]

@@ -48,15 +48,21 @@ pub fn construct_test_simulation_layout(
 	grid.set_grid_cell_type(46, 14, SimGridCellType::Solid);
 	grid.set_grid_cell_type(47, 14, SimGridCellType::Solid);
 	grid.set_grid_cell_type(48, 14, SimGridCellType::Solid);
-	grid.set_grid_cell_type(49, 14, SimGridCellType::Solid);
-	grid.set_grid_cell_type(50, 14, SimGridCellType::Solid);
+
+    for i in 0..50 {
+        grid.set_grid_cell_type(49, i, SimGridCellType::Solid);
+        grid.set_grid_cell_type(0, i, SimGridCellType::Solid);
+        grid.set_grid_cell_type(i, 0, SimGridCellType::Solid);
+        grid.set_grid_cell_type(i, 49, SimGridCellType::Solid);
+    }
+
 
 	// Spawn a small test group of particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {
 		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
 		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
 	};
-	
+
 	// let _ = add_particle(
 	// 	&mut commands,
 	// 	constraints,
@@ -125,7 +131,7 @@ pub fn test_select_grid_cells(
 
 		let half_cell_size: f32 = grid.cell_size as f32 * 0.5;
 		let mut cell_position: Vec2 = grid.get_cell_position_from_coordinates(selected_cells[i]);
-		
+
 		cell_position.x += half_cell_size;
 		cell_position.y += half_cell_size;
 

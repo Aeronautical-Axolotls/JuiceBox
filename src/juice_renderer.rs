@@ -162,7 +162,7 @@ fn update_particle_size(
 	fluid_render_data:	Res<FluidRenderData>) {
 
 	for (_, mut sprite) in particles.iter_mut() {
-		/* Multiply this by 2, because we are dealing with the radius.  To account for the full 
+		/* Multiply this by 2, because we are dealing with the radius.  To account for the full
 			size of the particle, we need to multiply the radius by 2. */
 		let size: f32 = constraints.particle_radius * 2.0 * fluid_render_data.particle_render_scale;
 		sprite.custom_size = Some(Vec2::splat(size));

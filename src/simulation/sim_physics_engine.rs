@@ -21,8 +21,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     let half_cell = grid.cell_size as f32 / 2.0;
 
     // Create new, blank grids
-	let mut velocity_u = vec![vec![0.0; (grid.dimensions.0 + 1) as usize]; grid.dimensions.1 as usize];
-    let mut velocity_v = vec![vec![0.0; grid.dimensions.0 as usize]; (grid.dimensions.1 + 1) as usize];
+	let mut velocity_u = vec![vec![f32::MIN; (grid.dimensions.0 + 1) as usize]; grid.dimensions.1 as usize];
+    let mut velocity_v = vec![vec![f32::MIN; grid.dimensions.0 as usize]; (grid.dimensions.1 + 1) as usize];
 
     // Go through each horizontal u velocity point in the MAC grid
     for row_index in 0..grid.dimensions.0 as usize {
@@ -53,6 +53,10 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
             let right_center_coords = grid.get_cell_coordinates_from_position(&right_center);
 
             if grid.cell_type[left_center_coords.x as usize][left_center_coords.y as usize] == SimGridCellType::Air && grid.cell_type[right_center_coords.x as usize][right_center_coords.y as usize] == SimGridCellType::Air {
+                continue;
+            }
+
+            if grid.cell_type[left_center_coords.x as usize][left_center_coords.y as usize] == SimGridCellType::Solid && grid.cell_type[right_center_coords.x as usize][right_center_coords.y as usize] == SimGridCellType::Solid {
                 continue;
             }
 
@@ -110,6 +114,10 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                 continue;
             }
 
+            if grid.cell_type[bottom_center_coords.x as usize][bottom_center_coords.y as usize] == SimGridCellType::Solid && grid.cell_type[top_center_coords.x as usize][top_center_coords.y as usize] == SimGridCellType::Solid {
+                continue;
+            }
+
             let mut scaled_velocity_sum = 0.0;
 
             let mut scaled_influence_sum = 0.0;
@@ -161,8 +169,8 @@ pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     let (rows, cols) = old_grid.dimensions;
 
     let mut change_grid = old_grid.clone();
-	let mut change_u = vec![vec![0.0; (old_grid.dimensions.0 + 1) as usize]; old_grid.dimensions.1 as usize];
-    let mut change_v = vec![vec![0.0; old_grid.dimensions.0 as usize]; (old_grid.dimensions.1 + 1) as usize];
+	let mut change_u = vec![vec![f32::MIN; (old_grid.dimensions.0 + 1) as usize]; old_grid.dimensions.1 as usize];
+    let mut change_v = vec![vec![f32::MIN; old_grid.dimensions.0 as usize]; (old_grid.dimensions.1 + 1) as usize];
 
     for row_index in 0..rows as usize {
         for col_index in 0..(cols as usize + 1) {
@@ -187,6 +195,194 @@ pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
 
     change_grid
 
+}
+
+/**
+    Extrapolates values in velocity_u and velocity_v up to the stated depth
+    using the Fast Sweeping algorithm
+*/
+
+pub fn extrapolate_values(grid: &mut SimGrid, depth: i32) {
+
+    let (rows, cols) = grid.dimensions;
+
+    let mut d_u = vec![vec![0; (cols + 1) as usize]; rows as usize];
+    let mut d_v = vec![vec![0; cols as usize]; (rows + 1) as usize];
+
+    // Initialize caches for u and v components
+    for row in 0..rows as usize {
+        for col in 0..cols as usize + 1 {
+            if grid.velocity_u[row][col] != f32::MIN {
+                d_u[row][col] = 0;
+            }
+            else {
+                d_u[row][col] = i32::MAX;
+            }
+        }
+    }
+
+    for row in 0..rows as usize + 1 {
+        for col in 0..cols as usize {
+            if grid.velocity_v[row][col] != f32::MIN {
+                d_v[row][col] = 0;
+            }
+            else {
+                d_v[row][col] = i32::MAX;
+            }
+        }
+    }
+
+    let mut wave_u: Vec<Vec2> = Vec::new();
+    let mut wave_v: Vec<Vec2> = Vec::new();
+
+    // Set up surrounding index offsets
+    let surrounding = [
+        [-1, 1],
+        [-1, 0],
+        [-1, -1],
+        [0, 1],
+        [0, -1],
+        [1, 1],
+        [1, 0],
+        [1, -1],
+    ];
+
+    // Create first waves for u and v components
+    for row in 0..rows as usize {
+        for col in 0..cols as usize + 1 {
+            if d_u[row][col] != 0 {
+                if check_surrounding(&d_u, surrounding, (row, col), 0).len() != 0 {
+                    d_u[row][col] = 1;
+                    wave_u.push(Vec2::new(row as f32, col as f32));
+                }
+            }
+        }
+    }
+
+    for row in 0..rows as usize + 1 {
+        for col in 0..cols as usize {
+            if d_v[row][col] != 0 {
+                if check_surrounding(&d_v, surrounding, (row, col), 0).len() != 0 {
+                    d_v[row][col] = 1;
+                    wave_v.push(Vec2::new(row as f32, col as f32));
+                }
+            }
+        }
+    }
+
+    // For both u and v components, extend their
+    // velocities to empty neighbor velocity points
+    let mut wavefronts_u: Vec<Vec<Vec2>> = Vec::new();
+    wavefronts_u.push(wave_u);
+    let mut wavefronts_v: Vec<Vec<Vec2>> = Vec::new();
+    wavefronts_v.push(wave_v);
+
+    let mut curr_wave_index = 0;
+
+    while curr_wave_index < depth {
+        let cur_wave = wavefronts_u.iter().nth(curr_wave_index as usize).unwrap();
+
+        let mut next_wave = Vec::new();
+
+        for i in 0..cur_wave.len() {
+
+            let index = cur_wave.iter().nth(i).unwrap();
+
+            let mut average = 0.0;
+            let mut num_used = 0;
+
+            for k in 0..8 {
+                let offset_x = surrounding[k][0];
+                let offset_y = surrounding[k][1];
+                let neighbor_x = index.y as i32 + offset_x;
+                let neighbor_y =  index.x as i32 + offset_y;
+
+                if neighbor_x >= 0 && neighbor_x < grid.velocity_u[0].len() as i32 && neighbor_y >= 0 && neighbor_y < grid.velocity_u.len() as i32 {
+                    if d_u[neighbor_y as usize][neighbor_x as usize] < d_u[index.x as usize][index.y as usize] {
+                        average += grid.velocity_u[neighbor_y as usize][neighbor_x as usize];
+                        num_used += 1;
+                    }
+                    else if d_u[neighbor_y as usize][neighbor_x as usize] == i32::MAX {
+                        d_u[neighbor_y as usize][neighbor_x as usize] = d_u[index.x as usize][index.y as usize] + 1;
+                        next_wave.push(Vec2::new(neighbor_y as f32, neighbor_x as f32));
+                    }
+                }
+
+            }
+            average /= num_used as f32;
+            grid.velocity_u[index.x as usize][index.y as usize] = average;
+        }
+
+        wavefronts_u.push(next_wave);
+        curr_wave_index += 1;
+    }
+
+    curr_wave_index = 0;
+
+    while curr_wave_index < depth {
+        let cur_wave = wavefronts_v.iter().nth(curr_wave_index as usize).unwrap();
+
+        let mut next_wave = Vec::new();
+
+        for i in 0..cur_wave.len() {
+
+            let index = cur_wave.iter().nth(i).unwrap();
+
+            let mut average = 0.0;
+            let mut num_used = 0;
+
+            for k in 0..8 {
+                let offset_x = surrounding[k][0];
+                let offset_y = surrounding[k][1];
+                let neighbor_x = index.y as i32 + offset_x;
+                let neighbor_y =  index.x as i32 + offset_y;
+
+                if neighbor_x >= 0 && neighbor_x < grid.velocity_v[0].len() as i32 && neighbor_y >= 0 && neighbor_y < grid.velocity_v.len() as i32 {
+                    if d_v[neighbor_y as usize][neighbor_x as usize] < d_v[index.x as usize][index.y as usize] {
+                        average += grid.velocity_v[neighbor_y as usize][neighbor_x as usize];
+                        num_used += 1;
+                    }
+                    else if d_v[neighbor_y as usize][neighbor_x as usize] == i32::MAX {
+                        d_v[neighbor_y as usize][neighbor_x as usize] = d_v[index.x as usize][index.y as usize] + 1;
+                        next_wave.push(Vec2::new(neighbor_y as f32, neighbor_x as f32));
+                    }
+                }
+
+            }
+            average /= num_used as f32;
+            grid.velocity_v[index.x as usize][index.y as usize] = average;
+        }
+
+        wavefronts_v.push(next_wave);
+        curr_wave_index += 1;
+    }
+
+
+
+}
+
+/**
+    Helper function to check surrounding velocity points
+*/
+fn check_surrounding(grid: &Vec<Vec<i32>>, surroundings: [[i32; 2]; 8], index: (usize, usize), value: i32) -> Vec<i32> {
+    let mut valid_neighbors: Vec<i32> = Vec::new();
+    let grid_width = grid[0].len() as i32;
+    let grid_height = grid.len() as i32;
+
+    for i in 0..8 {
+        let offset_x = surroundings[i][0];
+        let offset_y = surroundings[i][1];
+        let neighbor_x = index.1 as i32 + offset_x;
+        let neighbor_y =  index.0 as i32 + offset_y;
+
+        if neighbor_x >= 0 && neighbor_x < grid_width && neighbor_y >= 0 && neighbor_y < grid_height {
+            if grid[neighbor_y as usize][neighbor_x as usize] == value {
+                valid_neighbors.push(i as i32);
+            }
+        }
+    }
+
+    valid_neighbors
 }
 
 /**
@@ -230,12 +426,14 @@ fn apply_grid<'a>(
         particles: Vec<(Entity, Mut<'a, SimParticle>)>,
         grid: &SimGrid,
         change_grid: &SimGrid,
-        pic_coef: f32,
+        constraints: &SimConstraints,
     ) {
 
     // New velocity value using equation from section 7.6
     // in Fluid Simulation for Computer Graphics, Second Edition
     // (Bridson, Robert)
+
+    let pic_coef = constraints.grid_particle_ratio;
 
     for (_, mut particle) in particles {
 
@@ -245,7 +443,7 @@ fn apply_grid<'a>(
         let pic_velocity = interp_vel;
         let flip_velocity =  particle.velocity + change_vel;
         let new_velocity = (pic_coef * pic_velocity) + ((1.0 - pic_coef) * flip_velocity);
-        particle.velocity = new_velocity;
+        particle.velocity = new_velocity + (constraints.gravity * constraints.timestep);
 
     }
 
@@ -256,7 +454,7 @@ pub fn grid_to_particles(
         grid: &mut SimGrid,
         change_grid: &SimGrid,
         particles: &mut Query<(Entity, &mut SimParticle)>,
-        flip_pic_coef: f32
+        constraints: &SimConstraints,
     ) {
 
     // Basic idea right now is to go through each cell,
@@ -285,7 +483,7 @@ pub fn grid_to_particles(
             let particles_in_cell = collect_particles(grid, coords, particles);
 
             // Solve for the new velocities of the particles
-            apply_grid(particles_in_cell, grid, change_grid, flip_pic_coef);
+            apply_grid(particles_in_cell, grid, change_grid, constraints);
         }
     }
 }
@@ -317,7 +515,7 @@ pub fn update_particles(
 	grid.clear_density_values();
 
 	for (id, mut particle) in particles.iter_mut() {
-		
+
 		// Integrate the particles while handling collisions.
 		let target_velocity: Vec2 = particle.velocity + constraints.gravity * delta_time;
 		let target_position: Vec2 = particle.position + target_velocity * delta_time;
@@ -350,26 +548,26 @@ fn integrate_particle_with_collisions(
 		target_coordinates.x as usize,
 		target_coordinates.y as usize
 	);
-	
+
 	// If the target position is not inside of a solid cell, move as normal.
 	if target_cell_type != 0 {
 		particle.position = *target_position;
 		particle.velocity = *target_velocity;
-		
+
 		// While we are headed for a solid cell, collide with it!
 	} else {
 		let cell_center: Vec2 = grid.get_cell_center_position_from_coordinates(&target_coordinates);
-		
+
 		// Check which direction the particle moved into the cell from this frame.
 		let cell_half_size: f32	= (grid.cell_size as f32) / 2.0;
 		let cell_left: f32		= cell_center.x - cell_half_size;// - constraints.particle_radius;
 		let cell_right: f32		= cell_center.x + cell_half_size;// + constraints.particle_radius;
 		let cell_top: f32		= cell_center.y + cell_half_size;// + constraints.particle_radius;
 		let cell_bottom: f32	= cell_center.y - cell_half_size;// - constraints.particle_radius;
-		
+
 		// Set a small collision tolerance so our particles don't get stuck to walls.
 		let tolerance: f32		= 0.1;
-		
+
 		if particle.position.x <= cell_left && target_position.x >= cell_left {
 			particle.position.x = cell_left - tolerance;
 			particle.velocity.x = 0.0;
@@ -380,7 +578,7 @@ fn integrate_particle_with_collisions(
 			particle.velocity.x = target_velocity.x;
 			particle.position.x = target_position.x;
 		}
-		
+
 		if particle.position.y <= cell_bottom && target_position.y >= cell_bottom {
 			particle.position.y = cell_bottom - tolerance;
 			particle.velocity.y = 0.0;
@@ -401,11 +599,11 @@ pub fn handle_particle_grid_collisions(
 	particles:		&mut Query<(Entity, &mut SimParticle)>) {
 
 	for (_, mut particle) in particles.iter_mut() {
-		
+
 		// Don't let particles escape the grid!
 		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
-		
+
 		// Left/right collision checks.
 		if particle.position[0] < constraints.particle_radius {
 			particle.position[0] = constraints.particle_radius;
@@ -414,7 +612,7 @@ pub fn handle_particle_grid_collisions(
 			particle.position[0] = grid_width - constraints.particle_radius;
 			particle.velocity[0] = 0.0;
 		}
-		
+
 		// Up/down collision checks.
 		if particle.position[1] < constraints.particle_radius {
 			particle.position[1] = constraints.particle_radius;
@@ -503,10 +701,10 @@ fn separate_particle_pair(
 	// Move the particles apart!
 	let target_velocity0: Vec2 = particle_combo[0].1.velocity;
 	let target_velocity1: Vec2 = particle_combo[1].1.velocity;
-	
+
 	let target_position0: Vec2 = particle_combo[0].1.position + delta_position;
 	let target_position1: Vec2 = particle_combo[1].1.position - delta_position;
-	
+
 	integrate_particle_with_collisions(
 		constraints,
 		grid,
@@ -591,7 +789,7 @@ pub fn make_grid_velocities_incompressible(
 				// Force incompressibility on this cell.
 				let overrelaxation: f32	= 1.9;
 				let momentum: f32		= overrelaxation * ((0.0 - divergence) / solids_sum as f32);
-				
+
 				grid.velocity_u[row as usize][col as usize]			-= momentum * left_solid as f32;
 				grid.velocity_u[row as usize][(col + 1) as usize]	+= momentum * right_solid as f32;
 				grid.velocity_v[row as usize][col as usize]			+= momentum * up_solid as f32;
