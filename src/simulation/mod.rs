@@ -100,6 +100,7 @@ fn step_simulation_once(
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	timestep:		f32) {
 
+
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
     update_particles(constraints, particles, grid, timestep);
@@ -112,10 +113,8 @@ fn step_simulation_once(
 	particles_to_grid(grid, particles);
     extrapolate_values(grid, 1);
 
-	// Store a copy of the grid from the previous simulation step for "change grid" creation.
+    // Store a copy of the grid from the previous simulation step for "change grid" creation.
 	let old_grid = grid.clone();
-
-    grid.apply_gravity(constraints);
 
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
@@ -154,7 +153,7 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		1.0,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
+			grid_particle_ratio:		0.3,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
 			timestep:					1.0 / 120.0,
 			incomp_iters_per_frame:		2,
 			collision_iters_per_frame:	2,
@@ -569,19 +568,19 @@ impl SimGrid {
 
 		lookup_vector
 	}
-	
+
 	/// Delete all particles within a cell, given that cell's lookup index.
 	pub fn delete_all_particles_in_cell(&mut self, commands: &mut Commands, constraints: &mut SimConstraints, particles: &Query<(Entity, &mut SimParticle)>, lookup_index: usize) {
-		
+
 		for particle_id in self.spatial_lookup[lookup_index].iter_mut() {
 			// Look for the particle in our particles query.
 			if let Ok(particle) = particles.get(*particle_id) {
 
-				/* Despawn particle; since we are already mutably borrowing the lookup table, we 
-					can't remove any particles from the lookup table until we are done iterating 
+				/* Despawn particle; since we are already mutably borrowing the lookup table, we
+					can't remove any particles from the lookup table until we are done iterating
 					through the table. */
 				commands.entity(*particle_id).despawn();
-				
+
 				/* BUG: This overflowed once while testing, and I'm betting it's because I misuse
 					Entity::PLACEHOLDER.  Here is my silly little fix: */
 				if constraints.particle_count > 0 {
@@ -589,11 +588,11 @@ impl SimGrid {
 				}
 			}
 		}
-		
+
 		// Clear the spatial lookup table at the current index.
 		self.spatial_lookup[lookup_index].clear();
 	}
-	
+
     /// Get velocity of the cell
     pub fn get_cell_velocity(&self, row: usize, column: usize) -> Vec2 {
 
@@ -705,23 +704,6 @@ impl SimGrid {
 
     }
 
-    pub fn apply_gravity(&mut self, constraints: &SimConstraints) {
-        let grav = constraints.gravity;
-        let dt = constraints.timestep;
-
-        for row in 0..self.dimensions.0 as usize {
-            for col in 0..self.dimensions.1 as usize {
-
-                if self.cell_type[row][col] == SimGridCellType::Fluid {
-                    self.velocity_u[row][col] += grav.x * dt;
-                    self.velocity_u[row][col + 1] += grav.x * dt;
-                    self.velocity_v[row][col] += grav.y * dt;
-                    self.velocity_v[row + 1][col] += grav.y * dt;
-                }
-
-            }
-        }
-    }
 }
 
 #[derive(Component, Debug)]
