@@ -8,7 +8,7 @@ use crate::error::Error;
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 
-use self::sim_state_manager::delete_all_particles;
+use self::sim_state_manager::{delete_all_particles, delete_particle};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -569,7 +569,31 @@ impl SimGrid {
 
 		lookup_vector
 	}
+	
+	/// Delete all particles within a cell, given that cell's lookup index.
+	pub fn delete_all_particles_in_cell(&mut self, commands: &mut Commands, constraints: &mut SimConstraints, particles: &Query<(Entity, &mut SimParticle)>, lookup_index: usize) {
+		
+		for particle_id in self.spatial_lookup[lookup_index].iter_mut() {
+			// Look for the particle in our particles query.
+			if let Ok(particle) = particles.get(*particle_id) {
 
+				/* Despawn particle; since we are already mutably borrowing the lookup table, we 
+					can't remove any particles from the lookup table until we are done iterating 
+					through the table. */
+				commands.entity(*particle_id).despawn();
+				
+				/* BUG: This overflowed once while testing, and I'm betting it's because I misuse
+					Entity::PLACEHOLDER.  Here is my silly little fix: */
+				if constraints.particle_count > 0 {
+					constraints.particle_count -= 1;
+				}
+			}
+		}
+		
+		// Clear the spatial lookup table at the current index.
+		self.spatial_lookup[lookup_index].clear();
+	}
+	
     /// Get velocity of the cell
     pub fn get_cell_velocity(&self, row: usize, column: usize) -> Vec2 {
 

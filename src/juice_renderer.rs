@@ -7,12 +7,11 @@ use crate::{
 		SimGrid,
 		SimGridCellType,
 		SimParticle,
-	},
-	util::{
+	}, test::test_renderer::test_draw_gravity_vector_arrow, util::{
 		self,
 		JUICE_BLUE,
 		JUICE_GREEN
-	},
+	}
 };
 
 pub struct JuiceRenderer;
@@ -24,6 +23,7 @@ impl Plugin for JuiceRenderer {
 		app.insert_resource(GridRenderData::default());
 
 		app.add_systems(Startup, setup_renderer);
+		app.add_systems(Update, test_draw_gravity_vector_arrow);
 
 		app.add_systems(Update, update_particle_position);
 		app.add_systems(Update, update_particle_color);
