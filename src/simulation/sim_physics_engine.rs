@@ -774,8 +774,8 @@ pub fn make_grid_velocities_incompressible(
 
 				// Density calculations.
 				if constraints.particle_rest_density > 0.0 {
-					let stiffness: f32		= 1.0;
-					let cell_coordinates: Vec2 = Vec2 {
+					let stiffness: f32			= 1.0;
+					let cell_coordinates: Vec2	= Vec2 {
 						x: row as f32,
 						y: col as f32
 					};
