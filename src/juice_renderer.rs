@@ -56,7 +56,7 @@ impl Default for FluidRenderData {
 			arbitrary_color:	util::JUICE_YELLOW,
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
-			density_magnitude_color_scale: 	300.0,
+			density_magnitude_color_scale: 	100.0,
 			particle_render_scale: 1.0,
 		}
 	}

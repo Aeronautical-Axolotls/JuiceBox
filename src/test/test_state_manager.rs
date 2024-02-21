@@ -49,6 +49,7 @@ pub fn construct_test_simulation_layout(
 	grid.set_grid_cell_type(47, 14, SimGridCellType::Solid);
 	grid.set_grid_cell_type(48, 14, SimGridCellType::Solid);
 
+	// Generate walls around simulation bounds.
     for i in 0..50 {
         grid.set_grid_cell_type(49, i, SimGridCellType::Solid);
         grid.set_grid_cell_type(0, i, SimGridCellType::Solid);
@@ -75,9 +76,9 @@ pub fn construct_test_simulation_layout(
 		&mut commands,
         constraints,
 		grid,
-		1.5,
+		1.75,
 		100.0,
-		Vec2 { x: grid_center[0] * 1.5, y: grid_center[1] * 0.75 },
+		Vec2 { x: grid_center[0] * 0.7, y: grid_center[1] * 0.85 },
 		Vec2::ZERO
 	);
 

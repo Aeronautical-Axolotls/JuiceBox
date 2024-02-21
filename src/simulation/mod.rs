@@ -108,7 +108,8 @@ fn step_simulation_once(
     handle_particle_grid_collisions(constraints, grid, particles);
 
 	/* Label grid cells, transfer particle velocities to the grid, project/diffuse/advect them,
-		then transfer velocities back. */
+		then transfer velocities back.  Finally, extrapolate velocities to smooth out the
+		fluid-air boundary. */
 	grid.label_cells();
 	particles_to_grid(grid, particles);
     extrapolate_values(grid, 1);
@@ -116,12 +117,13 @@ fn step_simulation_once(
     // Store a copy of the grid from the previous simulation step for "change grid" creation.
 	let old_grid = grid.clone();
 
+	/* Make fluid incompressible, find the difference in grid from before incompressibility,
+		interpolate grid velocities back to each particle, and finally extrapolate velocity values
+		one final time! */
     make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints);
     extrapolate_values(grid, 1);
-
-
 }
 
 /// Reset simulation components to their default state and delete all particles.
@@ -155,10 +157,12 @@ impl Default for SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:		0.3,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
 			timestep:					1.0 / 120.0,
-			incomp_iters_per_frame:		2,
+			incomp_iters_per_frame:		5,
 			collision_iters_per_frame:	2,
-			gravity:					Vec2 { x: 0.0, y: -96.0 },
-			particle_radius:			1.5,
+
+			// (9.81^2) * 2 = ~385 (Bevy caps FPS at 60, we run sim at 120).
+			gravity:					Vec2 { x: 0.0, y: -385.0 },
+			particle_radius:			1.0,
 			particle_count:				0,
 			particle_rest_density:		0.0,
 		}

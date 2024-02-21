@@ -605,21 +605,21 @@ pub fn handle_particle_grid_collisions(
 		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
 
 		// Left/right collision checks.
-		if particle.position[0] < constraints.particle_radius {
-			particle.position[0] = constraints.particle_radius;
-			particle.velocity[0] = 0.0;
-		} else if particle.position[0] > grid_width - constraints.particle_radius {
-			particle.position[0] = grid_width - constraints.particle_radius;
-			particle.velocity[0] = 0.0;
+		if particle.position.x < constraints.particle_radius {
+			particle.position.x = constraints.particle_radius;
+			particle.velocity.x = 0.0;
+		} else if particle.position.x > grid_width - constraints.particle_radius {
+			particle.position.x = grid_width - constraints.particle_radius;
+			particle.velocity.x = 0.0;
 		}
 
 		// Up/down collision checks.
-		if particle.position[1] < constraints.particle_radius {
-			particle.position[1] = constraints.particle_radius;
-			particle.velocity[1] = 0.0;
-		} else if particle.position[1] > grid_height - constraints.particle_radius {
-			particle.position[1] = grid_height - constraints.particle_radius;
-			particle.velocity[1] = 0.0;
+		if particle.position.y < constraints.particle_radius {
+			particle.position.y = constraints.particle_radius;
+			particle.velocity.y = 0.0;
+		} else if particle.position.y > grid_height - constraints.particle_radius {
+			particle.position.y = grid_height - constraints.particle_radius;
+			particle.velocity.y = 0.0;
 		}
 	}
 }
@@ -774,8 +774,8 @@ pub fn make_grid_velocities_incompressible(
 
 				// Density calculations.
 				if constraints.particle_rest_density > 0.0 {
-					let stiffness: f32		= 1.0;
-					let cell_coordinates: Vec2 = Vec2 {
+					let stiffness: f32			= 1.0;
+					let cell_coordinates: Vec2	= Vec2 {
 						x: row as f32,
 						y: col as f32
 					};
