@@ -20,7 +20,7 @@
 // How do I create a UI button with file saving if I would need to make the whole UI exclusive...?
 // What information am I getting when I call println!("{:#?}", world.entities());? The entities are listed, but it doesn't contain useful information.
 // Iterate over the entities with world.iter_entities() and try to get specific data individally.
-
+//
 // File Loading:
 // How can I easily wipe the pre-existing data to add the new data?
 // How can I link the particles I add to the world
@@ -41,6 +41,7 @@ use crate::juice_renderer;
 struct EntitySaveFilter<> {
 
 }
+use super::*;
 
 pub fn save_scene(world: &mut World) {
     println!("Saving Scene...");
@@ -117,12 +118,12 @@ pub fn save_scene(world: &mut World) {
     };
     */
 
-    println!("\n\n THE WORLD COMPONENT LIST \n\n");
-    println!("{:#?}", world.components());
+    //println!("\n\n THE WORLD COMPONENT LIST \n\n");
+    //println!("{:#?}", world.components());
 
-    println!("{:#?}", world.entities());
+    //println!("{:#?}", world.entities());
     
-    let mut iter_test = world.iter_entities();
+    //let mut iter_test = world.iter_entities();
 
 
     //println!("{:#?}", world.inspect_entity(iter_test.next().unwrap().id()));
