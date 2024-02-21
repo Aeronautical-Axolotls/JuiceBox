@@ -28,6 +28,7 @@ fn interpolation_test() {
 #[test]
 fn velocity_transfer_test() {
 
+    //First we setup the test world in bevy
     let mut juicebox_test = App::new();
 
     juicebox_test.insert_resource(SimGrid::default());
@@ -36,19 +37,27 @@ fn velocity_transfer_test() {
 	juicebox_test.add_systems(Startup, simulation::test_setup);
 	juicebox_test.add_systems(Update, simulation::test_update);
 
+    // Then we run 1 step through the simulation with update()
     juicebox_test.update();
 
+    // Extract the grid
     let grid = juicebox_test.world.resource::<SimGrid>();
 
+    // Get component data
     let vel_u = grid.velocity_u.clone();
     let vel_v =  grid.velocity_v.clone();
 
+    // Setup test conditions
     let mut transfer_u = false;
     let mut transfer_v = false;
     let mut transfer_particle = false;
 
+    // Get grid dimensions
     let (rows, cols) = grid.dimensions;
 
+    // The default value is f32::MIN
+    // If we get a new value, then velocities
+    // have been transfered
     for row in 0..rows as usize {
         for col in 0..cols as usize + 1 {
             if vel_u[row][col] != f32::MIN {
@@ -65,6 +74,9 @@ fn velocity_transfer_test() {
         }
     }
 
+    // Similarly to the grid, if we get a value other than
+    // the default value, in this case Vec2::ZERO, we
+    // successfully transfered velocities
     for particle in juicebox_test.world.query::<&SimParticle>().iter(&juicebox_test.world) {
         if particle.velocity != Vec2::ZERO {
             transfer_particle = true;
@@ -79,6 +91,7 @@ fn velocity_transfer_test() {
 #[test]
 fn extrapolate_test() {
 
+    //First we setup the test world in bevy
     let mut juicebox_test = App::new();
 
     juicebox_test.insert_resource(SimGrid::default());
@@ -87,12 +100,16 @@ fn extrapolate_test() {
 	juicebox_test.add_systems(Startup, simulation::test_setup);
 	juicebox_test.add_systems(Update, simulation::test_update);
 
+    // Then we run 1 step through the simulation with update()
     juicebox_test.update();
 
     let mut success = true;
 
+    // Extract the grid
     let grid = juicebox_test.world.resource::<SimGrid>().clone();
 
+    // For each particle in the simulation we
+    // check the velocities around it
     for particle in juicebox_test.world.query::<&SimParticle>().iter(&juicebox_test.world) {
 
         let particle_coords = grid.get_cell_coordinates_from_position(&particle.position);
@@ -104,6 +121,8 @@ fn extrapolate_test() {
             [-2, 0],
         ];
 
+        // If there is a velocity that includes INFINITY, we didn't properly
+        // extrapolate.
         for offset in offsets {
             let cell_vel = grid.get_cell_velocity((particle_coords.x as i32 + offset[0]) as usize, (particle_coords.y as i32 + offset[1]) as usize);
 
