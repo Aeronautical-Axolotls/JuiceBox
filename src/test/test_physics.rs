@@ -126,8 +126,6 @@ fn extrapolate_test() {
         for offset in offsets {
             let cell_vel = grid.get_cell_velocity((particle_coords.x as i32 + offset[0]) as usize, (particle_coords.y as i32 + offset[1]) as usize);
 
-            println!("{:?}", cell_vel);
-
             if cell_vel.x.abs() == f32::INFINITY || cell_vel.y.abs() == f32::INFINITY {
                 success = false;
             }
