@@ -28,7 +28,7 @@ pub fn construct_test_simulation_layout(grid: &mut SimGrid, mut commands: Comman
 		&mut commands,
 		grid,
 		3.5,
-		100.0,
+		5.0,
 		Vec2 { x: grid_center[0], y: grid_center[1] },
 		Vec2::ZERO
 	);

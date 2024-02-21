@@ -6,12 +6,13 @@ pub mod simulation;
 pub mod util;
 pub mod juice_renderer;
 pub mod error;
+pub mod file_system;
 // pub mod test and ui;
 
 pub mod test;
 pub mod ui;
 
-use simulation::Simulation;
+use simulation::{Simulation, SimGrid};
 use ui::ui_base;
 
 
@@ -20,7 +21,12 @@ fn main() {
     let mut juicebox: App = App::new();
 
 	juicebox.add_plugins((
-		DefaultPlugins.set(util::create_window_plugin()),
+		DefaultPlugins
+		.set(util::create_window_plugin())
+		.set(AssetPlugin{
+			watch_for_changes_override: Some(true),
+			..Default::default()
+		}),
 		simulation::Simulation,
 		juice_renderer::JuiceRenderer,
 		EguiPlugin,
@@ -30,9 +36,10 @@ fn main() {
 		// FrameTimeDiagnosticsPlugin::default(),
 	));
 
-	juicebox.add_systems(Update,ui_base);
+	juicebox.add_systems(Update, ui_base);
 
 	juicebox.add_systems(Update, util::control_camera);
 
 	juicebox.run();
 }
+

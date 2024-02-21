@@ -7,10 +7,13 @@ use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
+use crate::file_system::save_scene;
 use crate::juice_renderer;
 use crate::test;
+use crate::ui;
 use sim_state_manager::*;
 use sim_physics_engine::*;
+use crate::file_system;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -21,8 +24,14 @@ impl Plugin for Simulation {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimGrid::default());
 
+		// Setting up the type registry so the data can be accessed for file_system.rs
+		app.register_type::<SimConstraints>();
+		app.register_type::<SimGrid>();
+		app.register_type::<SimParticle>();
+
 		app.add_systems(Startup, setup);
 		app.add_systems(Update, update);
+		app.add_systems(PostStartup, file_system::save_scene); // THIS MUST BE CHANGED!! IT IS AN EXCLUSIVE SYSTEM!!!!!
 	}
 }
 
@@ -50,7 +59,8 @@ fn update(
 	// TODO: Check for and handle tool usage.
 }
 
-#[derive(Resource)]
+#[derive(Resource, Reflect)]
+#[reflect(Resource)] // for file saving
 pub struct SimConstraints {
 	pub grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
 	pub iterations_per_frame:	u8, 	// Simulation iterations per frame.
@@ -91,14 +101,16 @@ impl SimConstraints {
 	}
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Reflect)]
+#[reflect()]
 pub enum SimGridCellType {
 	Solid,
     Fluid,
 	Air,
 }
 
-#[derive(Resource, Clone)]
+#[derive(Resource, Clone, Reflect)]
+#[reflect(Resource)]
 pub struct SimGrid {
 	pub	dimensions:	    (u16, u16),				// # of Hor. and Vert. cells in the simulation.
 	pub	cell_size:		u16,
@@ -229,7 +241,8 @@ impl SimGrid {
 	}
 }
 
-#[derive(Component)]
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
 pub struct SimParticle {
 	pub position:	Vec2, 	// This particle's [x, y] position.
 	pub velocity:	Vec2, 	// This particle's [x, y] velocity.
