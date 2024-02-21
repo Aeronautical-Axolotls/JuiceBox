@@ -706,9 +706,41 @@ impl SimGrid {
 
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 pub struct SimParticle {
 	pub position:		Vec2, 	// This particle's [x, y] position.
 	pub velocity:		Vec2, 	// This particle's [x, y] velocity.
 	pub lookup_index:	usize,	// Bucket index into spatial lookup for efficient neighbor search.
+}
+
+/// Simulation state manager initialization.
+pub fn test_setup(
+	commands:			Commands,
+	mut constraints:	ResMut<SimConstraints>,
+	mut grid:			ResMut<SimGrid>) {
+
+	test_state_manager::construct_test_simulation_layout(
+		constraints.as_mut(),
+		grid.as_mut(),
+		commands
+	);
+
+}
+
+pub fn test_update(
+	mut constraints:	ResMut<SimConstraints>,
+	mut grid:			ResMut<SimGrid>,
+	mut particles:		Query<(Entity, &mut SimParticle)>,
+    ) {
+
+	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
+	let fixed_timestep: f32 = constraints.timestep;
+
+    step_simulation_once(
+        constraints.as_mut(),
+        grid.as_mut(),
+        &mut particles,
+        fixed_timestep
+    );
+
 }
