@@ -1,6 +1,11 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
+<<<<<<< Updated upstream
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+=======
+use bevy_save::SavePlugin;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+>>>>>>> Stashed changes
 
 pub mod simulation;
 pub mod util;
@@ -11,6 +16,7 @@ pub mod file_system;
 
 pub mod test;
 pub mod ui;
+pub mod file_system;
 
 use simulation::{Simulation, SimGrid};
 use ui::ui_base;
@@ -30,6 +36,7 @@ fn main() {
 		simulation::Simulation,
 		juice_renderer::JuiceRenderer,
 		EguiPlugin,
+		SavePlugin,
 
 		// Non-release plugins:
 		// LogDiagnosticsPlugin::default(),
