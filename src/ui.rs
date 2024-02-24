@@ -22,6 +22,8 @@ pub fn ui_base(mut contexts: EguiContexts, windows: Query<&Window>) {
 	egui::Window::new("Scene Manager")
 		.frame(window_frame)
 		.fixed_pos(Pos2 { x: 0.0, y: 0.0 })
+		.fixed_size(window_size)
+		.resizable(false)
 		.show(contexts.ctx_mut(), |ui| {
 
 		// Allow the UI windows to grow to the size of the screen.
@@ -79,7 +81,7 @@ pub fn ui_base(mut contexts: EguiContexts, windows: Query<&Window>) {
 
 			// Tool size!
 			let mut tool_size: f32 = 10.0;
-			ui.add(egui::Slider::new(&mut tool_size, 1.0..=1000.0));
+			ui.add(egui::Slider::new(&mut tool_size, 1.0..=500.0));
 		});
     });
 

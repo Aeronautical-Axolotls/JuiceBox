@@ -134,13 +134,33 @@ pub fn reset_simulation_to_default(
 	particles:			&Query<(Entity, &mut SimParticle)>) {
 
 	println!("Resetting simulation to default...");
+
+	// Reset all particles.
 	delete_all_particles(commands, constraints, grid, particles);
 
-	let reset_grid: SimGrid					= SimGrid::default();
-	let reset_constraints: SimConstraints	= SimConstraints::default();
+	// Reset the grid.
+	let reset_grid: SimGrid	= SimGrid::default();
+	let row_count: usize	= reset_grid.dimensions.0 as usize;
+	let col_count: usize	= reset_grid.dimensions.1 as usize;
+	grid.dimensions			= reset_grid.dimensions;
+	grid.cell_size			= reset_grid.cell_size;
+	grid.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
+	grid.cell_center		= vec![vec![0.0; row_count]; col_count];
+	grid.velocity_u			= vec![vec![0.0; row_count + 1]; col_count];
+	grid.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
+	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
+	grid.density			= vec![0.0; row_count * col_count];
 
-	*grid			= reset_grid.clone();
-	*constraints	= reset_constraints.clone();
+	// Reset constraints.
+	let reset_constraints: SimConstraints	= SimConstraints::default();
+	constraints.grid_particle_ratio			= reset_constraints.grid_particle_ratio;
+	constraints.timestep					= reset_constraints.timestep;
+	constraints.incomp_iters_per_frame		= reset_constraints.incomp_iters_per_frame;
+	constraints.collision_iters_per_frame	= reset_constraints.collision_iters_per_frame;
+	constraints.gravity						= reset_constraints.gravity;
+	constraints.particle_radius				= reset_constraints.particle_radius;
+	constraints.particle_count				= reset_constraints.particle_count;
+	constraints.particle_rest_density		= reset_constraints.particle_rest_density;
 }
 
 #[derive(Resource, Clone)]
