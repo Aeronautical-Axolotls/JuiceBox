@@ -135,11 +135,15 @@ pub fn reset_simulation_to_default(
 
 	println!("Resetting simulation to default...");
 	delete_all_particles(commands, constraints, grid, particles);
-	*grid			= SimGrid::default();
-	*constraints	= SimConstraints::default();
+
+	let reset_grid: SimGrid					= SimGrid::default();
+	let reset_constraints: SimConstraints	= SimConstraints::default();
+
+	*grid			= reset_grid.clone();
+	*constraints	= reset_constraints.clone();
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct SimConstraints {
 	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio (0.0 = FLIP, 1.0 = PIC).
 	pub timestep:					f32,	// Timestep for simulation updates.
