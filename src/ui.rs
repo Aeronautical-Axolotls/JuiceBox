@@ -4,7 +4,6 @@ use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMu
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Frame, Pos2, Vec2},EguiContexts};
 
 const UI_ICON_COUNT: usize = 10;
-
 #[derive(Clone, Copy, Debug)]
 pub enum SimTool {
 	Select			= 0,
@@ -158,14 +157,16 @@ pub fn draw_user_interface(
 		});
 	});
 
-	// Context window for the currently selected tool's options.
+	// Get the currently selected tool's name.
 	let selected_tool_name: String	= tool_names[ui_state.selected_tool as usize].to_owned();
 	let context_window_name: String	= selected_tool_name + " Options";
 
+	// Selected tool context window.
 	egui::Window::new(context_window_name)
 		.id(egui::Id::from("Tool Selection Window"))
 		.frame(window_frame)
 		.default_pos(Pos2 { x: 0.0, y: window_size.y / 2.0 })
+		.default_width(0.0)
 		.show(contexts.ctx_mut(), |ui| {
 
 		// Align the buttons in this row horizontally from left to right.
