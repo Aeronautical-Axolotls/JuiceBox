@@ -3,68 +3,6 @@ use std::mem::transmute;
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::texture::Image, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Frame, Pos2, Vec2},EguiContexts};
 
-const UI_ICON_COUNT: usize = 10;
-#[derive(Clone, Copy, Debug)]
-pub enum SimTool {
-	Select			= 0,
-	Grab,
-	AddFluid,
-	RemoveFluid,
-	AddWall,
-	RemoveWall,
-	AddFaucet,
-	RemoveFaucet,
-	AddDrain,
-	RemoveDrain,
-}
-
-impl Into<usize> for SimTool {
-    fn into(self) -> usize {
-        self as usize
-    }
-}
-
-#[derive(Resource, Debug)]
-pub struct UIStateManager {
-	selected_tool:			SimTool,
-	color_picker_rgb:		[f32; 3],
-	tool_icon_handles:		Vec<Handle<Image>>,
-}
-
-impl Default for UIStateManager {
-	fn default() -> UIStateManager {
-		UIStateManager {
-			selected_tool:			SimTool::Select,
-			color_picker_rgb:		[1.0, 0.0, 1.0],
-			tool_icon_handles:		vec![Handle::default(); UI_ICON_COUNT],
-		}
-	}
-}
-
-pub fn load_user_interface_icons(
-	mut ui_state:	ResMut<UIStateManager>,
-	asset_server:	Res<AssetServer>) {
-
-	// Load all images into the program using the asset server.
-	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
-		asset_server.load("../assets/ui/icons_og/select_og.png"),
-		asset_server.load("../assets/ui/icons_og/grab_og.png"),
-		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
-		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
-		asset_server.load("../assets/ui/icons_og/wall_og.png"),
-		asset_server.load("../assets/ui/icons_og/wall_og.png"),
-		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
-		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
-		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
-		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
-	];
-
-	// Store all loaded image handles into our UI state manager.
-	for i in 0..UI_ICON_COUNT {
-		ui_state.tool_icon_handles[i] = icon_handles[i].clone();
-	}
-}
-
 pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>,
@@ -212,6 +150,68 @@ pub fn draw_user_interface(
 			});
 		});
     });
+}
+
+const UI_ICON_COUNT: usize = 10;
+#[derive(Clone, Copy, Debug)]
+pub enum SimTool {
+	Select			= 0,
+	Grab,
+	AddFluid,
+	RemoveFluid,
+	AddWall,
+	RemoveWall,
+	AddFaucet,
+	RemoveFaucet,
+	AddDrain,
+	RemoveDrain,
+}
+
+impl Into<usize> for SimTool {
+    fn into(self) -> usize {
+        self as usize
+    }
+}
+
+#[derive(Resource, Debug)]
+pub struct UIStateManager {
+	selected_tool:			SimTool,
+	color_picker_rgb:		[f32; 3],
+	tool_icon_handles:		Vec<Handle<Image>>,
+}
+
+impl Default for UIStateManager {
+	fn default() -> UIStateManager {
+		UIStateManager {
+			selected_tool:			SimTool::Select,
+			color_picker_rgb:		[1.0, 0.0, 1.0],
+			tool_icon_handles:		vec![Handle::default(); UI_ICON_COUNT],
+		}
+	}
+}
+
+pub fn load_user_interface_icons(
+	mut ui_state:	ResMut<UIStateManager>,
+	asset_server:	Res<AssetServer>) {
+
+	// Load all images into the program using the asset server.
+	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
+		asset_server.load("../assets/ui/icons_og/select_og.png"),
+		asset_server.load("../assets/ui/icons_og/grab_og.png"),
+		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
+		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
+		asset_server.load("../assets/ui/icons_og/wall_og.png"),
+		asset_server.load("../assets/ui/icons_og/wall_og.png"),
+		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
+		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
+		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
+		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
+	];
+
+	// Store all loaded image handles into our UI state manager.
+	for i in 0..UI_ICON_COUNT {
+		ui_state.tool_icon_handles[i] = icon_handles[i].clone();
+	}
 }
 
 /// Convert a Bevy Handle<Image> into an eGUI-compatible eGUI Image!
