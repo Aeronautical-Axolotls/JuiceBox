@@ -1,7 +1,7 @@
 use std::mem::transmute;
 
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::texture::Image, ui::FlexWrap, window::Window};
-use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Frame, Pos2, Vec2},EguiContexts};
+use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Frame, Margin, Pos2, Vec2},EguiContexts};
 
 pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
@@ -9,13 +9,17 @@ pub fn draw_user_interface(
 	windows:		Query<&Window>,
 	images:			ResMut<Assets<Image>>) {
 
-	// egui_extras::install_image_loaders(contexts);
+	// General styling of components for consistency.
+	let window_border_width: f32		= 2.5;
+	let window_padding: f32				= 10.0;
+	let icon_size: [f32; 2]				= [30.0; 2];
+	let default_button_padding: Vec2	= Vec2 { x: 4.0, y: 1.0 };
+	let combo_dropdown_padding: Vec2	= Vec2 { x: 10.0, y: 9.0 };
 
+	// Window stuff.
 	let window				= windows.single();
-	let border_width: f32	= 2.5;
-	let window_padding: f32	= 10.0;
 	let window_size: Vec2	= Vec2 {
-		x: window.width() - window_padding - border_width,
+		x: window.width() - window_padding - window_border_width,
 		y: window.height()
 	};
 	let window_frame: Frame = Frame {
@@ -29,8 +33,6 @@ pub fn draw_user_interface(
 
 	/* For each UI icon that we need to load, get their handle from our UI State Manager.  Then,
 		convert that into an eGUI-readable egui::Image format! */
-	let icon_size: [f32; 2] = [30.0; 2];
-
 	let tool_names: [&str; UI_ICON_COUNT] = [
 		"Select",
 		"Grab",
@@ -43,7 +45,7 @@ pub fn draw_user_interface(
 		"Add Drain",
 		"Remove Drain"
 	];
-	let mut tool_icons: Vec<egui::Image> = Vec::new();
+	let mut tool_icons: Vec<egui::Image>	= Vec::new();
 	for i in 0..UI_ICON_COUNT {
 		let icon_handle	= ui_state.tool_icon_handles[i].clone_weak();
 		tool_icons.push(image_handle_to_egui_texture(icon_handle, &mut contexts, icon_size));
@@ -68,12 +70,19 @@ pub fn draw_user_interface(
 			// "File" scene saving/loading dropdown.
 			let alternatives = ["File", "Save", "Save as", "Load", "Reset"];
 			let mut selected = 0;
+
+			// Make the file dropdown appear as large as the other buttons.
+			ui.style_mut().spacing.button_padding = combo_dropdown_padding;
+
 			egui::ComboBox::from_label("").show_index(
 				ui,
 				&mut selected,
 				alternatives.len(),
 				|i| alternatives[i].to_owned()
 			);
+			// Reset padding for other elements.
+
+			ui.style_mut().spacing.button_padding = default_button_padding;
 
 			// Loop through each tool button.
 			for i in 0..UI_ICON_COUNT {
@@ -108,7 +117,7 @@ pub fn draw_user_interface(
 		.show(contexts.ctx_mut(), |ui| {
 
 		// Align the buttons in this row horizontally from left to right.
-		ui.with_layout(egui::Layout::top_down_justified(egui::Align::TOP), |ui| {
+		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
 
 			// Color picker!
 			ui.color_edit_button_rgb(&mut ui_state.color_picker_rgb);
@@ -123,7 +132,7 @@ pub fn draw_user_interface(
 	egui::Window::new("Time Travel")
 		.title_bar(false)
 		.frame(window_frame)
-		.fixed_pos(Pos2 { x: border_width, y: window_size.y } )
+		.fixed_pos(Pos2 { x: window_border_width, y: window_size.y } )
 		.fixed_size(window_size)
 		.show(contexts.ctx_mut(), |ui| {
 
@@ -139,9 +148,9 @@ pub fn draw_user_interface(
 				if ui.button("Play/Pause").clicked() {
 
 				}
-				let mut scrubbar: f32 = 0.0;
-				ui.add(egui::Slider::new(&mut scrubbar, -120000.0..=0.0).text("Go back in time!")
-					.show_value(false));
+				// let mut scrubbar: f32 = 0.0;
+				// ui.add(egui::Slider::new(&mut scrubbar, -120000.0..=0.0).text("Go back in time!")
+				// 	.show_value(false));
 			});
 
 			// JuiceBox branding!
