@@ -8,13 +8,10 @@ anyhow = "1.0.75"
 bevy = { version = "0.12.0", features = ["dynamic_linking"] }
 thiserror = "1.0.50"
 bevy_egui = "0.24.0"
-<<<<<<< Updated upstream
 bevy_asset = "0.12.1"
-=======
 winit = "0.28"
 image = "0.24"
 bevy_save = "0.13.0"
->>>>>>> Stashed changes
 
 
 # Required with Bevy/wgpu to use Cargo Workspaces.

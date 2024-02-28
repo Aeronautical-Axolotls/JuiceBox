@@ -12,7 +12,6 @@ pub mod file_system;
 
 pub mod test;
 pub mod ui;
-pub mod file_system;
 
 use simulation::{Simulation, SimGrid};
 use ui::ui_base;
