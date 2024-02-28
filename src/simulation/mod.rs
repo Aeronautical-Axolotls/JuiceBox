@@ -13,14 +13,10 @@ use crate::test;
 use crate::ui;
 use sim_state_manager::*;
 use sim_physics_engine::*;
-<<<<<<< Updated upstream
-use crate::file_system;
-=======
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 use crate::file_system::{self, *};
 
 use self::sim_state_manager::{delete_all_particles, delete_particle};
->>>>>>> Stashed changes
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -43,13 +39,9 @@ impl Plugin for Simulation {
 
 		app.add_systems(Startup, setup);
 		app.add_systems(Update, update);
-<<<<<<< Updated upstream
-		app.add_systems(PostStartup, file_system::save_scene); // THIS MUST BE CHANGED!! IT IS AN EXCLUSIVE SYSTEM!!!!!
-=======
 		
 		app.add_systems(PostStartup, file_system::save_scene); // Temporarily here for debug purposes
 		app.add_systems(PostStartup, file_system::save_scene_bevy_save); // Temporarily here for debug purposes
->>>>>>> Stashed changes
 	}
 }
 
@@ -77,10 +69,6 @@ fn update(
 	// TODO: Check for and handle tool usage.
 }
 
-<<<<<<< Updated upstream
-#[derive(Resource, Reflect)]
-#[reflect(Resource)] // for file saving
-=======
 /// Step the fluid simulation one time!
 fn step_simulation_once(
 	constraints:	&mut SimConstraints,
@@ -129,7 +117,6 @@ pub fn reset_simulation_to_default(
 
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
->>>>>>> Stashed changes
 pub struct SimConstraints {
 	pub grid_particle_ratio:	f32, 	// PIC/FLIP simulation ratio.
 	pub iterations_per_frame:	u8, 	// Simulation iterations per frame.
@@ -170,12 +157,7 @@ impl SimConstraints {
 	}
 }
 
-<<<<<<< Updated upstream
-#[derive(Clone, Debug, Reflect)]
-#[reflect()]
-=======
 #[derive(Clone, Debug, PartialEq, Eq, Reflect)]
->>>>>>> Stashed changes
 pub enum SimGridCellType {
 	Solid,
     Fluid,

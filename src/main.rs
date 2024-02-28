@@ -1,11 +1,7 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
-<<<<<<< Updated upstream
-// use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-=======
 use bevy_save::SavePlugin;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
->>>>>>> Stashed changes
 
 pub mod simulation;
 pub mod util;

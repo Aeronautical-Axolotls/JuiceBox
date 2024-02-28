@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 // https://www.youtube.com/watch?v=bbBh3oKibkE&t=351s&ab_channel=PhaestusFox
 // https://crates.io/crates/open
 // https://stackoverflow.com/questions/73311644/get-path-to-selected-files-in-active-explorer-window
@@ -31,34 +30,17 @@
 // 
 
 
-use bevy::{prelude::*, tasks::IoTaskPool, utils::Duration};
-=======
 use bevy::utils::petgraph::visit::Time;
 use bevy::{prelude::*, tasks::IoTaskPool, utils::Duration};
 use std::time::SystemTime;
->>>>>>> Stashed changes
 use std::{fs::File, io::Write};
 use bevy::ecs::query::*;
 
 use crate::simulation::{SimParticle, SimGrid, SimConstraints};
 use crate::juice_renderer;
 
-<<<<<<< Updated upstream
-=======
-use bevy_save::prelude::*;
-
->>>>>>> Stashed changes
-//#[derive(bevy::ecs::query::QueryFilter)]
-struct EntitySaveFilter<> {
-
-}
 use super::*;
 
-<<<<<<< Updated upstream
-pub fn save_scene(world: &mut World) {
-    println!("Saving Scene...");
-
-=======
 struct SavePipeline;
 
 impl Pipeline for SavePipeline {
@@ -93,7 +75,6 @@ pub fn save_scene(world: &mut World) {
 
     let start = SystemTime::now();
 
->>>>>>> Stashed changes
     /*
     let mut scene_world = World::new();
     let type_registry = world.resource::<AppTypeRegistry>().clone();
@@ -123,11 +104,7 @@ pub fn save_scene(world: &mut World) {
 
     // Method #3
 
-<<<<<<< Updated upstream
     let mut path = format!("assets/scenes/test_save_3_2.scn.ron");
-=======
-    let mut path = format!("assets/scenes/test_save_1.scn.ron");
->>>>>>> Stashed changes
 
     let entities_vec: Vec<Entity> = world
     //.query_filtered::<Entity, With<Savable>>()
@@ -135,11 +112,7 @@ pub fn save_scene(world: &mut World) {
     .iter(world)
     .collect();
 
-<<<<<<< Updated upstream
-    println!("{:#?}", entities_vec);
-=======
     //println!("{:#?}", entities_vec);
->>>>>>> Stashed changes
 
     //let x = entities_vec.into_iter();
 
@@ -147,11 +120,7 @@ pub fn save_scene(world: &mut World) {
     //let mut new_scene: DynamicScene = scene_builder.allow_all_resources().extract_resources().extract_entities(entities_vec.into_iter()).build(); // Look into [allow_resource]
     let mut test_scene: DynamicScene = scene_builder.extract_entities(entities_vec.into_iter()).build();
 
-<<<<<<< Updated upstream
-    println!("{:#?}", test_scene.serialize_ron(world.resource::<AppTypeRegistry>()));
-=======
     //println!("{:#?}", test_scene.serialize_ron(world.resource::<AppTypeRegistry>()));
->>>>>>> Stashed changes
 
     match test_scene.serialize_ron(world.resource::<AppTypeRegistry>()) {
         Ok(serialized_scene) => match File::create(&path) {
@@ -168,11 +137,8 @@ pub fn save_scene(world: &mut World) {
         }
     }
 
-<<<<<<< Updated upstream
-=======
     println!("\nTime elapsed during saving: {:#?}\n", start.elapsed().unwrap());
 
->>>>>>> Stashed changes
     /*
     let entities: Vec<Entity> = match mode {
         SaveMode::Filtered => world
@@ -211,8 +177,6 @@ pub fn save_scene(world: &mut World) {
     //let dynamic_scene = from_world(world);
 }
 
-<<<<<<< Updated upstream
-=======
 pub fn save_scene_bevy_save(world: &mut World) {
     let start = SystemTime::now();
 
@@ -221,7 +185,6 @@ pub fn save_scene_bevy_save(world: &mut World) {
     println!("\nTime elapsed during bevy_save saving: {:#?}\n", start.elapsed().unwrap());
 }
 
->>>>>>> Stashed changes
 pub fn load_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
     println!("Loading Scene...");
     commands.spawn(DynamicSceneBundle {scene: asset_server.load("scenes/test_load_3.scn.ron"),..default()});
