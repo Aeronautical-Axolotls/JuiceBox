@@ -166,6 +166,7 @@ pub fn draw_user_interface(
 		egui::Window::new(context_window_name)
 			.id(egui::Id::from("Tool Selection Window"))
 			.frame(window_frame)
+			.pivot(Align2::CENTER_CENTER)
 			.default_pos(Pos2 { x: 0.0, y: window_size.y / 2.0 })
 			.default_width(0.0)
 			.show(contexts.ctx_mut(), |ui| {
@@ -188,6 +189,7 @@ pub fn draw_user_interface(
 
 		egui::Window::new("Visualization Options")
 			.frame(window_frame)
+			.pivot(Align2::CENTER_CENTER)
 			.default_pos(Pos2 { x: window_size.x, y: window_size.y / 2.0 })
 			.default_width(0.0)
 			.show(contexts.ctx_mut(), |ui| {
@@ -195,12 +197,8 @@ pub fn draw_user_interface(
 			// Align the buttons in this row horizontally from left to right.
 			ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
 
-				// Color picker!
-				ui.color_edit_button_rgb(&mut ui_state.color_picker_rgb);
-
-				// Tool size!
-				let mut tool_size: f32 = 10.0;
-				ui.add(egui::Slider::new(&mut tool_size, 1.0..=500.0));
+				// Fluid color visualization option dropdown.
+				let color_options		= ["Velocity", "Density", "Pressure", "None"];
 			});
 		});
 	}
