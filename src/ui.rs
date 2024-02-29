@@ -1,7 +1,7 @@
 use std::mem::transmute;
 
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::texture::Image, ui::FlexWrap, window::Window};
-use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Frame, Margin, Pos2, Vec2},EguiContexts};
+use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Vec2},EguiContexts};
 
 pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
@@ -32,7 +32,13 @@ pub fn draw_user_interface(
 	};
 
 	/* For each UI icon that we need to load, get their handle from our UI State Manager.  Then,
-		convert that into an eGUI-readable egui::Image format! */
+		convert that into an eGUI-readable egui::Image format!  This is done by iterating through
+		the tool icon handles stores in our UI state manager, and then pushing the eGUI-compatible
+		texture handle to our list of tool_icons.  These icons will be iterated over later to draw
+		each tool button. */
+	let mut tool_icons: Vec<egui::Image>		= Vec::new();
+	let mut play_pause_icons: Vec<egui::Image>	= Vec::new();
+
 	let tool_names: [&str; UI_ICON_COUNT] = [
 		"Select",
 		"Grab",
@@ -45,18 +51,29 @@ pub fn draw_user_interface(
 		"Add Drain",
 		"Remove Drain"
 	];
-	let mut tool_icons: Vec<egui::Image>	= Vec::new();
 	for i in 0..UI_ICON_COUNT {
 		let icon_handle	= ui_state.tool_icon_handles[i].clone_weak();
 		tool_icons.push(image_handle_to_egui_texture(icon_handle, &mut contexts, icon_size));
 	}
 
+	// Now do the same thing for the play/pause icons.
+	let play_icon = image_handle_to_egui_texture(
+		ui_state.play_pause_icon_handles[0].clone_weak(),
+		&mut contexts,
+		icon_size
+	);
+	let pause_icon = image_handle_to_egui_texture(
+		ui_state.play_pause_icon_handles[1].clone_weak(),
+		&mut contexts,
+		icon_size
+	);
 
 	// Create top window for file saving/loading and tool selecting.
 	egui::Window::new("Scene Manager")
 		.frame(window_frame)
 		.fixed_pos(Pos2 { x: 0.0, y: 0.0 })
 		.fixed_size(window_size)
+		.title_bar(false)
 		.resizable(false)
 		.show(contexts.ctx_mut(), |ui| {
 
@@ -64,27 +81,62 @@ pub fn draw_user_interface(
 		ui.set_width(window_size.x);
 		ui.set_width(window_size.y);
 
-		// Align the buttons in this row horizontally from left to right.
+		// File management row; align horizontally wrapped.
 		ui.horizontal_wrapped(|ui| {
 
 			// "File" scene saving/loading dropdown.
-			let alternatives = ["File", "Save", "Save as", "Load", "Reset"];
-			let mut selected = 0;
-
-			// Make the file dropdown appear as large as the other buttons.
-			ui.style_mut().spacing.button_padding = combo_dropdown_padding;
-
-			egui::ComboBox::from_label("").show_index(
+			let file_options		= ["File", "New", "Load", "Save", "Save as"];
+			let mut file_selection	= 0;
+			egui::ComboBox::from_id_source(0).show_index(
 				ui,
-				&mut selected,
-				alternatives.len(),
-				|i| alternatives[i].to_owned()
+				&mut file_selection,
+				file_options.len(),
+				|i| file_options[i].to_owned()
 			);
-			// Reset padding for other elements.
+			match file_selection {
+				1 => {  },
+				2 => {  },
+				3 => {  },
+				4 => {  },
+				_ => {},
+			}
 
-			ui.style_mut().spacing.button_padding = default_button_padding;
+			// "Edit" scene dropdown.
+			let edit_options		= ["Edit", "Reset"];
+			let mut edit_selection	= 0;
+			egui::ComboBox::from_id_source(1).show_index(
+				ui,
+				&mut edit_selection,
+				edit_options.len(),
+				|i| edit_options[i].to_owned()
+			);
+			match edit_selection {
+				1 => {  },
+				_ => {},
+			}
 
-			// Loop through each tool button.
+			// "View" scene dropdown.
+			let view_options		= ["View", "Current Tool", "Visualization"];
+			let mut view_selection	= 0;
+			egui::ComboBox::from_id_source(2).show_index(
+				ui,
+				&mut view_selection,
+				view_options.len(),
+				|i| view_options[i].to_owned()
+			);
+			match view_selection {
+				1 => { ui_state.show_selected_tool = !ui_state.show_selected_tool },
+				2 => { ui_state.show_visualization = !ui_state.show_visualization }
+				_ => {},
+			}
+		});
+
+		// Draws a horizontal line between the file and tool management sections of this menu.
+		ui.separator();
+
+		// Scene/tool management row; align horizontally wrapped.
+		ui.horizontal_wrapped(|ui| {
+			// Draw each tool button from our list!
 			for i in 0..UI_ICON_COUNT {
 				// Add a button to the UI and check it for click events!
 				if ui.add(egui::Button::image_and_text(
@@ -104,59 +156,82 @@ pub fn draw_user_interface(
 		});
 	});
 
-	// Get the currently selected tool's name.
-	let selected_tool_name: String	= tool_names[ui_state.selected_tool as usize].to_owned();
-	let context_window_name: String	= selected_tool_name + " Options";
+	// Draw the selected tool's context window.
+	if ui_state.show_selected_tool {
 
-	// Selected tool context window.
-	egui::Window::new(context_window_name)
-		.id(egui::Id::from("Tool Selection Window"))
-		.frame(window_frame)
-		.default_pos(Pos2 { x: 0.0, y: window_size.y / 2.0 })
-		.default_width(0.0)
-		.show(contexts.ctx_mut(), |ui| {
+		// Get the currently selected tool's name.
+		let selected_tool_name: String	= tool_names[ui_state.selected_tool as usize].to_owned();
+		let context_window_name: String	= selected_tool_name + " Options";
 
-		// Align the buttons in this row horizontally from left to right.
-		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
+		egui::Window::new(context_window_name)
+			.id(egui::Id::from("Tool Selection Window"))
+			.frame(window_frame)
+			.default_pos(Pos2 { x: 0.0, y: window_size.y / 2.0 })
+			.default_width(0.0)
+			.show(contexts.ctx_mut(), |ui| {
 
-			// Color picker!
-			ui.color_edit_button_rgb(&mut ui_state.color_picker_rgb);
+			// Align the buttons in this row horizontally from left to right.
+			ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
 
-			// Tool size!
-			let mut tool_size: f32 = 10.0;
-			ui.add(egui::Slider::new(&mut tool_size, 1.0..=500.0));
+				// Color picker!
+				ui.color_edit_button_rgb(&mut ui_state.color_picker_rgb);
+
+				// Tool size!
+				let mut tool_size: f32 = 10.0;
+				ui.add(egui::Slider::new(&mut tool_size, 1.0..=500.0));
+			});
 		});
-    });
+	}
 
-	// Scrub bar for time travel!
-	egui::Window::new("Time Travel")
+	// Fluid/grid visualization settings window.
+	if ui_state.show_visualization {
+
+		egui::Window::new("Visualization Options")
+			.frame(window_frame)
+			.default_pos(Pos2 { x: window_size.x, y: window_size.y / 2.0 })
+			.default_width(0.0)
+			.show(contexts.ctx_mut(), |ui| {
+
+			// Align the buttons in this row horizontally from left to right.
+			ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
+
+				// Color picker!
+				ui.color_edit_button_rgb(&mut ui_state.color_picker_rgb);
+
+				// Tool size!
+				let mut tool_size: f32 = 10.0;
+				ui.add(egui::Slider::new(&mut tool_size, 1.0..=500.0));
+			});
+		});
+	}
+
+	// Play/pause button menu.
+	egui::Window::new("Play/Pause")
 		.title_bar(false)
 		.frame(window_frame)
-		.fixed_pos(Pos2 { x: window_border_width, y: window_size.y } )
-		.fixed_size(window_size)
+		.fixed_pos(Pos2 { x: window_size.x / 2.0, y: window_size.y * 0.95 } )
+		.pivot(Align2::CENTER_CENTER)
+		.default_width(0.0)
+		.resizable(false)
 		.show(contexts.ctx_mut(), |ui| {
 
-		// Allow the UI window to grow to the size of the screen.
-		ui.set_width(window_size.x);
-		ui.set_width(window_size.y);
+		// Simulation play/pause button.
+		ui.vertical_centered(|ui| {
 
-		// Make this UI bar take up as little space as possible.
-		ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
-
-			// Simulation play/pause and scrub bar.
-			ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-				if ui.button("Play/Pause").clicked() {
-
-				}
-				// let mut scrubbar: f32 = 0.0;
-				// ui.add(egui::Slider::new(&mut scrubbar, -120000.0..=0.0).text("Go back in time!")
-				// 	.show_value(false));
-			});
-
-			// JuiceBox branding!
-			ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-				ui.add(egui::Label::new("JuiceBox: Spilling Encouraged!"));
-			});
+			// Play/pause button!
+			let play_pause_icon;
+			let play_pause_text;
+			if ui_state.is_paused {
+				play_pause_icon	= play_icon;
+				play_pause_text	= "Paused!";
+			} else {
+				play_pause_icon	= pause_icon;
+				play_pause_text	= "Playing!";
+			}
+			if ui.add(egui::Button::image_and_text(
+				play_pause_icon, play_pause_text)).clicked() {
+				ui_state.is_paused = !ui_state.is_paused;
+			}
 		});
     });
 }
@@ -184,17 +259,27 @@ impl Into<usize> for SimTool {
 
 #[derive(Resource, Debug)]
 pub struct UIStateManager {
-	selected_tool:			SimTool,
-	color_picker_rgb:		[f32; 3],
-	tool_icon_handles:		Vec<Handle<Image>>,
+	show_selected_tool:			bool,
+	selected_tool:				SimTool,
+	tool_icon_handles:			Vec<Handle<Image>>,
+	color_picker_rgb:			[f32; 3],
+
+	show_visualization:			bool,
+	is_paused:					bool,
+	play_pause_icon_handles:	Vec<Handle<Image>>,
 }
 
 impl Default for UIStateManager {
 	fn default() -> UIStateManager {
 		UIStateManager {
-			selected_tool:			SimTool::Select,
-			color_picker_rgb:		[1.0, 0.0, 1.0],
-			tool_icon_handles:		vec![Handle::default(); UI_ICON_COUNT],
+			show_selected_tool:			true,
+			selected_tool:				SimTool::Select,
+			tool_icon_handles:			vec![Handle::default(); UI_ICON_COUNT],
+			color_picker_rgb:			[1.0, 0.0, 1.0],
+
+			show_visualization:			false,
+			is_paused:					false,
+			play_pause_icon_handles:	vec![Handle::default(); 2],
 		}
 	}
 }
@@ -203,7 +288,7 @@ pub fn load_user_interface_icons(
 	mut ui_state:	ResMut<UIStateManager>,
 	asset_server:	Res<AssetServer>) {
 
-	// Load all images into the program using the asset server.
+	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
 		asset_server.load("../assets/ui/icons_og/select_og.png"),
 		asset_server.load("../assets/ui/icons_og/grab_og.png"),
@@ -216,11 +301,17 @@ pub fn load_user_interface_icons(
 		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
 		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
 	];
+	let play_pause_icon_handles: [Handle<Image>; 2] = [
+		asset_server.load("../assets/ui/icons_og/play_og.png"),
+		asset_server.load("../assets/ui/icons_og/pause_og.png"),
+	];
 
 	// Store all loaded image handles into our UI state manager.
 	for i in 0..UI_ICON_COUNT {
 		ui_state.tool_icon_handles[i] = icon_handles[i].clone();
 	}
+	ui_state.play_pause_icon_handles[0] = play_pause_icon_handles[0].clone();
+	ui_state.play_pause_icon_handles[1] = play_pause_icon_handles[1].clone();
 }
 
 /// Convert a Bevy Handle<Image> into an eGUI-compatible eGUI Image!
