@@ -527,7 +527,12 @@ impl SimGrid {
 		let center_cell		= self.get_cell_coordinates_from_position(&position);
 
 		// For each nearby cell, add its density weighted based on position to final density value.
-		for cell in nearby_cells.iter() {
+		for mut cell in nearby_cells.iter() {
+
+			// If one of our cell is solid, use the center cell's density instead.
+			// if self.cell_type[cell.x as usize][cell.y as usize] == SimGridCellType::Solid {
+			// 	cell = &center_cell;
+			// }
 
 			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
