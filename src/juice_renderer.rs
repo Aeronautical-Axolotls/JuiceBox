@@ -263,7 +263,7 @@ fn color_particles_by_density(
 		let density: f32 = grid.get_density_at_position(particle.position);
 		let color: Color = util::generate_color_from_gradient(
 			color_list,
-			density / density_magnitude_color_scale,
+			density / (density_magnitude_color_scale * 0.45),
 		);
 		sprite.color = color;
 	}

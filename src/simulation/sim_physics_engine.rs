@@ -787,7 +787,7 @@ pub fn make_grid_velocities_incompressible(
 				}
 
 				// Force incompressibility on this cell.
-				let overrelaxation: f32	= 1.9;
+				let overrelaxation: f32	= 1.99;
 				let momentum: f32		= overrelaxation * ((0.0 - divergence) / solids_sum as f32);
 
 				grid.velocity_u[row as usize][col as usize]			-= momentum * left_solid as f32;

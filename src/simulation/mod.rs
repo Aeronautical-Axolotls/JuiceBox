@@ -181,7 +181,7 @@ impl Default for SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:		0.3,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
 			timestep:					1.0 / 120.0,
-			incomp_iters_per_frame:		5,
+			incomp_iters_per_frame:		100,
 			collision_iters_per_frame:	2,
 
 			// (9.81^2) * 2 = ~385 (Bevy caps FPS at 60, we run sim at 120).
