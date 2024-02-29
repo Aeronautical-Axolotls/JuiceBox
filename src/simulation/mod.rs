@@ -79,16 +79,6 @@ fn update(
 		);
 	}
 
-	// test_select_grid_cells(
-	// 	&mut commands,
-	// 	constraints.as_mut(),
-	// 	grid.as_mut(),
-	// 	&particles,
-	// 	&windows,
-	// 	&cameras,
-	// 	&mut gizmos
-	// );
-
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
 }
