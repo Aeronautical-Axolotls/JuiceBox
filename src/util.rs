@@ -38,14 +38,9 @@ pub fn debug_state_controller(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>) {
-	
+
 	// Reset simulation when we press R.
 	if keys.just_pressed(KeyCode::R) {
-		
-		/* BUG: The more times you reset the simulation the slower it runs.  I suspect this 
-			is caused by either the sprites not being properly unloaded when each particle 
-			component is despawned, OR the fact that we are repeatedly creating new grid and 
-			constraint resources, effectively leaking memory.  Not sure which; figure it out! */
 		crate::simulation::reset_simulation_to_default(
 			&mut commands,
 			constraints.as_mut(),
@@ -59,31 +54,31 @@ pub fn debug_state_controller(
 		);
 		return;
 	}
-	
+
 	// Rotate/scale gravity when we press the arrow keys.
-	let gravity_rotation: i8	= keys.pressed(KeyCode::Right) as i8 - 
+	let gravity_rotation: i8	= keys.pressed(KeyCode::Right) as i8 -
 									keys.pressed(KeyCode::Left) as i8;
-	let gravity_magnitude: i8	= keys.pressed(KeyCode::Up) as i8 - 
+	let gravity_magnitude: i8	= keys.pressed(KeyCode::Up) as i8 -
 									keys.pressed(KeyCode::Down) as i8;
 	let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
 	polar_gravity.x				+= 200.0 * gravity_magnitude as f32 * constraints.timestep;
 	polar_gravity.y				+= 4.0 * gravity_rotation as f32 * constraints.timestep;
-	
+
 	// Limit the magnitude of the vector to prevent ugly behavior near 0.0.
 	polar_gravity.x				= f32::max(0.0, polar_gravity.x);
 	constraints.gravity			= polar_to_cartesian(polar_gravity);
-	
+
 	// Place/remove grid cells if the mouse is clicked on a cell.
 	let should_place_cell: bool		= mouse.pressed(MouseButton::Left);
 	let should_remove_cell: bool	= mouse.pressed(MouseButton::Right);
-	
+
 	// Get the mouse's motion between this and the last frame.
 	let mut cursor_delta: Vec2 = Vec2::ZERO;
 	for event in mouse_motion.read() {
 		cursor_delta.x = event.delta.x;
 		cursor_delta.y = event.delta.y;
 	}
-	
+
 	if should_place_cell {
 		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
 		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&cursor_position);
@@ -92,7 +87,7 @@ pub fn debug_state_controller(
 			cell_coordinates.y as usize,
 			SimGridCellType::Solid
 		);
-		
+
 		// Delete all particles in the cell we are turning into a solid.
 		let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
 		grid.delete_all_particles_in_cell(
@@ -101,7 +96,7 @@ pub fn debug_state_controller(
 			&particles,
 			lookup_index
 		);
-		
+
 	} else if should_remove_cell {
 		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
 		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&cursor_position);

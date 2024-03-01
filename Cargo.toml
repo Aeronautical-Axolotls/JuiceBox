@@ -10,9 +10,9 @@ anyhow = "1.0.75"
 bevy = { version = "0.12.0", features = ["dynamic_linking"] }
 
 thiserror = "1.0.50"
-bevy_egui = "0.24.0"
 winit = "0.28"
-image = "0.24"
+bevy_egui = "0.24.0"
+image = "0.24.9"
 
 
 # Required with Bevy/wgpu to use Cargo Workspaces.
