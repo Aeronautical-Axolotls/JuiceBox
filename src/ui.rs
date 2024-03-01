@@ -15,8 +15,7 @@ pub fn init_user_interface(
 
 pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
-	mut ui_state:	ResMut<UIStateManager>,
-	images:			ResMut<Assets<Image>>) {
+	mut ui_state:	ResMut<UIStateManager>) {
 
 	/* For each UI icon that we need to load, get their handle from our UI State Manager.  Then,
 		convert that into an eGUI-readable egui::Image format!  This is done by iterating through
@@ -92,7 +91,7 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
 		}
 
 		// "Edit" scene dropdown.
-		let edit_options		= ["Edit", "Reset"];
+		let edit_options		= ["Edit", "Reset", "Clear", "Change Dimensions"];
 		let mut edit_selection	= 0;
 		egui::ComboBox::from_id_source(1).show_index(
 			ui,
@@ -187,7 +186,7 @@ fn show_visualization_menu(ui_state: &UIStateManager, contexts: &mut EguiContext
 		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
 
 			// Fluid color visualization option dropdown.
-			let color_options		= ["Velocity", "Density", "Pressure", "None"];
+			let color_options = ["Velocity", "Density", "Pressure", "None"];
 		});
 	});
 }
@@ -196,7 +195,7 @@ fn show_play_pause_menu(
 	ui_state:		&mut UIStateManager,
 	contexts:		&mut EguiContexts) {
 
-	let mut play_pause_icons: Vec<egui::Image>	= Vec::new();
+	let play_pause_icons: Vec<egui::Image> = Vec::new();
 	let play_icon = image_handle_to_egui_texture(
 		ui_state.play_pause_icon_handles[0].clone_weak(),
 		contexts,
@@ -350,7 +349,7 @@ fn calculate_window_parameters(
 
 /// Using Bevy's asset server, load all UI icons into our UI state manager.
 pub fn load_user_interface_icons(
-	mut ui_state:	&mut UIStateManager,
+	ui_state:		&mut UIStateManager,
 	asset_server:	&AssetServer) {
 
 	// Load all UI icons using Bevy's asset server.
