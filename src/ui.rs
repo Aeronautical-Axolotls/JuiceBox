@@ -17,24 +17,8 @@ pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>) {
 
-	/* For each UI icon that we need to load, get their handle from our UI State Manager.  Then,
-		convert that into an eGUI-readable egui::Image format!  This is done by iterating through
-		the tool icon handles stores in our UI state manager, and then pushing the eGUI-compatible
-		texture handle to our list of tool_icons.  These icons will be iterated over later to draw
-		each tool button. */
-	/* TODO: Maybe move this out of here so we don't do this every frame?  No idea if that is even
-		possible. */
-	let mut tool_icons: Vec<egui::Image> = Vec::new();
-	for i in 0..UI_ICON_COUNT {
-		let icon_handle	= ui_state.tool_icon_handles[i].clone_weak();
-		tool_icons.push(image_handle_to_egui_texture(
-			icon_handle,
-			&mut contexts,
-			ui_state.icon_size
-		));
-	}
-
-	show_scene_manager_menu(&mut ui_state, &mut contexts, &tool_icons);
+	// Show all UI menus.
+	show_scene_manager_menu(&mut ui_state, &mut contexts);
 	if ui_state.show_selected_tool {
 		show_current_tool_menu(&mut ui_state, &mut contexts);
 	}
@@ -47,9 +31,26 @@ pub fn draw_user_interface(
 /// Create menu for file saving/loading and tool selection.
 fn show_scene_manager_menu(
 	ui_state:	&mut UIStateManager,
-	contexts:	&mut EguiContexts,
-	tool_icons:	&Vec<egui::Image>) {
+	contexts:	&mut EguiContexts) {
 
+	/* For each UI icon that we need to load, get their handle from our UI State Manager.  Then,
+		convert that into an eGUI-readable egui::Image format!  This is done by iterating through
+		the tool icon handles stores in our UI state manager, and then pushing the eGUI-compatible
+		texture handle to our list of tool_icons.  These icons will be iterated over later to draw
+		each tool button. */
+	/* TODO: Maybe move this out of here so we don't do this every frame?  No idea if that is even
+		possible. */
+	let mut tool_icons: Vec<egui::Image> = Vec::new();
+	for i in 0..UI_ICON_COUNT {
+		let icon_handle	= ui_state.tool_icon_handles[i].clone_weak();
+		tool_icons.push(image_handle_to_egui_texture(
+			icon_handle,
+			contexts,
+			ui_state.icon_size
+		));
+	}
+
+	// Create an eGUI window.
 	egui::Window::new("Scene Manager")
 		.frame(ui_state.window_frame)
 		.fixed_pos(Pos2 { x: 0.0, y: 0.0 })
@@ -62,9 +63,10 @@ fn show_scene_manager_menu(
 		ui.set_width(ui_state.window_size.x);
 		ui.set_width(ui_state.window_size.y);
 
+		// Show the file manager panel, a horizontal separator, and the tool manager panel.
 		show_file_manager_panel(ui_state, ui);
 		ui.separator();
-		show_tool_manager_panel(ui_state, ui, tool_icons);
+		show_tool_manager_panel(ui_state, ui, &tool_icons);
 	});
 }
 
@@ -82,6 +84,7 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
 			file_options.len(),
 			|i| file_options[i].to_owned()
 		);
+		// Do stuff when selection changes.
 		match file_selection {
 			1 => {  },
 			2 => {  },
@@ -99,6 +102,7 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
 			edit_options.len(),
 			|i| edit_options[i].to_owned()
 		);
+		// Do stuff when selection changes.
 		match edit_selection {
 			1 => {  },
 			_ => {},
@@ -113,6 +117,7 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
 			view_options.len(),
 			|i| view_options[i].to_owned()
 		);
+		// Do stuff when selection changes.
 		match view_selection {
 			1 => { ui_state.show_selected_tool = !ui_state.show_selected_tool },
 			2 => { ui_state.show_visualization = !ui_state.show_visualization }
@@ -133,7 +138,7 @@ fn show_tool_manager_panel(
 
 			let current_tool: SimTool = i.into();
 
-			// Add a button to the UI and check it for click events!
+			// Add a button to the UI and switch the active tool when it is clicked!
 			if ui.add(egui::Button::image_and_text(
 				tool_icons[i].clone(), current_tool.as_str() )).clicked() {
 
@@ -143,6 +148,7 @@ fn show_tool_manager_panel(
 	});
 }
 
+/// Show the menu with the current tool's options.
 fn show_current_tool_menu(
 	ui_state:		&mut UIStateManager,
 	contexts:		&mut EguiContexts) {
@@ -151,6 +157,7 @@ fn show_current_tool_menu(
 	let selected_tool_name: String	= ui_state.selected_tool.as_str().to_owned();
 	let context_window_name: String	= selected_tool_name + " Options";
 
+	// Create a new eGUI window.
 	egui::Window::new(context_window_name)
 		.id(egui::Id::from("Tool Selection Window"))
 		.frame(ui_state.window_frame)
@@ -162,12 +169,20 @@ fn show_current_tool_menu(
 		// Align the buttons in this row horizontally from left to right.
 		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
 
-			// Color picker!
-			ui.color_edit_button_rgb(&mut ui_state.color_picker_rgb);
-
-			// Tool size!
-			let mut tool_size: f32 = 10.0;
-			ui.add(egui::Slider::new(&mut tool_size, 1.0..=500.0));
+			// Show different buttons depending on which tool is currently selected.
+			match ui_state.selected_tool {
+				SimTool::Select			=> {  },
+				SimTool::Grab			=> {  },
+				SimTool::AddFluid		=> {  },
+				SimTool::RemoveFluid	=> {  },
+				SimTool::AddWall		=> {  },
+				SimTool::RemoveWall		=> {  },
+				SimTool::AddFaucet		=> {  },
+				SimTool::RemoveFaucet	=> {  },
+				SimTool::AddDrain		=> {  },
+				SimTool::RemoveDrain	=> {  },
+				_						=> {},
+			}
 		});
 	});
 }
@@ -191,10 +206,12 @@ fn show_visualization_menu(ui_state: &UIStateManager, contexts: &mut EguiContext
 	});
 }
 
+/// Play/pause menu.
 fn show_play_pause_menu(
 	ui_state:		&mut UIStateManager,
 	contexts:		&mut EguiContexts) {
 
+	// Get the icons we need!
 	let play_pause_icons: Vec<egui::Image> = Vec::new();
 	let play_icon = image_handle_to_egui_texture(
 		ui_state.play_pause_icon_handles[0].clone_weak(),
