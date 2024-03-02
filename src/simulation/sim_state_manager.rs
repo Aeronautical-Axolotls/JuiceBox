@@ -129,7 +129,7 @@ pub fn delete_all_particles(
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&Query<(Entity, &mut SimParticle)>) {
-	
+
 	// KILL THEM ALL!!!
 	for (particle_id, _) in particles.iter() {
 		let _ = delete_particle(commands, constraints, particles, grid, particle_id);
@@ -168,4 +168,15 @@ pub fn select_particles<'a>(
 	}
 
 	selected_particles
+}
+
+pub fn add_facet(
+	commands:			&mut Commands,
+	constraints:		&mut SimConstraints,
+	grid:				&mut SimGrid,
+    facet_pos:          Vec2,
+    surface_direction:  SimSurfaceDirection
+    ) {
+
+
 }
