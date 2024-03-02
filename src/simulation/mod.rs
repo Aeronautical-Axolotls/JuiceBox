@@ -218,6 +218,14 @@ pub enum SimGridCellType {
 	Air,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SimSurfaceDirection {
+    North,
+    South,
+    East,
+    West,
+}
+
 #[derive(Resource, Clone)]
 pub struct SimGrid {
 	pub	dimensions:	    (u16, u16),				// # of Hor. and Vert. cells in the simulation.
@@ -734,6 +742,12 @@ pub struct SimParticle {
 	pub position:		Vec2, 	// This particle's [x, y] position.
 	pub velocity:		Vec2, 	// This particle's [x, y] velocity.
 	pub lookup_index:	usize,	// Bucket index into spatial lookup for efficient neighbor search.
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct SimFacet {
+    pub position:       Vec2,                   // Facet Postion in the simulation
+    pub direction:      SimSurfaceDirection,    // Direction to which the facet is connected with the wall
 }
 
 /// Simulation state manager initialization.
