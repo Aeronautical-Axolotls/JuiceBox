@@ -1,4 +1,4 @@
-use std::f32::consts::{PI, FRAC_2_PI, FRAC_PI_2, E, LOG2_E};
+use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::math::Vec2;
@@ -9,54 +9,19 @@ use super::*;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-// pub struct SimStateManager;
-// impl Plugin for SimStateManager {
-
-// 	fn build(&self, app: &mut App) {
-// 		app.insert_resource(SimConstraints::default());
-// 		app.insert_resource(SimGrid::default());
-
-// 		app.add_systems(Startup, setup);
-// 		app.add_systems(Update, update);
-// 	}
-// }
-
-// /// Simulation state manager initialization.
-// fn setup(
-// 	mut commands:		Commands,
-// 	mut constraints:	ResMut<SimConstraints>,
-// 	mut grid:			ResMut<SimGrid>) {
-
-// 	test::construct_test_simulation_layout(grid.as_mut(), commands);
-// 	// TODO: Get saved simulation data from most recently open file OR default file.
-// 	// TODO: Population constraints, grid, and particles with loaded data.
-// }
-
-// /// Simulation state manager update; handles user interactions with the simulation.
-// fn update(
-// 	mut constraints:	ResMut<SimConstraints>,
-// 	mut grid:			ResMut<SimGrid>) {
-
-// 	// TODO: Check for and handle simulation saving/loading.
-// 	// TODO: Check for and handle simulation pause/timestep change.
-// 	// TODO: Check for and handle changes to simulation grid.
-// 	make_grid_velocities_incompressible(grid.as_mut(), constraints.as_ref());
-// 	// TODO: Check for and handle changes to gravity.
-// 	// TODO: Check for and handle tool usage.
-// }
-
 /** Add many particles into the simulation within a radius.  Note that particle_density is
 	the number of particles per unit radius. */
 pub fn add_particles_in_radius(
 	commands:			&mut Commands,
-	grid:				&SimGrid,
+	constraints:		&mut SimConstraints,
+	grid:				&mut SimGrid,
 	particle_density:	f32,
 	radius:				f32,
 	center_position:	Vec2,
 	velocity:			Vec2) {
 
 	// Create center particle.
-	let _center_particle = add_particle(commands, grid, center_position, velocity);
+	let _center_particle = add_particle(commands, constraints, grid, center_position, velocity);
 
 	// Density for the rings inside the circle.
 	let ring_density: f32		= particle_density * 2.0;
@@ -80,24 +45,29 @@ pub fn add_particles_in_radius(
 			};
 //
 			// If particle_position is outside the grid bounds, this will not create a particle:
-			let _particle = add_particle(commands, grid, particle_position, velocity);
+			let _particle = add_particle(commands, constraints, grid, particle_position, velocity);
 		}
 	}
 }
 
 /// Add particles into the simulation.
-fn add_particle(
-	commands:	&mut Commands,
-	grid:			&SimGrid,
+pub fn add_particle(
+	commands:		&mut Commands,
+	constraints:	&mut SimConstraints,
+	grid:			&mut SimGrid,
 	position:		Vec2,
 	velocity:		Vec2) -> Result<()> {
 
 	// Don't allow the user to create particles out of the simulation grid's bounds!
 	if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds("X-coordinate for particle creation is out of grid bounds!"));
+		return Err(Error::OutOfGridBounds(
+			"X-coordinate for particle creation is out of grid bounds!"
+		));
 	}
 	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds("Y-coordinate for particle creation is out of grid bounds!"));
+		return Err(Error::OutOfGridBounds(
+			"Y-coordinate for particle creation is out of grid bounds!"
+		));
 	}
 	// If the cell we are inside of is a solid, don't create the particle!
 	let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&position);
@@ -107,12 +77,18 @@ fn add_particle(
 		return Err(Error::InvalidCellParticleCreation("Chosen cell is solid!"));
 	}
 
-	let particle: Entity = commands.spawn(
+	// Add every particle to the 0-cell's lookup at first; we will sort this next frame.
+	let lookup_index: usize	= 0;
+	let particle: Entity	= commands.spawn(
 		SimParticle {
-			position:	position,
-			velocity:	velocity,
+			position:		position,
+			velocity:		velocity,
+			lookup_index:	lookup_index,
 		}
 	).id();
+	grid.add_particle_to_lookup(particle, lookup_index);
+
+	constraints.particle_count += 1;
 
 	// IMPORTANT: Links a sprite to each particle for rendering.
 	juice_renderer::link_particle_sprite(commands, particle);
@@ -121,39 +97,75 @@ fn add_particle(
 }
 
 /// Remove a particle with ID particle_id from the simulation.
-fn delete_particles(
-	mut commands:	&mut Commands,
-	mut particles:	Query<(Entity, &mut SimParticle)>,
+pub fn delete_particle(
+	commands:		&mut Commands,
+	constraints:	&mut SimConstraints,
+	particles:		&Query<(Entity, &mut SimParticle)>,
+	grid:			&mut SimGrid,
 	particle_id:	Entity) -> Result<()> {
 
-	commands.entity(particle_id).despawn();
-	Ok(())
+	// Look for the particle in our particles query.
+	if let Ok(particle) = particles.get(particle_id) {
+
+		// Remove particle from lookup table and despawn it.
+		grid.remove_particle_from_lookup(particle_id, particle.1.lookup_index);
+		commands.entity(particle_id).despawn();
+
+		/* BUG: This overflowed once while testing, and I'm betting it's because I misuse
+			Entity::PLACEHOLDER.  Here is my silly little fix: */
+		if constraints.particle_count > 0 {
+			constraints.particle_count -= 1;
+		}
+
+		return Ok(());
+	}
+
+	Err(Error::InvalidEntityID("Invalid particle entity ID!"))
 }
 
-/** Returns a vector of ID's of the particles within a circle centered at "position" with radius
-	"radius." */
-pub fn select_particles(
-	particles:	Query<(Entity, &mut SimParticle)>,
+/// Reset all simulation components to their default state.
+pub fn delete_all_particles(
+	commands:		&mut Commands,
+	constraints:	&mut SimConstraints,
+	grid:			&mut SimGrid,
+	particles:		&Query<(Entity, &mut SimParticle)>) {
+	
+	// KILL THEM ALL!!!
+	for (particle_id, _) in particles.iter() {
+		let _ = delete_particle(commands, constraints, particles, grid, particle_id);
+	}
+}
+
+/** Returns a vector of entity ID's of each particle within a circle centered at `position` with
+	radius `radius`; returns an empty vector if no particles are found. */
+pub fn select_particles<'a>(
+	particles:	&Query<(Entity, &mut SimParticle)>,
+	grid:		&SimGrid,
 	position:	Vec2,
-	radius:		u32) -> Result<Vec<Entity>> {
+	radius:		f32) -> Vec<Entity> {
 
-	/* TODO: Rework this function to use a spatial lookup based on SimGrid.  If a particle is
-		outside of the nearest grid cells, then skip checking it.  We can accomplish this in a
-		parallel-friendly way by sorting a list of spatial lookups for particles based on the grid,
-		then choosing the nearest 1/9/25/49 grid cells (based on radius). */
+	let mut selected_particles: Vec<Entity>	= Vec::new();
 
-	let mut selected_particles: Vec<Entity> = Vec::new();
+	// TODO: Maybe use map() here?  Idk.  Garrett I need u to explain map() to me I don't get it :(
+	let selected_cell_coordinates: Vec<Vec2> = grid.select_grid_cells(position, radius);
 
-	for (entity_id, particle) in particles.iter() {
-		let distance: f32 = position.distance(particle.position);
-		if distance <= (radius as f32) {
-			selected_particles.push(entity_id);
+	for i in 0..selected_cell_coordinates.len() {
+
+		let cell_lookup_index: usize = grid.get_lookup_index(selected_cell_coordinates[i]);
+		for particle_id in grid.get_particles_in_lookup(cell_lookup_index).iter() {
+
+			// TODO: Error checking here.  Don't use unwrap() in production!
+			let particle: &SimParticle = particles.get(*particle_id).unwrap().1;
+
+			// Avoid an unnecessary sqrt() here:
+			let distance: f32 = Vec2::distance_squared(position, particle.position);
+
+			// If we are within our radius, add the particle to the list and return it!
+			if distance < (radius * radius) {
+				selected_particles.push(*particle_id);
+			}
 		}
 	}
 
-	if selected_particles.len() > 0 {
-		Ok(selected_particles)
-	} else {
-		Err(Error::NoParticlesFound("cannot select any particles!"))
-	}
+	selected_particles
 }

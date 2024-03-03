@@ -1,24 +1,29 @@
 use bevy::{
-	prelude::*,
-	core_pipeline::prelude::ClearColor, render::color,
+	core_pipeline::prelude::ClearColor, prelude::*, sprite::MaterialMesh2dBundle
 };
 use crate::{
-	util::{self, vector_magnitude},
 	simulation::{
+		SimConstraints,
+		SimGrid,
+		SimGridCellType,
 		SimParticle,
-		SimGrid, SimGridCellType,
-	},
+	}, test::test_renderer::test_draw_gravity_vector_arrow, util::{
+		self,
+		JUICE_BLUE,
+		JUICE_GREEN
+	}
 };
 
 pub struct JuiceRenderer;
 impl Plugin for JuiceRenderer {
 
 	fn build(&self, app: &mut App) {
-		app.insert_resource(ClearColor(util::JUICE_SKY_BLUE));
+		app.insert_resource(ClearColor(Color::BLACK));
 		app.insert_resource(FluidRenderData::default());
 		app.insert_resource(GridRenderData::default());
 
 		app.add_systems(Startup, setup_renderer);
+		app.add_systems(Update, test_draw_gravity_vector_arrow);
 
 		app.add_systems(Update, update_particle_position);
 		app.add_systems(Update, update_particle_color);
@@ -30,8 +35,8 @@ impl Plugin for JuiceRenderer {
 	}
 }
 
-enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure }
-enum FluidGridVectorType	{ Velocity }
+enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure, Density, GridCell, Spume }
+enum FluidGridVectorType	{ Velocity, Gravity }
 
 #[derive(Resource)]
 struct FluidRenderData {
@@ -39,16 +44,20 @@ struct FluidRenderData {
 	arbitrary_color:	Color,
 	velocity_magnitude_color_scale:	f32,
 	pressure_magnitude_color_scale:	f32,
+	density_magnitude_color_scale:	f32,
+	particle_render_scale: f32
 }
 
 impl Default for FluidRenderData {
 
 	fn default() -> Self {
 		Self {
-			color_render_type:	FluidColorRenderType::Velocity,
+			color_render_type:	FluidColorRenderType::Density,
 			arbitrary_color:	util::JUICE_YELLOW,
-			velocity_magnitude_color_scale:	10.0,
-			pressure_magnitude_color_scale:	10.0,
+			velocity_magnitude_color_scale:	200.0,
+			pressure_magnitude_color_scale:	100.0,
+			density_magnitude_color_scale: 	100.0,
+			particle_render_scale: 1.0,
 		}
 	}
 }
@@ -59,22 +68,24 @@ struct GridRenderData {
 	grid_color:			Color,
 	solid_cell_color:	Color,
 
-	draw_grid_vectors:	bool,
-	grid_vector_type:	FluidGridVectorType,
-	grid_vector_color:	Color,
+	draw_vectors:			bool,
+	vector_type:			FluidGridVectorType,
+	vector_color:			Color,
+	vector_magnitude_scale:	f32,
 }
 
 impl Default for GridRenderData {
 
 	fn default() -> Self {
 		Self {
-			draw_grid:			true,
-			grid_color:			Color::WHITE,
-			solid_cell_color:	Color::BLACK,
+			draw_grid:			false,
+			grid_color:			Color::DARK_GRAY,
+			solid_cell_color:	Color::GOLD,
 
-			draw_grid_vectors:	true,
-			grid_vector_type:	FluidGridVectorType::Velocity,
-			grid_vector_color:	Color::BLACK,
+			draw_vectors:			false,
+			vector_type:			FluidGridVectorType::Velocity,
+			vector_color:			Color::WHITE,
+			vector_magnitude_scale:	0.05,
 		}
 	}
 }
@@ -91,16 +102,20 @@ fn toggle_draw_grid(grid: &mut GridRenderData) {
 
 // toggle draw grid vectors
 fn toggle_draw_grid_vectors(grid: &mut GridRenderData) {
-	if grid.draw_grid_vectors == true {
-		grid.draw_grid_vectors = false;
+	if grid.draw_vectors == true {
+		grid.draw_vectors = false;
 	}
 	else{
-		grid.draw_grid_vectors = true;
+		grid.draw_vectors = true;
 	}
 }
 
 /// Custom rendering pipeline initialization.
-fn setup_renderer(mut commands: Commands, grid: Res<SimGrid>) {
+fn setup_renderer(
+	mut commands:	Commands,
+	grid:			Res<SimGrid>,
+	mut meshes:		ResMut<Assets<Mesh>>,
+	mut materials:	ResMut<Assets<ColorMaterial>>) {
 
 	// Spawn a camera to view our simulation world!
 	commands.spawn(Camera2dBundle {
@@ -124,7 +139,9 @@ pub fn link_particle_sprite(mut commands: &mut Commands, particle: Entity) {
 }
 
 /// Update the visual transform of all particles to be rendered.
-fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>) {
+fn update_particle_position(
+	constraints: Res<SimConstraints>,
+	mut particles: Query<(&SimParticle, &mut Transform)>) {
 
 	for (particle, mut transform) in particles.iter_mut() {
 		transform.translation = Vec3 {
@@ -139,46 +156,73 @@ fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>
 }
 
 /// Update the size of all particles to be rendered.
-fn update_particle_size(mut particles: Query<(&SimParticle, &mut Sprite)>) {
+fn update_particle_size(
+	mut particles:		Query<(&SimParticle, &mut Sprite)>,
+	constraints:		Res<SimConstraints>,
+	fluid_render_data:	Res<FluidRenderData>) {
 
 	for (_, mut sprite) in particles.iter_mut() {
-		let size: f32 = 1.0;
+		/* Multiply this by 2, because we are dealing with the radius.  To account for the full
+			size of the particle, we need to multiply the radius by 2. */
+		let size: f32 = constraints.particle_radius * 2.0 * fluid_render_data.particle_render_scale;
 		sprite.custom_size = Some(Vec2::splat(size));
 	}
 }
 
 /// Update the color of all particles to be rendered.
 fn update_particle_color(
-	mut particles: Query<(&SimParticle, &mut Sprite)>,
-	grid: Res<SimGrid>,
-	particle_render_data: Res<FluidRenderData>) {
+	particles:				Query<(&SimParticle, &mut Sprite)>,
+	grid:					Res<SimGrid>,
+	constraints:			Res<SimConstraints>,
+	particle_render_data:	Res<FluidRenderData>) {
 
 	match particle_render_data.color_render_type {
 		FluidColorRenderType::Velocity	=> color_particles_by_velocity(
 			particles,
-			particle_render_data.velocity_magnitude_color_scale
+			particle_render_data.velocity_magnitude_color_scale,
+			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
 		),
 		FluidColorRenderType::Pressure	=> color_particles_by_pressure(
 			particles,
 			grid.as_ref(),
-			particle_render_data.pressure_magnitude_color_scale
+			particle_render_data.pressure_magnitude_color_scale,
+			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
+		),
+		FluidColorRenderType::Density	=> color_particles_by_density(
+			particles,
+			grid.as_ref(),
+			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density / constraints.particle_radius,
+			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
+		),
+		FluidColorRenderType::Spume		=> color_particles_by_density(
+			particles,
+			grid.as_ref(),
+			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density / constraints.particle_radius,
+			&vec![Color::ANTIQUE_WHITE, util::JUICE_SKY_BLUE, util::JUICE_BLUE, util::JUICE_BLUE]
 		),
 		FluidColorRenderType::Arbitrary	=> color_particles(
 			particles,
 			particle_render_data.arbitrary_color
+		),
+		FluidColorRenderType::GridCell	=> color_particles_by_grid_cell(
+			particles,
+			grid.as_ref(),
+			JUICE_BLUE,
+			JUICE_GREEN
 		),
 	}
 }
 
 /// Color all particles in the simulation by their velocities.
 fn color_particles_by_velocity(
-	mut particles: Query<(&SimParticle, &mut Sprite)>,
-	velocity_magnitude_color_scale: f32) {
+	mut particles:					Query<(&SimParticle, &mut Sprite)>,
+	velocity_magnitude_color_scale:	f32,
+	color_list:						&Vec<Color>) {
 
 	for (particle, mut sprite) in particles.iter_mut() {
 
 		let color: Color = util::generate_color_from_gradient(
-			vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
+			color_list,
 			util::vector_magnitude(particle.velocity) / velocity_magnitude_color_scale,
 		);
 
@@ -188,9 +232,10 @@ fn color_particles_by_velocity(
 
 /// Color all particles in the simulation by their pressures.
 fn color_particles_by_pressure(
-	mut particles: Query<(&SimParticle, &mut Sprite)>,
-	grid: &SimGrid,
-	pressure_magnitude_color_scale: f32) {
+	mut particles:					Query<(&SimParticle, &mut Sprite)>,
+	grid:							&SimGrid,
+	pressure_magnitude_color_scale:	f32,
+	color_list:						&Vec<Color>) {
 
 	for (particle, mut sprite) in particles.iter_mut() {
 
@@ -199,8 +244,26 @@ fn color_particles_by_pressure(
 		let cell_col: usize	= cell_pos[0] as usize;
 
 		let color: Color = util::generate_color_from_gradient(
-			vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
+			color_list,
 			grid.cell_center[cell_row][cell_col] / pressure_magnitude_color_scale,
+		);
+		sprite.color = color;
+	}
+}
+
+/// Color all particles in the simulation by the density of the cell they belong to.
+fn color_particles_by_density(
+	mut particles:					Query<(&SimParticle, &mut Sprite)>,
+	grid:							&SimGrid,
+	density_magnitude_color_scale:	f32,
+	color_list:						&Vec<Color>) {
+
+	for (particle, mut sprite) in particles.iter_mut() {
+
+		let density: f32 = grid.get_density_at_position(particle.position);
+		let color: Color = util::generate_color_from_gradient(
+			color_list,
+			density / density_magnitude_color_scale,
 		);
 		sprite.color = color;
 	}
@@ -211,6 +274,27 @@ fn color_particles(mut particles: Query<(&SimParticle, &mut Sprite)>, color: Col
 
 	for (_, mut sprite) in particles.iter_mut() {
 		sprite.color = color;
+	}
+}
+
+/// Color all particles in the simulation by their grid cell.
+fn color_particles_by_grid_cell(
+	mut particles:	Query<(&SimParticle, &mut Sprite)>,
+	grid:			&SimGrid,
+	color_even:		Color,
+	color_odd:		Color) {
+
+	for (particle, mut sprite) in particles.iter_mut() {
+
+		let cell_pos: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
+		let cell_row: usize	= cell_pos[1] as usize;
+		let cell_col: usize	= cell_pos[0] as usize;
+
+		if (cell_row + cell_col) % 2 == 0 {
+			sprite.color = color_even;
+		} else {
+			sprite.color = color_odd;
+		}
 	}
 }
 
@@ -258,12 +342,23 @@ fn draw_solid_cell(grid: &SimGrid, cell_coordinates: Vec2, color: Color, gizmos:
 /// Draw grid cells based on SimGrid using Bevy's Gizmos!
 fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mut gizmos: Gizmos) {
 
-	if !grid_render_data.draw_grid {
-		return;
-	}
-
 	let grid_width: f32		= (grid.dimensions.0 * grid.cell_size) as f32;
 	let grid_height: f32	= (grid.dimensions.1 * grid.cell_size) as f32;
+
+	// If we don't want to draw the grid cells, still outline the simulation.
+	if !grid_render_data.draw_grid {
+
+		let top_left: Vec2		= Vec2 { x: 0.0,		y: grid_height };
+		let top_right: Vec2		= Vec2 { x: grid_width,	y: grid_height };
+		let bottom_right: Vec2	= Vec2 { x: grid_width,	y: 0.0 };
+
+		gizmos.line_2d(Vec2::ZERO, bottom_right, grid_render_data.grid_color);
+		gizmos.line_2d(Vec2::ZERO, top_left, grid_render_data.grid_color);
+		gizmos.line_2d(top_left, top_right, grid_render_data.grid_color);
+		gizmos.line_2d(top_right, bottom_right, grid_render_data.grid_color);
+
+		return;
+	}
 
 	// Draw vertical grid lines.
 	for i in 0..((grid.dimensions.0 as u16) + 1) {
@@ -298,32 +393,25 @@ fn draw_grid_vectors(
 	grid_render_data:	Res<GridRenderData>,
 	mut gizmos:			Gizmos) {
 
-	if !grid_render_data.draw_grid_vectors {
+	if !grid_render_data.draw_vectors {
 		return;
 	}
 
-	for x in 0..grid.dimensions.0 {
-		for y in 0..grid.dimensions.1 {
-
-			// Find the center of each grid cell to draw the vector arrows.
-			let half_cell_size: f32 = (grid.cell_size as f32) / 2.0;
-			let cell_center_position: Vec2 = Vec2 {
-				x: (x as f32) * (grid.cell_size as f32) + half_cell_size,
-				y: (y as f32) * (grid.cell_size as f32) + half_cell_size,
-			};
+	for row in 0..grid.dimensions.1 {
+		for col in 0..grid.dimensions.0 {
 
 			/* Indices for each column/row of each u/v velocity component on the grid.  Note that
 				because each cell has two velocity components going in either direction, the
 				vectors containing said components are one element larger in either rows or
 				columns.  This fact prevents the following code from going out of bounds, so long
 				as grid.velocity_u and grid.velocity_v are constructed properly. */
-			let column_u0: usize	= x as usize;
-			let column_u1: usize	= (x + 1) as usize;
-			let row_u: usize		= y as usize;
+			let column_u0: usize	= col as usize;
+			let column_u1: usize	= (col + 1) as usize;
+			let row_u: usize		= row as usize;
 
-			let row_v0: usize		= y as usize;
-			let row_v1: usize		= (y + 1) as usize;
-			let column_v: usize		= x as usize;
+			let row_v0: usize		= row as usize;
+			let row_v1: usize		= (row + 1) as usize;
+			let column_v: usize		= col as usize;
 
 			// Horizontal velocity components.
 			let velocities_u: [f32; 2]	= [
@@ -345,12 +433,29 @@ fn draw_grid_vectors(
 			// Calculate velocity direction and magnitude based on u and v components.
 			let velocity_vector_polar: Vec2 = util::cartesian_to_polar(velocity_vector_cartesian);
 
+			// Skip drawing if the vector is too short.
+			if velocity_vector_polar[0] < 0.2 {
+				continue;
+			}
+
+			// Find the center of each grid cell to draw the vector arrows.
+			// TODO: Refactor to use grid.get_cell_center_position_from_coordinates().
+			let half_cell_size: f32	= (grid.cell_size as f32) / 2.0;
+			let cell_x: f32			= (col * grid.cell_size) as f32;
+			let cell_y: f32			= (row * grid.cell_size) as f32;
+			let grid_height: f32	= (grid.dimensions.0 * grid.cell_size) as f32;
+			let cell_center_position: Vec2 = Vec2 {
+				x: cell_x + half_cell_size,
+				y: grid_height - cell_y - half_cell_size,
+			};
+
 			draw_vector_arrow(
 				cell_center_position,
 				velocity_vector_polar[1],
-				velocity_vector_polar[0],
-				grid_render_data.grid_vector_color,
-				&mut gizmos);
+				velocity_vector_polar[0] * grid_render_data.vector_magnitude_scale,
+				grid_render_data.vector_color,
+				&mut gizmos
+			);
 		}
 	}
 }
@@ -390,4 +495,9 @@ pub fn draw_vector_arrow(
 	gizmos.line_2d(tail_position, head_position,		arrow_color);
 	gizmos.line_2d(head_position, arrow_left_position,	arrow_color);
 	gizmos.line_2d(head_position, arrow_right_position,	arrow_color);
+}
+
+/// Draws a circle around the mouse cursor.
+pub fn draw_selection_circle(gizmos: &mut Gizmos, position: Vec2, radius: f32, color: Color) {
+	gizmos.circle_2d(position, radius, color);
 }

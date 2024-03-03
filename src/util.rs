@@ -1,20 +1,13 @@
 use bevy::{
-	math::{ Vec2, Vec4 },
-	window::{ Window, WindowPlugin, MonitorSelection, WindowPosition },
-	prelude::Color,
-	utils::default,
-	input::{ keyboard::KeyCode, Input },
-	time::Time,
-	transform::components::Transform,
-	render::camera::{ OrthographicProjection, Camera },
-	ecs::{ system::{ Res, Query }, query::With },
+	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Vec2, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
 };
+use winit::window::Icon;
 use std::{
 	f32::consts::PI,
 	time::SystemTime,
 };
 
-use crate::simulation::SimGrid;
+use crate::{juice_renderer::draw_vector_arrow, simulation::{sim_state_manager, SimConstraints, SimGrid, SimGridCellType, SimParticle}, test::test_state_manager};
 
 pub const WINDOW_WIDTH: f32		= 640.0;
 pub const WINDOW_HEIGHT: f32	= 480.0;
@@ -32,6 +25,92 @@ pub fn vector_magnitude(vector: Vec2) -> f32 {
 	magnitude = magnitude.sqrt();
 
 	magnitude
+}
+
+/// Debugging state controller.
+pub fn debug_state_controller(
+	mut commands:		Commands,
+	keys:				Res<Input<KeyCode>>,
+	mouse:				Res<Input<MouseButton>>,
+	mut mouse_motion:	EventReader<MouseMotion>,
+	windows:			Query<&Window>,
+	cameras:			Query<(&Camera, &GlobalTransform)>,
+	mut constraints:	ResMut<SimConstraints>,
+	mut grid:			ResMut<SimGrid>,
+	mut particles:		Query<(Entity, &mut SimParticle)>) {
+	
+	// Reset simulation when we press R.
+	if keys.just_pressed(KeyCode::R) {
+		
+		/* BUG: The more times you reset the simulation the slower it runs.  I suspect this 
+			is caused by either the sprites not being properly unloaded when each particle 
+			component is despawned, OR the fact that we are repeatedly creating new grid and 
+			constraint resources, effectively leaking memory.  Not sure which; figure it out! */
+		crate::simulation::reset_simulation_to_default(
+			&mut commands,
+			constraints.as_mut(),
+			grid.as_mut(),
+			&mut particles
+		);
+		test_state_manager::construct_test_simulation_layout(
+			constraints.as_mut(),
+			grid.as_mut(),
+			commands
+		);
+		return;
+	}
+	
+	// Rotate/scale gravity when we press the arrow keys.
+	let gravity_rotation: i8	= keys.pressed(KeyCode::Right) as i8 - 
+									keys.pressed(KeyCode::Left) as i8;
+	let gravity_magnitude: i8	= keys.pressed(KeyCode::Up) as i8 - 
+									keys.pressed(KeyCode::Down) as i8;
+	let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
+	polar_gravity.x				+= 200.0 * gravity_magnitude as f32 * constraints.timestep;
+	polar_gravity.y				+= 4.0 * gravity_rotation as f32 * constraints.timestep;
+	
+	// Limit the magnitude of the vector to prevent ugly behavior near 0.0.
+	polar_gravity.x				= f32::max(0.0, polar_gravity.x);
+	constraints.gravity			= polar_to_cartesian(polar_gravity);
+	
+	// Place/remove grid cells if the mouse is clicked on a cell.
+	let should_place_cell: bool		= mouse.pressed(MouseButton::Left);
+	let should_remove_cell: bool	= mouse.pressed(MouseButton::Right);
+	
+	// Get the mouse's motion between this and the last frame.
+	let mut cursor_delta: Vec2 = Vec2::ZERO;
+	for event in mouse_motion.read() {
+		cursor_delta.x = event.delta.x;
+		cursor_delta.y = event.delta.y;
+	}
+	
+	if should_place_cell {
+		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
+		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&cursor_position);
+		let _ = grid.set_grid_cell_type(
+			cell_coordinates.x as usize,
+			cell_coordinates.y as usize,
+			SimGridCellType::Solid
+		);
+		
+		// Delete all particles in the cell we are turning into a solid.
+		let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
+		grid.delete_all_particles_in_cell(
+			&mut commands,
+			constraints.as_mut(),
+			&particles,
+			lookup_index
+		);
+		
+	} else if should_remove_cell {
+		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
+		let cell_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&cursor_position);
+		let _ = grid.set_grid_cell_type(
+			cell_coordinates.x as usize,
+			cell_coordinates.y as usize,
+			SimGridCellType::Air
+		);
+	}
 }
 
 /// Basic camera controller.
@@ -99,14 +178,35 @@ pub fn control_camera(
 	}
 }
 
+/// Get the mouse cursor's position on the screen!  Returns (0.0, 0.0) if cursor position not found.
+pub fn get_cursor_position(
+	windows: &Query<&Window>,
+	cameras: &Query<(&Camera, &GlobalTransform)>) -> Vec2 {
+
+	/* TODO: Store the cursor's position every frame in some Bevy resource; maybe make it part of
+		the user interaction module? */
+
+	let window = windows.single();
+	let (camera, camera_transform) = cameras.single();
+
+	if let Some(cursor_position) = window.cursor_position()
+		.and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor)) {
+
+		let cursor_world_position = cursor_position;
+		return cursor_world_position;
+	}
+
+	return Vec2::ZERO;
+}
+
 /// Gets system time in milliseconds since January 1st, 1970.
 pub fn get_millis_since_epoch() -> u128 {
 	match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-		Ok(n)	=> n.as_millis(), 
+		Ok(n)	=> n.as_millis(),
 		Err(_)	=> {
 			eprintln!("Your system time is before the epoch!  RNG will not work!");
 			12345678900987654321
-		}, 
+		},
 	}
 }
 
@@ -114,7 +214,7 @@ pub fn get_millis_since_epoch() -> u128 {
 pub fn generate_random_usize(seed: usize) -> usize {
 	let mut rand: usize = get_millis_since_epoch() as usize;
 	rand += seed;
-	
+
 	rand ^= rand << 13;
 	rand ^= rand >> 7;
 	rand ^= rand << 17;
@@ -125,7 +225,7 @@ pub fn generate_random_usize(seed: usize) -> usize {
 pub fn generate_random_u32(seed: u32) -> u32 {
 	let mut rand: u32 = get_millis_since_epoch() as u32;
 	rand += seed;
-	
+
 	rand ^= rand << 13;
 	rand ^= rand >> 17;
 	rand ^= rand << 5;
@@ -178,7 +278,7 @@ pub fn cartesian_to_polar(cartesian_vector: Vec2) -> Vec2 {
 
 /** Generate a color value from a gradient between n colors based on a value between 0.0 and 1.0.
 	**Color values should be provided in lowest value -> highest value order.** */
-pub fn generate_color_from_gradient(colors: Vec<Color>, mut value: f32) -> Color {
+pub fn generate_color_from_gradient(colors: &Vec<Color>, mut value: f32) -> Color {
 
 	// Clamp value and get the total number of color zones we can interpolate between.
 	value						= value.clamp(0.0, 1.0);
@@ -247,4 +347,22 @@ pub fn create_window_title(title: &str) -> String {
 	spruced_title.push_str(tagline);
 
 	spruced_title
+}
+
+/// Sets the window icon for the app window(s).
+pub fn set_window_icon(windows: NonSend<WinitWindows>)
+{
+	let (icon_rgba, icon_width, icon_height) = {
+		let image = image::open("assets/juicebox_logo_256.png")
+			.expect("Failed to open icon!")
+			.into_rgba8();
+		let (width, height)	= image.dimensions();
+		let rgba			= image.into_raw();
+		(rgba, width, height)
+	};
+	let icon = Icon::from_rgba(icon_rgba, icon_width, icon_height).unwrap();
+
+	for window in windows.windows.values() {
+		window.set_window_icon(Some(icon.clone()));
+	}
 }
