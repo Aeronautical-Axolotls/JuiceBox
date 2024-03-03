@@ -1,7 +1,9 @@
 use std::mem::transmute;
 
-use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::texture::Image, ui::FlexWrap, window::Window};
+use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
+
+use crate::util;
 
 pub fn init_user_interface(
 	mut contexts:	EguiContexts,
@@ -17,15 +19,13 @@ pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>) {
 
-	// Show all UI menus.
+	// Show "static" UI menus.
 	show_scene_manager_menu(&mut ui_state, &mut contexts);
-	if ui_state.show_selected_tool {
-		show_current_tool_menu(&mut ui_state, &mut contexts);
-	}
-	if ui_state.show_visualization {
-		show_visualization_menu(&ui_state, &mut contexts);
-	}
 	show_play_pause_menu(&mut ui_state, &mut contexts);
+
+	// Show hideable UI menus.
+	if ui_state.show_selected_tool { show_current_tool_menu(&mut ui_state, &mut contexts); }
+	if ui_state.show_visualization { show_visualization_menu(&mut ui_state, &mut contexts); }
 }
 
 /// Create menu for file saving/loading and tool selection.
@@ -164,6 +164,7 @@ fn show_current_tool_menu(
 		.pivot(Align2::CENTER_CENTER)
 		.default_pos(Pos2 { x: 0.0, y: ui_state.window_size.y / 2.0 })
 		.default_width(0.0)
+		.resizable(false)
 		.show(contexts.ctx_mut(), |ui| {
 
 		// Align the buttons in this row horizontally from left to right.
@@ -188,20 +189,52 @@ fn show_current_tool_menu(
 }
 
 /// Grid/fluid visualization settings menu.
-fn show_visualization_menu(ui_state: &UIStateManager, contexts: &mut EguiContexts) {
+fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiContexts) {
 
 	egui::Window::new("Visualization Options")
 		.frame(ui_state.window_frame)
 		.pivot(Align2::CENTER_CENTER)
 		.default_pos(Pos2 { x: ui_state.window_size.x, y: ui_state.window_size.y / 2.0 })
 		.default_width(0.0)
+		.resizable(false)
 		.show(contexts.ctx_mut(), |ui| {
 
 		// Align the buttons in this row horizontally from left to right.
 		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
 
+			ui.checkbox(&mut ui_state.show_grid, "Show Grid");
+			ui.checkbox(&mut ui_state.show_velocity_vectors, "Show Velocities");
+			ui.checkbox(&mut ui_state.show_gravity_vector, "Show Gravity");
+
+			ui.separator();
+
 			// Fluid color visualization option dropdown.
 			let color_options = ["Velocity", "Density", "Pressure", "None"];
+			egui::ComboBox::from_id_source(0).show_index(
+				ui,
+				&mut ui_state.fluid_color_variable,
+				color_options.len(),
+				|i| color_options[i].to_owned()
+			);
+			ui.horizontal_wrapped(|ui| {
+				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[0]);
+				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[1]);
+				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[2]);
+				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[3]);
+			});
+
+			ui.separator();
+
+			// Sliders for the particle size and gravity direction.
+			ui.add(egui::Slider::new(
+				&mut ui_state.particle_physical_size,
+				0.1..=10.0
+			).text("Particle Size"));
+
+			ui.add(egui::Slider::new(
+				&mut ui_state.gravity_direction,
+				0.0..=360.0
+			).text("Gravity Direction"));
 		});
 	});
 }
@@ -309,9 +342,16 @@ pub struct UIStateManager {
 	show_selected_tool:			bool,
 	selected_tool:				SimTool,
 	tool_icon_handles:			Vec<Handle<Image>>,
-	color_picker_rgb:			[f32; 3],
 
 	show_visualization:			bool,
+	show_grid:					bool,
+	show_velocity_vectors:		bool,
+	show_gravity_vector:		bool,
+	particle_physical_size:		f32,
+	gravity_direction:			f32,
+	fluid_color_variable:		usize,
+	fluid_colors:				[[f32; 3]; 4],
+
 	is_paused:					bool,
 	play_pause_icon_handles:	Vec<Handle<Image>>,
 
@@ -326,9 +366,21 @@ impl Default for UIStateManager {
 			show_selected_tool:			true,
 			selected_tool:				SimTool::Select,
 			tool_icon_handles:			vec![Handle::default(); UI_ICON_COUNT],
-			color_picker_rgb:			[1.0, 0.0, 1.0],
 
 			show_visualization:			false,
+			show_grid:					false,
+			show_velocity_vectors:		false,
+			show_gravity_vector:		false,
+			particle_physical_size:		1.0,
+			gravity_direction:			270.0,
+			fluid_color_variable:		0,
+			fluid_colors:				[
+				[util::JUICE_BLUE.r(), util::JUICE_BLUE.g(), util::JUICE_BLUE.b()],
+				[util::JUICE_GREEN.r(), util::JUICE_GREEN.g(), util::JUICE_GREEN.b()],
+				[util::JUICE_YELLOW.r(), util::JUICE_YELLOW.g(), util::JUICE_YELLOW.b()],
+				[util::JUICE_RED.r(), util::JUICE_RED.g(), util::JUICE_RED.b()],
+			],
+
 			is_paused:					false,
 			play_pause_icon_handles:	vec![Handle::default(); 2],
 
