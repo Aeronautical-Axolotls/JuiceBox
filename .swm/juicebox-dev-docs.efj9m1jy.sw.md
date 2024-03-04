@@ -580,7 +580,7 @@ This code snippet calculates the center position of a cell on a grid based on it
 
 ---
 
-Kade/Garrett will add (Ai failed)
+Kade/Garret will fill in
 
 ```renderscript
 	/** Selects grid cells that entirely cover the a circle of radius `radius` centered at `position`;
@@ -2275,9 +2275,1643 @@ fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u
 
 ### <SwmPath>[src/simulation/sim_state_manager.rs](/src/simulation/sim_state_manager.rs)</SwmPath>
 
+<SwmSnippet path="/src/simulation/sim_state_manager.rs" line="12">
+
+---
+
+This code snippet adds particles into a simulation within a given radius. It creates a center particle and concentric rings of particles that evenly space themselves out to form a circle around the center particle. The number of particles and their positions are determined by the `particle_density`, `radius`, and `center_position` parameters.
+
+```renderscript
+/** Add many particles into the simulation within a radius.  Note that particle_density is
+	the number of particles per unit radius. */
+pub fn add_particles_in_radius(
+	commands:			&mut Commands,
+	constraints:		&mut SimConstraints,
+	grid:				&mut SimGrid,
+	particle_density:	f32,
+	radius:				f32,
+	center_position:	Vec2,
+	velocity:			Vec2) {
+
+	// Create center particle.
+	let _center_particle = add_particle(commands, constraints, grid, center_position, velocity);
+
+	// Density for the rings inside the circle.
+	let ring_density: f32		= particle_density * 2.0;
+
+	// Create concentric rings of particles that evenly space themselves out to form a circle!
+	let ring_count: usize = 1 + (radius * ring_density / 20.0) as usize;
+	for ring_index in 1..ring_count {
+
+		/* Create each particle around the current ring. */
+		let ring_radius: f32		= ring_index as f32 / ring_density * 10.0;
+		let particle_count: usize	= (ring_radius as f32 * particle_density) as usize;
+		for particle_index in 0..particle_count as usize {
+
+			// Find the angle around the circle so we can correctly position this particle.
+			let angle: f32 = particle_index as f32 * ((2.0 * PI) / particle_count as f32);
+
+			// Find the position of the particle at the desired position around the ring.
+			let particle_position: Vec2 = Vec2 {
+				x: center_position[0] + (f32::cos(angle) * ring_radius),
+				y: center_position[1] + (f32::sin(angle) * ring_radius),
+			};
+//
+			// If particle_position is outside the grid bounds, this will not create a particle:
+			let _particle = add_particle(commands, constraints, grid, particle_position, velocity);
+		}
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/simulation/sim_state_manager.rs" line="53">
+
+---
+
+This code snippet adds particles into the simulation. It checks if the given position is within the simulation grid's bounds. If not, it returns an error. It also checks if the cell at the given position is a solid cell, if so it returns an error. Then it creates a particle entity with the given position and velocity, and adds it to the 0-cell's lookup. Finally, it increments the particle count and links a sprite to the particle for rendering.
+
+```renderscript
+/// Add particles into the simulation.
+pub fn add_particle(
+	commands:		&mut Commands,
+	constraints:	&mut SimConstraints,
+	grid:			&mut SimGrid,
+	position:		Vec2,
+	velocity:		Vec2) -> Result<()> {
+
+	// Don't allow the user to create particles out of the simulation grid's bounds!
+	if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"X-coordinate for particle creation is out of grid bounds!"
+		));
+	}
+	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"Y-coordinate for particle creation is out of grid bounds!"
+		));
+	}
+	// If the cell we are inside of is a solid, don't create the particle!
+	let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&position);
+	if matches!(
+		grid.cell_type[cell_coordinates[0] as usize][cell_coordinates[1] as usize],
+		SimGridCellType::Solid) {
+		return Err(Error::InvalidCellParticleCreation("Chosen cell is solid!"));
+	}
+
+	// Add every particle to the 0-cell's lookup at first; we will sort this next frame.
+	let lookup_index: usize	= 0;
+	let particle: Entity	= commands.spawn(
+		SimParticle {
+			position:		position,
+			velocity:		velocity,
+			lookup_index:	lookup_index,
+		}
+	).id();
+	grid.add_particle_to_lookup(particle, lookup_index);
+
+	constraints.particle_count += 1;
+
+	// IMPORTANT: Links a sprite to each particle for rendering.
+	juice_renderer::link_particle_sprite(commands, particle);
+
+	Ok(())
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/simulation/sim_state_manager.rs" line="99">
+
+---
+
+This code snippet defines a function `delete_particle` that removes a particle with a given ID from a simulation. It takes in several arguments including `commands`, `constraints`, `particles`, `grid`, and `particle_id`. It first checks if the particle with the given ID exists in the `particles` query by calling `particles.get(particle_id)`. If it does, it removes the particle from the `grid` and despawns it by calling `grid.remove_particle_from_lookup(particle_id, particle.1.lookup_index)` and `commands.entity(particle_id).despawn()`, respectively. Then, it decreases the `particle_count` in `constraints` if it is greater than 0. If the particle with the given ID doesn't exist, it returns an error.
+
+```renderscript
+/// Remove a particle with ID particle_id from the simulation.
+pub fn delete_particle(
+	commands:		&mut Commands,
+	constraints:	&mut SimConstraints,
+	particles:		&Query<(Entity, &mut SimParticle)>,
+	grid:			&mut SimGrid,
+	particle_id:	Entity) -> Result<()> {
+
+	// Look for the particle in our particles query.
+	if let Ok(particle) = particles.get(particle_id) {
+
+		// Remove particle from lookup table and despawn it.
+		grid.remove_particle_from_lookup(particle_id, particle.1.lookup_index);
+		commands.entity(particle_id).despawn();
+
+		/* BUG: This overflowed once while testing, and I'm betting it's because I misuse
+			Entity::PLACEHOLDER.  Here is my silly little fix: */
+		if constraints.particle_count > 0 {
+			constraints.particle_count -= 1;
+		}
+
+		return Ok(());
+	}
+
+	Err(Error::InvalidEntityID("Invalid particle entity ID!"))
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/simulation/sim_state_manager.rs" line="126">
+
+---
+
+This code snippet deletes all particles in a simulation by iterating over each particle and calling the `delete_particle` function.
+
+```renderscript
+/// Reset all simulation components to their default state.
+pub fn delete_all_particles(
+	commands:		&mut Commands,
+	constraints:	&mut SimConstraints,
+	grid:			&mut SimGrid,
+	particles:		&Query<(Entity, &mut SimParticle)>) {
+	
+	// KILL THEM ALL!!!
+	for (particle_id, _) in particles.iter() {
+		let _ = delete_particle(commands, constraints, particles, grid, particle_id);
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/simulation/sim_state_manager.rs" line="139">
+
+---
+
+This code snippet selects particles within a circle centered at `position` with a given `radius` by iterating over a grid and checking the distance between each particle's position and the center of the circle. It returns a vector of entity IDs for the selected particles.
+
+```renderscript
+/** Returns a vector of entity ID's of each particle within a circle centered at `position` with
+	radius `radius`; returns an empty vector if no particles are found. */
+pub fn select_particles<'a>(
+	particles:	&Query<(Entity, &mut SimParticle)>,
+	grid:		&SimGrid,
+	position:	Vec2,
+	radius:		f32) -> Vec<Entity> {
+
+	let mut selected_particles: Vec<Entity>	= Vec::new();
+
+	// TODO: Maybe use map() here?  Idk.  Garrett I need u to explain map() to me I don't get it :(
+	let selected_cell_coordinates: Vec<Vec2> = grid.select_grid_cells(position, radius);
+
+	for i in 0..selected_cell_coordinates.len() {
+
+		let cell_lookup_index: usize = grid.get_lookup_index(selected_cell_coordinates[i]);
+		for particle_id in grid.get_particles_in_lookup(cell_lookup_index).iter() {
+
+			// TODO: Error checking here.  Don't use unwrap() in production!
+			let particle: &SimParticle = particles.get(*particle_id).unwrap().1;
+
+			// Avoid an unnecessary sqrt() here:
+			let distance: f32 = Vec2::distance_squared(position, particle.position);
+
+			// If we are within our radius, add the particle to the list and return it!
+			if distance < (radius * radius) {
+				selected_particles.push(*particle_id);
+			}
+		}
+	}
+
+	selected_particles
+}
+```
+
+---
+
+</SwmSnippet>
+
 ## Test
 
 ## <SwmPath>[src/juice_renderer.rs](/src/juice_renderer.rs)</SwmPath>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="1">
+
+---
+
+This code imports various modules from the `bevy` crate and the `crate` module. It also imports a specific function `test_draw_gravity_vector_arrow` from the `test_renderer` module. Additionally, it imports some specific elements from the `util` module. The purpose of this code is not clear without further context.
+
+```renderscript
+use bevy::{
+	core_pipeline::prelude::ClearColor, prelude::*, sprite::MaterialMesh2dBundle
+};
+use crate::{
+	simulation::{
+		SimConstraints,
+		SimGrid,
+		SimGridCellType,
+		SimParticle,
+	}, test::test_renderer::test_draw_gravity_vector_arrow, util::{
+		self,
+		JUICE_BLUE,
+		JUICE_GREEN
+	}
+};
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="38">
+
+---
+
+This code snippet defines two enums: `FluidColorRenderType` and `FluidGridVectorType`. The `FluidColorRenderType` enum represents different types of rendering for fluid colors, such as `Arbitrary`, `Velocity`, `Pressure`, `Density`, `GridCell`, and `Spume`. The `FluidGridVectorType` enum represents different types of vector values for fluid grids, such as `Velocity` and `Gravity`.
+
+```renderscript
+enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure, Density, GridCell, Spume }
+enum FluidGridVectorType	{ Velocity, Gravity }
+
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="41">
+
+---
+
+This code snippet defines a `FluidRenderData` struct and implements the `Default` trait for it. The struct has several fields including `color_render_type`, `arbitrary_color`, `velocity_magnitude_color_scale`, `pressure_magnitude_color_scale`, `density_magnitude_color_scale`, and `particle_render_scale`. The `Default` implementation sets default values for these fields.
+
+```renderscript
+#[derive(Resource)]
+struct FluidRenderData {
+	color_render_type:	FluidColorRenderType,
+	arbitrary_color:	Color,
+	velocity_magnitude_color_scale:	f32,
+	pressure_magnitude_color_scale:	f32,
+	density_magnitude_color_scale:	f32,
+	particle_render_scale: f32
+}
+
+impl Default for FluidRenderData {
+
+	fn default() -> Self {
+		Self {
+			color_render_type:	FluidColorRenderType::Velocity,
+			arbitrary_color:	util::JUICE_YELLOW,
+			velocity_magnitude_color_scale:	200.0,
+			pressure_magnitude_color_scale:	100.0,
+			density_magnitude_color_scale: 	100.0,
+			particle_render_scale: 1.0,
+		}
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="65">
+
+---
+
+This code snippet defines a `GridRenderData` struct that represents the data used for rendering a grid. It includes various properties such as `draw_grid`, `grid_color`, `solid_cell_color`, `draw_vectors`, `vector_type`, `vector_color`, and `vector_magnitude_scale`. The `Default` trait is implemented for this struct, providing a default set of values for its properties.
+
+```renderscript
+#[derive(Resource)]
+struct GridRenderData {
+	draw_grid:			bool,
+	grid_color:			Color,
+	solid_cell_color:	Color,
+
+	draw_vectors:			bool,
+	vector_type:			FluidGridVectorType,
+	vector_color:			Color,
+	vector_magnitude_scale:	f32,
+}
+
+impl Default for GridRenderData {
+
+	fn default() -> Self {
+		Self {
+			draw_grid:			false,
+			grid_color:			Color::DARK_GRAY,
+			solid_cell_color:	Color::GOLD,
+
+			draw_vectors:			false,
+			vector_type:			FluidGridVectorType::Velocity,
+			vector_color:			Color::WHITE,
+			vector_magnitude_scale:	0.05,
+		}
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="93">
+
+---
+
+This code snippet toggles the `draw_grid` boolean value of the `grid` object. If `draw_grid` is `true`, it sets it to `false`, otherwise, it sets it to `true`.
+
+```renderscript
+// toggle draw grid
+fn toggle_draw_grid(grid: &mut GridRenderData) {
+	if grid.draw_grid == true {
+		grid.draw_grid = false;
+	}
+	else{
+		grid.draw_grid = true;
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="103">
+
+---
+
+This code snippet toggles the `draw_vectors` property of a `grid` by checking its current value and updating it accordingly.
+
+```renderscript
+// toggle draw grid vectors
+fn toggle_draw_grid_vectors(grid: &mut GridRenderData) {
+	if grid.draw_vectors == true {
+		grid.draw_vectors = false;
+	}
+	else{
+		grid.draw_vectors = true;
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="113">
+
+---
+
+This code snippet sets up a rendering pipeline for a simulation. It spawns a camera at the center of the simulation world with a specific translation and rotation.
+
+```renderscript
+/// Custom rendering pipeline initialization.
+fn setup_renderer(
+	mut commands:	Commands,
+	grid:			Res<SimGrid>,
+	mut meshes:		ResMut<Assets<Mesh>>,
+	mut materials:	ResMut<Assets<ColorMaterial>>) {
+
+	// Spawn a camera to view our simulation world!
+	commands.spawn(Camera2dBundle {
+		transform: Transform {
+			translation:	Vec3 {
+				x: ((grid.dimensions.0 * grid.cell_size) as f32) / 2.0,
+				y: ((grid.dimensions.1 * grid.cell_size) as f32) / 2.0,
+				z: 0.0,
+			},
+			rotation:		Quat::IDENTITY,
+			scale:			Vec3::ONE,
+		},
+		..default()
+	});
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="135">
+
+---
+
+This code snippet creates and links a new sprite to the specified particle entity in the simulation.
+
+```renderscript
+/** Creates and links a new sprite to the specified particle; **Must be called each time a new
+	particle is added to the simulation!** */
+pub fn link_particle_sprite(mut commands: &mut Commands, particle: Entity) {
+	commands.entity(particle).insert(SpriteBundle::default());
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="141">
+
+---
+
+&nbsp;
+
+```renderscript
+/// Update the visual transform of all particles to be rendered.
+fn update_particle_position(
+	constraints: Res<SimConstraints>,
+	mut particles: Query<(&SimParticle, &mut Transform)>) {
+
+	for (particle, mut transform) in particles.iter_mut() {
+		transform.translation = Vec3 {
+			x: particle.position.x,
+			y: particle.position.y,
+			/* IMPORTANT: Keep this at the same z-value for all particles.  This allows Bevy to do
+				sprite batching, cutting render costs by quite a bit.  If we change the z-index we
+				will likely see a large performance drop. */
+			z: 0.0,
+		};
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="158">
+
+---
+
+This code snippet updates the size of all particles to be rendered. It iterates over a collection of particles and multiplies the particle radius by 2 and the particle render scale to calculate the new size. Then, it sets the `custom_size` property of each particle's `Sprite` component to the calculated size.
+
+```renderscript
+/// Update the size of all particles to be rendered.
+fn update_particle_size(
+	mut particles:		Query<(&SimParticle, &mut Sprite)>,
+	constraints:		Res<SimConstraints>,
+	fluid_render_data:	Res<FluidRenderData>) {
+
+	for (_, mut sprite) in particles.iter_mut() {
+		/* Multiply this by 2, because we are dealing with the radius.  To account for the full
+			size of the particle, we need to multiply the radius by 2. */
+		let size: f32 = constraints.particle_radius * 2.0 * fluid_render_data.particle_render_scale;
+		sprite.custom_size = Some(Vec2::splat(size));
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="172">
+
+---
+
+This code snippet updates the color of all particles to be rendered based on different criteria such as velocity, pressure, density, spume, arbitrary color, or grid cell.
+
+```renderscript
+/// Update the color of all particles to be rendered.
+fn update_particle_color(
+	particles:				Query<(&SimParticle, &mut Sprite)>,
+	grid:					Res<SimGrid>,
+	constraints:			Res<SimConstraints>,
+	particle_render_data:	Res<FluidRenderData>) {
+
+	match particle_render_data.color_render_type {
+		FluidColorRenderType::Velocity	=> color_particles_by_velocity(
+			particles,
+			particle_render_data.velocity_magnitude_color_scale,
+			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
+		),
+		FluidColorRenderType::Pressure	=> color_particles_by_pressure(
+			particles,
+			grid.as_ref(),
+			particle_render_data.pressure_magnitude_color_scale,
+			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
+		),
+		FluidColorRenderType::Density	=> color_particles_by_density(
+			particles,
+			grid.as_ref(),
+			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density / constraints.particle_radius,
+			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
+		),
+		FluidColorRenderType::Spume		=> color_particles_by_density(
+			particles,
+			grid.as_ref(),
+			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density / constraints.particle_radius,
+			&vec![Color::ANTIQUE_WHITE, util::JUICE_SKY_BLUE, util::JUICE_BLUE, util::JUICE_BLUE]
+		),
+		FluidColorRenderType::Arbitrary	=> color_particles(
+			particles,
+			particle_render_data.arbitrary_color
+		),
+		FluidColorRenderType::GridCell	=> color_particles_by_grid_cell(
+			particles,
+			grid.as_ref(),
+			JUICE_BLUE,
+			JUICE_GREEN
+		),
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="216">
+
+---
+
+This code snippet colors all particles in a simulation based on their velocities. It takes in a query of particles and their sprites, a color scale for the velocity magnitude, and a list of colors. It iterates through each particle and calculates a color based on the velocity magnitude. Finally, it assigns the calculated color to the particle's sprite.
+
+```renderscript
+/// Color all particles in the simulation by their velocities.
+fn color_particles_by_velocity(
+	mut particles:					Query<(&SimParticle, &mut Sprite)>,
+	velocity_magnitude_color_scale:	f32,
+	color_list:						&Vec<Color>) {
+
+	for (particle, mut sprite) in particles.iter_mut() {
+
+		let color: Color = util::generate_color_from_gradient(
+			color_list,
+			util::vector_magnitude(particle.velocity) / velocity_magnitude_color_scale,
+		);
+
+		sprite.color = color;
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="233">
+
+---
+
+This code snippet colors all particles in the simulation based on their pressures. It takes in a `Query` of particles and their corresponding sprites, a `SimGrid`, a pressure magnitude color scale, and a list of colors. It iterates over each particle and sprite pair, gets the cell position of the particle, calculates the cell row and column, generates a color based on the pressure magnitude of the cell, and assigns the color to the sprite's `color` property.
+
+```renderscript
+/// Color all particles in the simulation by their pressures.
+fn color_particles_by_pressure(
+	mut particles:					Query<(&SimParticle, &mut Sprite)>,
+	grid:							&SimGrid,
+	pressure_magnitude_color_scale:	f32,
+	color_list:						&Vec<Color>) {
+
+	for (particle, mut sprite) in particles.iter_mut() {
+
+		let cell_pos: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
+		let cell_row: usize	= cell_pos[1] as usize;
+		let cell_col: usize	= cell_pos[0] as usize;
+
+		let color: Color = util::generate_color_from_gradient(
+			color_list,
+			grid.cell_center[cell_row][cell_col] / pressure_magnitude_color_scale,
+		);
+		sprite.color = color;
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="254">
+
+---
+
+This code snippet colors all particles in a simulation based on the density of the cell they belong to. It uses a gradient color scale and a density magnitude color scale to determine the color of each particle. The `color_particles_by_density` function takes in a list of particles, a simulation grid, a color scale, and a list of colors as arguments. It then iterates over each particle, calculates the density at its position using the `get_density_at_position` function from the grid, generates a color based on the density using the `generate_color_from_gradient` function, and assigns the color to the particle's sprite.
+
+```renderscript
+/// Color all particles in the simulation by the density of the cell they belong to.
+fn color_particles_by_density(
+	mut particles:					Query<(&SimParticle, &mut Sprite)>,
+	grid:							&SimGrid,
+	density_magnitude_color_scale:	f32,
+	color_list:						&Vec<Color>) {
+
+	for (particle, mut sprite) in particles.iter_mut() {
+
+		let density: f32 = grid.get_density_at_position(particle.position);
+		let color: Color = util::generate_color_from_gradient(
+			color_list,
+			density / (density_magnitude_color_scale * 0.45),
+		);
+		sprite.color = color;
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="272">
+
+---
+
+This code snippet defines a function `color_particles` that takes in a query of particles and a color as input. It iterates over all the particles in the query and sets their sprite color to the specified color.
+
+```renderscript
+/// Color all particles in the simulation as anything you want!
+fn color_particles(mut particles: Query<(&SimParticle, &mut Sprite)>, color: Color) {
+
+	for (_, mut sprite) in particles.iter_mut() {
+		sprite.color = color;
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="280">
+
+---
+
+This code snippet colors all particles in the simulation based on their grid cell. It takes in two colors, `color_even` and `color_odd`, and assigns the respective color to each particle's `sprite` based on the sum of their cell row and cell column being even or odd.
+
+```renderscript
+/// Color all particles in the simulation by their grid cell.
+fn color_particles_by_grid_cell(
+	mut particles:	Query<(&SimParticle, &mut Sprite)>,
+	grid:			&SimGrid,
+	color_even:		Color,
+	color_odd:		Color) {
+
+	for (particle, mut sprite) in particles.iter_mut() {
+
+		let cell_pos: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
+		let cell_row: usize	= cell_pos[1] as usize;
+		let cell_col: usize	= cell_pos[0] as usize;
+
+		if (cell_row + cell_col) % 2 == 0 {
+			sprite.color = color_even;
+		} else {
+			sprite.color = color_odd;
+		}
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="301">
+
+---
+
+This code snippet is a function that draws the solid grid cells within a grid. It iterates through each cell in the grid and checks its type. If the cell is fluid or air, it does nothing. If the cell is solid, it calls a `draw_solid_cell` function to draw the cell using the provided grid, position, color, and `gizmos` object.
+
+```renderscript
+/// Draw the solid grid cells within the grid.
+fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mut gizmos: Gizmos) {
+
+	// For each column in each row, determine each cell's type.
+	for row in 0..grid.dimensions.0 {
+		for col in 0..grid.dimensions.1 {
+
+			match grid.cell_type[row as usize][col as usize] {
+				SimGridCellType::Fluid	=> continue,			// Do nothing if fluid.
+				SimGridCellType::Air	=> continue,			// Do nothing if air.
+				SimGridCellType::Solid	=> draw_solid_cell(		// Draw something if solid.
+					grid.as_ref(),
+					Vec2 { x: row as f32, y: col as f32 },
+					grid_render_data.solid_cell_color,
+					&mut gizmos
+				),
+			}
+		}
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="322">
+
+---
+
+This code snippet draws a solid grid cell at a specific `cell_coordinates` (row, column) on a `grid` using the provided `color`. It uses the `draw_solid_cell` function to calculate the position of the cell and then draws a rectangle with the specified color at that position using the `gizmos` object.
+
+```renderscript
+/// Draw a solid grid cell using cell_coordinates (row, column).
+fn draw_solid_cell(grid: &SimGrid, cell_coordinates: Vec2, color: Color, gizmos: &mut Gizmos) {
+
+	// Get cell position.
+	let grid_height: f32	= (grid.dimensions.1 * grid.cell_size) as f32;
+	let half_cell_size: f32	= grid.cell_size as f32 * 0.5;
+	let position: Vec2 = Vec2 {
+		x: cell_coordinates[1] * (grid.cell_size as f32) + half_cell_size,
+		y: grid_height - cell_coordinates[0] * (grid.cell_size as f32) - half_cell_size,
+	};
+
+	// Draw the cell.
+	gizmos.rect_2d(
+		position,
+		0.0,
+		Vec2::splat(grid.cell_size as f32),
+		color
+	);
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="342">
+
+---
+
+This code snippet draws grid cells based on a provided `SimGrid` using Bevy's Gizmos library. It first checks if `grid_render_data.draw_grid` is `false`. If so, it outlines the simulation by drawing lines around it. Otherwise, it draws vertical and horizontal grid lines using `gizmos.line_2d` function.
+
+```renderscript
+/// Draw grid cells based on SimGrid using Bevy's Gizmos!
+fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mut gizmos: Gizmos) {
+
+	let grid_width: f32		= (grid.dimensions.0 * grid.cell_size) as f32;
+	let grid_height: f32	= (grid.dimensions.1 * grid.cell_size) as f32;
+
+	// If we don't want to draw the grid cells, still outline the simulation.
+	if !grid_render_data.draw_grid {
+
+		let top_left: Vec2		= Vec2 { x: 0.0,		y: grid_height };
+		let top_right: Vec2		= Vec2 { x: grid_width,	y: grid_height };
+		let bottom_right: Vec2	= Vec2 { x: grid_width,	y: 0.0 };
+
+		gizmos.line_2d(Vec2::ZERO, bottom_right, grid_render_data.grid_color);
+		gizmos.line_2d(Vec2::ZERO, top_left, grid_render_data.grid_color);
+		gizmos.line_2d(top_left, top_right, grid_render_data.grid_color);
+		gizmos.line_2d(top_right, bottom_right, grid_render_data.grid_color);
+
+		return;
+	}
+
+	// Draw vertical grid lines.
+	for i in 0..((grid.dimensions.0 as u16) + 1) {
+		let cell_bottom_position: Vec2 = Vec2 {
+			x: (i * grid.cell_size) as f32,
+			y: 0.0,
+		};
+		let cell_top_position: Vec2 = Vec2 {
+			x: (i * grid.cell_size) as f32,
+			y: grid_height,
+		};
+		gizmos.line_2d(cell_bottom_position, cell_top_position, grid_render_data.grid_color);
+	}
+
+	// Draw horizontal grid lines.
+	for i in 0..((grid.dimensions.1 as u16) + 1) {
+		let cell_left_position: Vec2 = Vec2 {
+			x: 0.0,
+			y: (i * grid.cell_size) as f32,
+		};
+		let cell_right_position: Vec2 = Vec2 {
+			x: grid_width,
+			y: (i * grid.cell_size) as f32,
+		};
+		gizmos.line_2d(cell_left_position, cell_right_position, grid_render_data.grid_color);
+	}
+}
+
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="390">
+
+---
+
+This code snippet is a function called `draw_grid_vectors` that draws velocity vectors based on a `SimGrid` using Bevy's Gizmos. It takes the `grid` and `grid_render_data` resources as input parameters and modifies the `gizmos` resource. It iterates over each cell in the grid and calculates the horizontal and vertical velocity components. It then calculates the magnitude and direction of the velocity vector based on these components. If the magnitude is below a certain threshold, the vector is skipped. Finally, it calculates the center position of each grid cell and draws the vector arrows using the Gizmos API.
+
+```renderscript
+/// Draw velocity vectors based on SimGrid using Bevy's Gizmos!
+fn draw_grid_vectors(
+	grid:				Res<SimGrid>,
+	grid_render_data:	Res<GridRenderData>,
+	mut gizmos:			Gizmos) {
+
+	if !grid_render_data.draw_vectors {
+		return;
+	}
+
+	for row in 0..grid.dimensions.1 {
+		for col in 0..grid.dimensions.0 {
+
+			/* Indices for each column/row of each u/v velocity component on the grid.  Note that
+				because each cell has two velocity components going in either direction, the
+				vectors containing said components are one element larger in either rows or
+				columns.  This fact prevents the following code from going out of bounds, so long
+				as grid.velocity_u and grid.velocity_v are constructed properly. */
+			let column_u0: usize	= col as usize;
+			let column_u1: usize	= (col + 1) as usize;
+			let row_u: usize		= row as usize;
+
+			let row_v0: usize		= row as usize;
+			let row_v1: usize		= (row + 1) as usize;
+			let column_v: usize		= col as usize;
+
+			// Horizontal velocity components.
+			let velocities_u: [f32; 2]	= [
+				grid.velocity_u[row_u][column_u0],
+				grid.velocity_u[row_u][column_u1],
+			];
+			// Vertical velocity components.
+			let velocities_v: [f32; 2]	= [
+				grid.velocity_v[row_v0][column_v],
+				grid.velocity_v[row_v1][column_v],
+			];
+
+			// Calculate magnitude of velocity within the call.
+			let velocity_vector_cartesian: Vec2 = Vec2 {
+				x: (velocities_u[0] + velocities_u[1]) / 2.0,
+				y: (velocities_v[0] + velocities_v[1]) / 2.0,
+			};
+
+			// Calculate velocity direction and magnitude based on u and v components.
+			let velocity_vector_polar: Vec2 = util::cartesian_to_polar(velocity_vector_cartesian);
+
+			// Skip drawing if the vector is too short.
+			if velocity_vector_polar[0] < 0.2 {
+				continue;
+			}
+
+			// Find the center of each grid cell to draw the vector arrows.
+			// TODO: Refactor to use grid.get_cell_center_position_from_coordinates().
+			let half_cell_size: f32	= (grid.cell_size as f32) / 2.0;
+			let cell_x: f32			= (col * grid.cell_size) as f32;
+			let cell_y: f32			= (row * grid.cell_size) as f32;
+			let grid_height: f32	= (grid.dimensions.0 * grid.cell_size) as f32;
+			let cell_center_position: Vec2 = Vec2 {
+				x: cell_x + half_cell_size,
+				y: grid_height - cell_y - half_cell_size,
+			};
+
+			draw_vector_arrow(
+				cell_center_position,
+				velocity_vector_polar[1],
+				velocity_vector_polar[0] * grid_render_data.vector_magnitude_scale,
+				grid_render_data.vector_color,
+				&mut gizmos
+			);
+		}
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="463">
+
+---
+
+This code snippet is a helper function that draws a vector arrow using Bevy's Gizmos. It takes in parameters such as the tail position, direction in radians, magnitude, arrow color, and the gizmos object. It constructs the main ray of the arrow, determines the size and angle of the arrow head, and constructs the left and right sides of the arrow. Finally, it uses the gizmos object to draw the arrow lines using the provided color.
+
+```renderscript
+/// Helper function to draw a vector arrow using Bevy's Gizmos.
+pub fn draw_vector_arrow(
+	tail_position:		Vec2,
+	direction_rads:		f32,
+	magnitude:			f32,
+	arrow_color:		Color,
+	gizmos:				&mut Gizmos) {
+
+	// Construct main ray of arrow.
+	let head_position: Vec2	= Vec2 {
+		x: tail_position.x + direction_rads.cos() * magnitude,
+		y: tail_position.y + direction_rads.sin() * magnitude,
+	};
+
+	// Grow or shrink the arrow head's angle depending on the magnitude (for aesthetic purposes).
+	let arrow_angle_offset_rads: f32	= 0.61 - (magnitude / 1000.0);
+	// Controls how large the arrow heads are relative to the arrow's body.
+	let arrow_scale_ratio: f32			= 0.25 * magnitude;
+
+	// Construct left side of arrow.
+	let arrow_left_position: Vec2 = Vec2 {
+		x: head_position.x - ((direction_rads - arrow_angle_offset_rads).cos() * arrow_scale_ratio),
+		y: head_position.y - ((direction_rads - arrow_angle_offset_rads).sin() * arrow_scale_ratio),
+	};
+
+	// Construct right side of arrow.
+	let arrow_right_position: Vec2 = Vec2 {
+		x: head_position.x - ((direction_rads + arrow_angle_offset_rads).cos() * arrow_scale_ratio),
+		y: head_position.y - ((direction_rads + arrow_angle_offset_rads).sin() * arrow_scale_ratio),
+	};
+
+	// Draw arrows!
+	gizmos.line_2d(tail_position, head_position,		arrow_color);
+	gizmos.line_2d(head_position, arrow_left_position,	arrow_color);
+	gizmos.line_2d(head_position, arrow_right_position,	arrow_color);
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/juice_renderer.rs" line="500">
+
+---
+
+This code snippet draws a circle around the mouse cursor using the `circle_2d` function from the `Gizmos` module. It takes the `position`, `radius`, and `color` as parameters.
+
+```renderscript
+/// Draws a circle around the mouse cursor.
+pub fn draw_selection_circle(gizmos: &mut Gizmos, position: Vec2, radius: f32, color: Color) {
+	gizmos.circle_2d(position, radius, color);
+}
+```
+
+---
+
+</SwmSnippet>
+
+## <SwmPath>[src/ui.rs](/src/ui.rs)</SwmPath>
+
+<SwmSnippet path="/src/ui.rs" line="1">
+
+---
+
+&nbsp;
+
+```renderscript
+use std::mem::transmute;
+
+use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
+use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
+
+use crate::util;
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="8">
+
+---
+
+This code snippet initializes the user interface by calling the following functions: `calculate_window_parameters` and `load_user_interface_icons`. It takes in `contexts`, `asset_server`, `ui_state`, and `windows` as arguments.
+
+```renderscript
+pub fn init_user_interface(
+	mut contexts:	EguiContexts,
+	asset_server:	Res<AssetServer>,
+	mut ui_state:	ResMut<UIStateManager>,
+	windows:		Query<&Window>) {
+
+	calculate_window_parameters(&mut ui_state, &mut contexts, windows.single());
+	load_user_interface_icons(&mut ui_state, &asset_server);
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="18">
+
+---
+
+This code snippet defines a function called `draw_user_interface` that takes in two mutable arguments: `contexts` of type `EguiContexts` and `ui_state` of type `UIStateManager`. The function displays various UI menus based on the state of `ui_state` such as scene manager menu, play/pause menu, current tool menu (if `show_selected_tool` is true), and visualization menu (if `show_visualization` is true).
+
+```renderscript
+pub fn draw_user_interface(
+	mut contexts:	EguiContexts,
+	mut ui_state:	ResMut<UIStateManager>) {
+
+	// Show "static" UI menus.
+	show_scene_manager_menu(&mut ui_state, &mut contexts);
+	show_play_pause_menu(&mut ui_state, &mut contexts);
+
+	// Show hideable UI menus.
+	if ui_state.show_selected_tool { show_current_tool_menu(&mut ui_state, &mut contexts); }
+	if ui_state.show_visualization { show_visualization_menu(&mut ui_state, &mut contexts); }
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="31">
+
+---
+
+This code snippet creates a scene manager menu that includes a file manager panel and a tool manager panel. The menu is displayed using the eGUI library and allows users to save/load files and select tools. The `show_scene_manager_menu` function takes in UI state and contexts as parameters and generates the menu interface.
+
+```renderscript
+/// Create menu for file saving/loading and tool selection.
+fn show_scene_manager_menu(
+	ui_state:	&mut UIStateManager,
+	contexts:	&mut EguiContexts) {
+
+	/* For each UI icon that we need to load, get their handle from our UI State Manager.  Then,
+		convert that into an eGUI-readable egui::Image format!  This is done by iterating through
+		the tool icon handles stores in our UI state manager, and then pushing the eGUI-compatible
+		texture handle to our list of tool_icons.  These icons will be iterated over later to draw
+		each tool button. */
+	/* TODO: Maybe move this out of here so we don't do this every frame?  No idea if that is even
+		possible. */
+	let mut tool_icons: Vec<egui::Image> = Vec::new();
+	for i in 0..UI_ICON_COUNT {
+		let icon_handle	= ui_state.tool_icon_handles[i].clone_weak();
+		tool_icons.push(image_handle_to_egui_texture(
+			icon_handle,
+			contexts,
+			ui_state.icon_size
+		));
+	}
+
+	// Create an eGUI window.
+	egui::Window::new("Scene Manager")
+		.frame(ui_state.window_frame)
+		.fixed_pos(Pos2 { x: 0.0, y: 0.0 })
+		.fixed_size(ui_state.window_size)
+		.title_bar(false)
+		.resizable(false)
+		.show(contexts.ctx_mut(), |ui| {
+
+		// Allow the UI windows to grow to the size of the screen.
+		ui.set_width(ui_state.window_size.x);
+		ui.set_width(ui_state.window_size.y);
+
+		// Show the file manager panel, a horizontal separator, and the tool manager panel.
+		show_file_manager_panel(ui_state, ui);
+		ui.separator();
+		show_tool_manager_panel(ui_state, ui, &tool_icons);
+	});
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="73">
+
+---
+
+&nbsp;
+
+```renderscript
+/// File management row; align horizontally wrapped.
+fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
+
+	ui.horizontal_wrapped(|ui| {
+
+		// "File" scene saving/loading dropdown.
+		let file_options		= ["File", "New", "Load", "Save", "Save as"];
+		let mut file_selection	= 0;
+		egui::ComboBox::from_id_source(0).show_index(
+			ui,
+			&mut file_selection,
+			file_options.len(),
+			|i| file_options[i].to_owned()
+		);
+		// Do stuff when selection changes.
+		match file_selection {
+			1 => {  },
+			2 => {  },
+			3 => {  },
+			4 => {  },
+			_ => {},
+		}
+
+		// "Edit" scene dropdown.
+		let edit_options		= ["Edit", "Reset", "Clear", "Change Dimensions"];
+		let mut edit_selection	= 0;
+		egui::ComboBox::from_id_source(1).show_index(
+			ui,
+			&mut edit_selection,
+			edit_options.len(),
+			|i| edit_options[i].to_owned()
+		);
+		// Do stuff when selection changes.
+		match edit_selection {
+			1 => {  },
+			_ => {},
+		}
+
+		// "View" scene dropdown.
+		let view_options		= ["View", "Current Tool", "Visualization"];
+		let mut view_selection	= 0;
+		egui::ComboBox::from_id_source(2).show_index(
+			ui,
+			&mut view_selection,
+			view_options.len(),
+			|i| view_options[i].to_owned()
+		);
+		// Do stuff when selection changes.
+		match view_selection {
+			1 => { ui_state.show_selected_tool = !ui_state.show_selected_tool },
+			2 => { ui_state.show_visualization = !ui_state.show_visualization }
+			_ => {},
+		}
+	});
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="128">
+
+---
+
+This code snippet defines a function `show_tool_manager_panel` that displays a row of tool buttons horizontally wrapped. The function takes in references to a UIStateManager, a Ui, and a vector of tool icons. It iterates through the tool icons, creating a button for each one with the associated tool icon and text. When a button is clicked, the `selected_tool` field in the UIStateManager is updated with the corresponding tool.
+
+```renderscript
+
+/// Scene/tool management row; align horizontally wrapped.
+fn show_tool_manager_panel(
+	ui_state:	&mut UIStateManager,
+	ui:			&mut Ui,
+	tool_icons:	&Vec<egui::Image>) {
+
+	ui.horizontal_wrapped(|ui| {
+		// Draw each tool button from our list!
+		for i in 0..UI_ICON_COUNT {
+
+			let current_tool: SimTool = i.into();
+
+			// Add a button to the UI and switch the active tool when it is clicked!
+			if ui.add(egui::Button::image_and_text(
+				tool_icons[i].clone(), current_tool.as_str() )).clicked() {
+
+				ui_state.selected_tool = current_tool;
+			}
+		}
+	});
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="151">
+
+---
+
+&nbsp;
+
+```renderscript
+/// Show the menu with the current tool's options.
+fn show_current_tool_menu(
+	ui_state:		&mut UIStateManager,
+	contexts:		&mut EguiContexts) {
+
+	// Get the currently selected tool's name.
+	let selected_tool_name: String	= ui_state.selected_tool.as_str().to_owned();
+	let context_window_name: String	= selected_tool_name + " Options";
+
+	// Create a new eGUI window.
+	egui::Window::new(context_window_name)
+		.id(egui::Id::from("Tool Selection Window"))
+		.frame(ui_state.window_frame)
+		.pivot(Align2::CENTER_CENTER)
+		.default_pos(Pos2 { x: 0.0, y: ui_state.window_size.y / 2.0 })
+		.default_width(0.0)
+		.resizable(false)
+		.show(contexts.ctx_mut(), |ui| {
+
+		// Align the buttons in this row horizontally from left to right.
+		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
+
+			// Show different buttons depending on which tool is currently selected.
+			match ui_state.selected_tool {
+				SimTool::Select			=> {  },
+				SimTool::Grab			=> {  },
+				SimTool::AddFluid		=> {  },
+				SimTool::RemoveFluid	=> {  },
+				SimTool::AddWall		=> {  },
+				SimTool::RemoveWall		=> {  },
+				SimTool::AddFaucet		=> {  },
+				SimTool::RemoveFaucet	=> {  },
+				SimTool::AddDrain		=> {  },
+				SimTool::RemoveDrain	=> {  },
+				_						=> {},
+			}
+		});
+	});
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="191">
+
+---
+
+This code snippet creates and displays a visualization options menu using the `egui` library. The menu includes checkboxes for showing grid, velocity vectors, and gravity, a dropdown for selecting a fluid color visualization option, color pickers for customizing fluid colors, and sliders for adjusting particle size and gravity direction.
+
+```renderscript
+/// Grid/fluid visualization settings menu.
+fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiContexts) {
+
+	egui::Window::new("Visualization Options")
+		.frame(ui_state.window_frame)
+		.pivot(Align2::CENTER_CENTER)
+		.default_pos(Pos2 { x: ui_state.window_size.x, y: ui_state.window_size.y / 2.0 })
+		.default_width(0.0)
+		.resizable(false)
+		.show(contexts.ctx_mut(), |ui| {
+
+		// Align the buttons in this row horizontally from left to right.
+		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
+
+			ui.checkbox(&mut ui_state.show_grid, "Show Grid");
+			ui.checkbox(&mut ui_state.show_velocity_vectors, "Show Velocities");
+			ui.checkbox(&mut ui_state.show_gravity_vector, "Show Gravity");
+
+			ui.separator();
+
+			// Fluid color visualization option dropdown.
+			let color_options = ["Velocity", "Density", "Pressure", "None"];
+			egui::ComboBox::from_id_source(0).show_index(
+				ui,
+				&mut ui_state.fluid_color_variable,
+				color_options.len(),
+				|i| color_options[i].to_owned()
+			);
+			ui.horizontal_wrapped(|ui| {
+				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[0]);
+				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[1]);
+				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[2]);
+				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[3]);
+			});
+
+			ui.separator();
+
+			// Sliders for the particle size and gravity direction.
+			ui.add(egui::Slider::new(
+				&mut ui_state.particle_physical_size,
+				0.1..=10.0
+			).text("Particle Size"));
+
+			ui.add(egui::Slider::new(
+				&mut ui_state.gravity_direction,
+				0.0..=360.0
+			).text("Gravity Direction"));
+		});
+	});
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="242">
+
+---
+
+This code snippet defines a function `show_play_pause_menu` that displays a play/pause menu. It creates an egui window with the title 'Play/Pause' and a vertical layout. Inside the window, it displays a button with an image and text that toggles the `is_paused` state when clicked. The image and text for the button depend on the current value of `is_paused`. The function takes `ui_state` and `contexts` as mutable references.
+
+```renderscript
+/// Play/pause menu.
+fn show_play_pause_menu(
+	ui_state:		&mut UIStateManager,
+	contexts:		&mut EguiContexts) {
+
+	// Get the icons we need!
+	let play_pause_icons: Vec<egui::Image> = Vec::new();
+	let play_icon = image_handle_to_egui_texture(
+		ui_state.play_pause_icon_handles[0].clone_weak(),
+		contexts,
+		ui_state.icon_size
+	);
+	let pause_icon = image_handle_to_egui_texture(
+		ui_state.play_pause_icon_handles[1].clone_weak(),
+		contexts,
+		ui_state.icon_size
+	);
+
+	egui::Window::new("Play/Pause")
+		.title_bar(false)
+		.frame(ui_state.window_frame)
+		.fixed_pos(Pos2 { x: ui_state.window_size.x / 2.0, y: ui_state.window_size.y * 0.95 } )
+		.pivot(Align2::CENTER_CENTER)
+		.default_width(0.0)
+		.resizable(false)
+		.show(contexts.ctx_mut(), |ui| {
+
+		// Simulation play/pause button.
+		ui.vertical_centered(|ui| {
+
+			// Play/pause button!
+			let play_pause_icon;
+			let play_pause_text;
+			if ui_state.is_paused {
+				play_pause_icon	= play_icon;
+				play_pause_text	= "Paused!";
+			} else {
+				play_pause_icon	= pause_icon;
+				play_pause_text	= "Playing!";
+			}
+			if ui.add(egui::Button::image_and_text(
+				play_pause_icon, play_pause_text)).clicked() {
+				ui_state.is_paused = !ui_state.is_paused;
+			}
+		});
+    });
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="290">
+
+---
+
+This code snippet defines a constant `UI_ICON_COUNT` with a value of 10. It also defines an enum `SimTool` with several variants including `Select`, `Grab`, `AddFluid`, `RemoveFluid`, `AddWall`, `RemoveWall`, `AddFaucet`, `RemoveFaucet`, `AddDrain`, and `RemoveDrain`. The enum is derived with `Clone`, `Copy`, and `Debug` traits.
+
+```renderscript
+const UI_ICON_COUNT: usize = 10;
+#[derive(Clone, Copy, Debug)]
+pub enum SimTool {
+	Select			= 0,
+	Grab,
+	AddFluid,
+	RemoveFluid,
+	AddWall,
+	RemoveWall,
+	AddFaucet,
+	RemoveFaucet,
+	AddDrain,
+	RemoveDrain,
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="305">
+
+---
+
+This code defines an implementation of the `Into` trait for the `usize` type. It allows converting a `usize` value into a `SimTool` enum variant. The `into` method matches the `usize` value against different cases and returns the corresponding `SimTool` variant. If the `usize` value doesn't match any of the cases, it prints an error message and defaults to the `SimTool::Select` variant.
+
+```renderscript
+impl Into<SimTool> for usize {
+	fn into(self) -> SimTool {
+		match self {
+			0	=> { SimTool::Select },
+			1	=> { SimTool::Grab },
+			2	=> { SimTool::AddFluid },
+			3	=> { SimTool::RemoveFluid },
+			4	=> { SimTool::AddWall },
+			5	=> { SimTool::RemoveWall },
+			6	=> { SimTool::AddFaucet },
+			7	=> { SimTool::RemoveFaucet },
+			8	=> { SimTool::AddDrain },
+			9	=> { SimTool::RemoveDrain },
+			_	=> { eprintln!("Invalid SimTool; defaulting to Select!"); SimTool::Select },
+		}
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="323">
+
+---
+
+This code snippet defines an implementation of the `SimTool` enum and provides a method `as_str` which returns a string representation of each variant of the enum.
+
+```renderscript
+impl SimTool {
+    fn as_str(&self) -> &'static str {
+        match self {
+			Self::Select		=> { "Select" },
+			Self::Grab			=> { "Grab" },
+			Self::AddFluid		=> { "Add Fluid" },
+			Self::RemoveFluid	=> { "Remove Fluid" },
+			Self::AddWall		=> { "Add Wall" },
+			Self::RemoveWall	=> { "Remove Wall" },
+			Self::AddFaucet		=> { "Add Faucet" },
+			Self::RemoveFaucet	=> { "Remove Faucet" },
+			Self::AddDrain		=> { "Add Drain" },
+			Self::RemoveDrain	=> { "Remove Drain" },
+		}
+    }
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="340">
+
+---
+
+This code defines a struct called UIStateManager that represents the state of a user interface. It includes various boolean, numeric, and vector fields to control the display and behavior of the UI. The `Default` trait is implemented for the struct, providing a default set of values for its fields.
+
+```renderscript
+#[derive(Resource, Debug)]
+pub struct UIStateManager {
+	show_selected_tool:			bool,
+	selected_tool:				SimTool,
+	tool_icon_handles:			Vec<Handle<Image>>,
+
+	show_visualization:			bool,
+	show_grid:					bool,
+	show_velocity_vectors:		bool,
+	show_gravity_vector:		bool,
+	particle_physical_size:		f32,
+	gravity_direction:			f32,
+	fluid_color_variable:		usize,
+	fluid_colors:				[[f32; 3]; 4],
+
+	is_paused:					bool,
+	play_pause_icon_handles:	Vec<Handle<Image>>,
+
+	window_frame:				Frame,
+	window_size:				Vec2,
+	icon_size:					Vec2,
+}
+
+impl Default for UIStateManager {
+	fn default() -> UIStateManager {
+		UIStateManager {
+			show_selected_tool:			true,
+			selected_tool:				SimTool::Select,
+			tool_icon_handles:			vec![Handle::default(); UI_ICON_COUNT],
+
+			show_visualization:			false,
+			show_grid:					false,
+			show_velocity_vectors:		false,
+			show_gravity_vector:		false,
+			particle_physical_size:		1.0,
+			gravity_direction:			270.0,
+			fluid_color_variable:		0,
+			fluid_colors:				[
+				[util::JUICE_BLUE.r(), util::JUICE_BLUE.g(), util::JUICE_BLUE.b()],
+				[util::JUICE_GREEN.r(), util::JUICE_GREEN.g(), util::JUICE_GREEN.b()],
+				[util::JUICE_YELLOW.r(), util::JUICE_YELLOW.g(), util::JUICE_YELLOW.b()],
+				[util::JUICE_RED.r(), util::JUICE_RED.g(), util::JUICE_RED.b()],
+			],
+
+			is_paused:					false,
+			play_pause_icon_handles:	vec![Handle::default(); 2],
+
+			window_frame:				Frame::none(),
+			window_size:				Vec2::ZERO,
+			icon_size:					Vec2 { x: 30.0, y: 30.0 },
+		}
+	}
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="394">
+
+---
+
+This code snippet calculates the size and frame of the drawing window, and stores the values in the UI state manager. It uses the `Window` class to get the width and height of the window, and then calculates the window size and frame based on the provided padding, border width, and other styling parameters. The calculated values are stored in the `ui_state` struct, which is a mutable reference to the UI state manager. The `contexts` parameter is used to access the Egui styling contexts. The calculated window frame includes information about the fill color, rounding, stroke, inner margin, and outer margin.
+
+```renderscript
+/// Determine the size and frame of the drawing window and store it in our UI state manager.
+fn calculate_window_parameters(
+	ui_state:	&mut UIStateManager,
+	contexts:	&mut EguiContexts,
+	window:		&Window) {
+
+	// General styling of components for consistency.
+	let window_border_width: f32		= 2.5;
+	let window_padding: f32				= 10.0;
+
+	// Figure out how large our window is that we are drawing to.
+	ui_state.window_size = Vec2 {
+		x: window.width() - window_padding - window_border_width,
+		y: window.height()
+	};
+	ui_state.window_frame = Frame {
+		fill: contexts.ctx_mut().style().visuals.window_fill(),
+        rounding: 10.0.into(),
+        stroke: contexts.ctx_mut().style().visuals.widgets.noninteractive.fg_stroke,
+		inner_margin: (window_padding / 2.0).into(),
+        outer_margin: 0.5.into(), // so the stroke is within the bounds
+        ..Default::default()
+	};
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="419">
+
+---
+
+This code snippet loads UI icons using Bevy's asset server and stores the loaded image handles into the UI state manager.
+
+```renderscript
+/// Using Bevy's asset server, load all UI icons into our UI state manager.
+pub fn load_user_interface_icons(
+	ui_state:		&mut UIStateManager,
+	asset_server:	&AssetServer) {
+
+	// Load all UI icons using Bevy's asset server.
+	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
+		asset_server.load("../assets/ui/icons_og/select_og.png"),
+		asset_server.load("../assets/ui/icons_og/grab_og.png"),
+		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
+		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
+		asset_server.load("../assets/ui/icons_og/wall_og.png"),
+		asset_server.load("../assets/ui/icons_og/wall_og.png"),
+		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
+		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
+		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
+		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
+	];
+	let play_pause_icon_handles: [Handle<Image>; 2] = [
+		asset_server.load("../assets/ui/icons_og/play_og.png"),
+		asset_server.load("../assets/ui/icons_og/pause_og.png"),
+	];
+
+	// Store all loaded image handles into our UI state manager.
+	for i in 0..UI_ICON_COUNT {
+		ui_state.tool_icon_handles[i] = icon_handles[i].clone();
+	}
+	ui_state.play_pause_icon_handles[0] = play_pause_icon_handles[0].clone();
+	ui_state.play_pause_icon_handles[1] = play_pause_icon_handles[1].clone();
+}
+```
+
+---
+
+</SwmSnippet>
+
+<SwmSnippet path="/src/ui.rs" line="450">
+
+---
+
+This code snippet converts a Bevy `Handle<Image>` into an eGUI-compatible `egui::Image`. It adds the image to an eGUI context, converts the eGUI texture ID into an image that eGUI can draw, and returns the resulting image.
+
+```renderscript
+/// Convert a Bevy Handle<Image> into an eGUI-compatible eGUI Image!
+fn image_handle_to_egui_texture<'a>(
+	image_handle:	Handle<Image>,
+	contexts:		&mut EguiContexts,
+	size:			Vec2) -> bevy_egui::egui::Image<'a> {
+
+	// Add the image to our eGUI context from our UI state manager.
+	let select_icon_id = contexts.add_image(image_handle);
+
+	// Convert the eGUI texture ID into an image that eGUI can actually draw.
+	let select_icon_img = egui::widgets::Image::new(
+		egui::load::SizedTexture::new(
+			select_icon_id,
+			size
+		)
+	);
+
+	select_icon_img
+}
+```
+
+---
+
+</SwmSnippet>
 
 &nbsp;
 
