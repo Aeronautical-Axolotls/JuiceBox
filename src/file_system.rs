@@ -35,22 +35,24 @@ use bevy::{prelude::*, tasks::IoTaskPool, utils::Duration};
 use std::time::SystemTime;
 use std::{fs::File, io::Write};
 use bevy::ecs::query::*;
+use bevy_save::*;
 
 use crate::simulation::{SimParticle, SimGrid, SimConstraints};
 use crate::juice_renderer;
 
 use super::*;
 
-struct SavePipeline;
+struct JuicePipeline;
 
-impl Pipeline for SavePipeline {
+impl Pipeline for JuicePipeline {
     type Backend = DefaultDebugBackend;
     type Format = DefaultDebugFormat;
 
     type Key<'a> = &'a str;
 
     fn key(&self) -> Self::Key<'_> {
-        "assets/scenes/test_save_2_bevy_save"
+        //"assets/scenes/save_test/test_save_2_bevy_save"
+        "assets/scenes/load_test/test_load_11_friends"
     }
 
     fn capture(builder: SnapshotBuilder) -> Snapshot {
@@ -180,9 +182,13 @@ pub fn save_scene(world: &mut World) {
 pub fn save_scene_bevy_save(world: &mut World) {
     let start = SystemTime::now();
 
-    world.save(SavePipeline).expect("Should have saved correctly");
+    world.save(JuicePipeline).expect("Should have saved correctly");
 
     println!("\nTime elapsed during bevy_save saving: {:#?}\n", start.elapsed().unwrap());
+}
+
+pub fn load_scene_bevy_save(world: &mut World) {
+    world.load(JuicePipeline).expect("Should have loaded correctly");
 }
 
 pub fn load_scene(mut commands: Commands, asset_server: Res<AssetServer>) {

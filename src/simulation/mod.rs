@@ -24,22 +24,27 @@ impl Plugin for Simulation {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimGrid::default());
-		//app.insert_resource(bevy);
-
-		// Allows these resources to be accessed for file saving
-		app.register_type::<SimConstraints>();
-		app.register_type::<SimGrid>();
 
 		// Setting up the type registry so the data can be accessed for file_system.rs
+		app.register_type::<SimParticle>();
+		app.register_type::<Option<Vec2>>();
+		app.register_type::<Option<Rect>>();
 		app.register_type::<SimConstraints>();
 		app.register_type::<SimGrid>();
-		app.register_type::<SimParticle>();
+		app.register_type::<SimGridCellType>();
+		app.register_type::<(u16, u16)>();
+		app.register_type::<Vec<Vec<SimGridCellType>>>();
+		app.register_type::<Vec<SimGridCellType>>();
+		app.register_type::<Vec<Vec<f32>>>();
+		app.register_type::<Vec<f32>>();
+		app.register_type::<Vec<Vec<Entity>>>();
+		app.register_type::<Vec<Entity>>();
 
 		app.add_systems(Startup, setup);
 		app.add_systems(Update, update);
 		
-		app.add_systems(PostStartup, file_system::save_scene); // Temporarily here for debug purposes
-		app.add_systems(PostStartup, file_system::save_scene_bevy_save); // Temporarily here for debug purposes
+		//app.add_systems(PostStartup, file_system::save_scene); // Temporarily here for debug purposes
+		app.add_systems(PostStartup, file_system::load_scene_bevy_save); // Temporarily here for debug purposes
 	}
 }
 
@@ -110,52 +115,6 @@ fn update(
 
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
-}
-
-/// Step the fluid simulation one time!
-fn step_simulation_once(
-	constraints:	&mut SimConstraints,
-	grid:			&mut SimGrid,
-	particles:		&mut Query<(Entity, &mut SimParticle)>,
-	timestep:		f32) {
-
-
-	/* Integrate particles, update their lookup indices, update grid density values, and process
-		collisions. */
-    update_particles(constraints, particles, grid, timestep);
-    push_particles_apart(constraints, grid, particles);
-    handle_particle_grid_collisions(constraints, grid, particles);
-
-	/* Label grid cells, transfer particle velocities to the grid, project/diffuse/advect them,
-		then transfer velocities back.  Finally, extrapolate velocities to smooth out the
-		fluid-air boundary. */
-	grid.label_cells();
-	particles_to_grid(grid, particles);
-    extrapolate_values(grid, 1);
-
-    // Store a copy of the grid from the previous simulation step for "change grid" creation.
-	let old_grid = grid.clone();
-
-	/* Make fluid incompressible, find the difference in grid from before incompressibility,
-		interpolate grid velocities back to each particle, and finally extrapolate velocity values
-		one final time! */
-    make_grid_velocities_incompressible(grid, constraints);
-    let change_grid = create_change_grid(&old_grid, &grid);
-    grid_to_particles(grid, &change_grid, particles, constraints);
-    extrapolate_values(grid, 1);
-}
-
-/// Reset simulation components to their default state and delete all particles.
-pub fn reset_simulation_to_default(
-	commands:			&mut Commands,
-	mut constraints:	&mut SimConstraints,
-	mut grid:			&mut SimGrid,
-	particles:			&Query<(Entity, &mut SimParticle)>) {
-
-	println!("Resetting simulation to default...");
-	delete_all_particles(commands, constraints, grid, particles);
-	*grid			= SimGrid::default();
-	*constraints	= SimConstraints::default();
 }
 
 /// Step the fluid simulation one time!

@@ -8,7 +8,6 @@ pub mod util;
 pub mod juice_renderer;
 pub mod error;
 pub mod file_system;
-// pub mod test and ui;
 
 pub mod test;
 pub mod ui;
