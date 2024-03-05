@@ -1,3 +1,4 @@
+use core::panic;
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
@@ -64,7 +65,7 @@ pub fn add_particle(
 			"X-coordinate for particle creation is out of grid bounds!"
 		));
 	}
-	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
 		return Err(Error::OutOfGridBounds(
 			"Y-coordinate for particle creation is out of grid bounds!"
 		));
@@ -129,7 +130,7 @@ pub fn delete_all_particles(
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&Query<(Entity, &mut SimParticle)>) {
-	
+
 	// KILL THEM ALL!!!
 	for (particle_id, _) in particles.iter() {
 		let _ = delete_particle(commands, constraints, particles, grid, particle_id);
@@ -168,4 +169,45 @@ pub fn select_particles<'a>(
 	}
 
 	selected_particles
+}
+
+pub fn add_faucet(
+	commands:			&mut Commands,
+	grid:				&mut SimGrid,
+    faucet_pos:         Vec2,
+    surface_direction:  Option<SimSurfaceDirection>
+    ) -> Result<()> {
+
+	if faucet_pos[0] < 0.0 || faucet_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"X-coordinate for particle creation is out of grid bounds!"
+		));
+	}
+    if faucet_pos[1] < 0.0 || faucet_pos[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"Y-coordinate for particle creation is out of grid bounds!"
+		));
+	}
+
+    commands.spawn(
+        SimFaucet::new(faucet_pos, surface_direction)
+    );
+
+
+    Ok(())
+}
+
+pub fn activate_components(
+    commands:		&mut Commands,
+    constraints:	&mut SimConstraints,
+    faucets:        &Query<(Entity, &SimFaucet)>,
+    //TODO: Add Drains
+    grid:           &mut SimGrid,
+    ) -> Result<()> {
+
+    for (_, faucet) in faucets.iter() {
+        faucet.run(commands, constraints, grid)?;
+    }
+
+    Ok(())
 }

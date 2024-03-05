@@ -8,7 +8,7 @@ use crate::error::Error;
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 
-use self::sim_state_manager::{delete_all_particles, delete_particle};
+use self::sim_state_manager::{activate_components, add_particle, delete_all_particles, delete_particle};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -46,6 +46,7 @@ fn update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
+    faucets:		    Query<(Entity, &SimFaucet)>,
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
@@ -63,18 +64,22 @@ fn update(
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
 		step_simulation_once(
+            commands,
 			constraints.as_mut(),
 			grid.as_mut(),
 			&mut particles,
+            &faucets,
 			fixed_timestep
 		);
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
 		step_simulation_once(
+            commands,
 			constraints.as_mut(),
 			grid.as_mut(),
 			&mut particles,
+            &faucets,
 			fixed_timestep
 		);
 	}
@@ -85,11 +90,15 @@ fn update(
 
 /// Step the fluid simulation one time!
 fn step_simulation_once(
+	mut commands:	Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
+	faucets:		&Query<(Entity, &SimFaucet)>,
 	timestep:		f32) {
 
+    // Run drains and faucets
+    activate_components(&mut commands, constraints, faucets, grid);
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -216,6 +225,14 @@ pub enum SimGridCellType {
 	Solid,
     Fluid,
 	Air,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SimSurfaceDirection {
+    North,
+    South,
+    East,
+    West,
 }
 
 #[derive(Resource, Clone)]
@@ -736,6 +753,62 @@ pub struct SimParticle {
 	pub lookup_index:	usize,	// Bucket index into spatial lookup for efficient neighbor search.
 }
 
+#[derive(Component, Debug, Clone, Default)]
+pub struct SimFaucet {
+    pub position:       Vec2,                           // Faucet Postion in the simulation
+    pub direction:      Option<SimSurfaceDirection>,    // Direction to which the faucet is connected with the wall
+}
+
+impl SimFaucet {
+
+    pub fn new(
+        position: Vec2,
+        direction: Option<SimSurfaceDirection>
+        ) -> Self {
+
+        Self {
+            position,
+            direction,
+        }
+    }
+
+    /// Runs the faucet, adds fluid particles, enforces solids
+    pub fn run(
+        &self,
+        commands: &mut Commands,
+        constraints: &mut SimConstraints,
+        grid: &mut SimGrid
+        ) -> Result<()> {
+
+        let cell_coords = grid.get_cell_coordinates_from_position(&self.position);
+        let surroundings: [(i32, i32); 7] = [
+            (-1, 0),
+            (0, 1),
+            (0, -1),
+            (1, 1),
+            (-1, 1),
+            (1, -1),
+            (-1, -1)
+        ];
+
+        // Enforce boundary of solids, current impl before rendering sprite
+        for pair in surroundings {
+            grid.set_grid_cell_type(
+                (cell_coords.x as i32 + pair.0) as usize,
+                (cell_coords.y as i32 + pair.1) as usize,
+                SimGridCellType::Solid
+            )?;
+        }
+
+        // Run fluid
+        let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32));
+        let velocity = Vec2::ZERO;
+        add_particle(commands, constraints, grid, position, velocity)?;
+
+        Ok(())
+    }
+}
+
 /// Simulation state manager initialization.
 pub fn test_setup(
 	commands:			Commands,
@@ -754,15 +827,19 @@ pub fn test_update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
+    faucets:		    Query<(Entity, &SimFaucet)>,
+	mut commands:	Commands,
     ) {
 
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	let fixed_timestep: f32 = constraints.timestep;
 
     step_simulation_once(
+        commands,
         constraints.as_mut(),
         grid.as_mut(),
         &mut particles,
+        &faucets,
         fixed_timestep
     );
 
