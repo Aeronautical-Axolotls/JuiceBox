@@ -5,6 +5,7 @@ use crate::juice_renderer::{self, draw_selection_circle};
 use crate::simulation::sim_state_manager::{
 	select_particles,
 	delete_particle,
+    add_faucet,
 };
 use crate::simulation::{self, SimFaucet, SimGridCellType};
 use crate::simulation::{
@@ -59,6 +60,10 @@ pub fn construct_test_simulation_layout(
     //     grid.set_grid_cell_type(i, 49, SimGridCellType::Solid);
     // }
 
+    let faucet_pos = Vec2::new(grid.cell_size as f32, grid.cell_size as f32 * 20.0);
+    let surface_direction = None;
+
+    add_faucet(&mut commands, grid, faucet_pos, surface_direction).ok();
 
 	// Spawn a small test group of particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {

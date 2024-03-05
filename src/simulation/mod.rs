@@ -767,14 +767,26 @@ impl SimFaucet {
         }
     }
 
-    pub fn run(&self, commands: &mut Commands, constraints: &mut SimConstraints, grid: &mut SimGrid) {
-        let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32 / 2.0 ));
-        let velocity = Vec2::ZERO;
-        let Err(e) = add_particle(commands, constraints, grid, position, velocity) else {
-            return;
-        };
+    pub fn run(&self, commands: &mut Commands, constraints: &mut SimConstraints, grid: &mut SimGrid) -> Result<()> {
+        let cell_coords = grid.get_cell_coordinates_from_position(&self.position);
+        let surroundings: [(i32, i32); 7] = [
+            (-1, 0),
+            (0, 1),
+            (0, -1),
+            (1, 1),
+            (-1, 1),
+            (1, -1),
+            (-1, -1)
+        ];
 
-        panic!("{}", e);
+        for pair in surroundings {
+            grid.set_grid_cell_type((cell_coords.x as i32 + pair.0) as usize, (cell_coords.y as i32 + pair.1) as usize, SimGridCellType::Solid)?;
+        }
+
+        let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32));
+        let velocity = Vec2::ZERO;
+        add_particle(commands, constraints, grid, position, velocity)?;
+        Ok(())
     }
 }
 

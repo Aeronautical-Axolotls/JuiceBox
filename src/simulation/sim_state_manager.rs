@@ -193,21 +193,6 @@ pub fn add_faucet(
         SimFaucet::new(faucet_pos, surface_direction)
     );
 
-    let cell_coords = grid.get_cell_coordinates_from_position(&faucet_pos);
-    let surroundings: [(i32, i32); 8] = [
-        (1, 0),
-        (-1, 0),
-        (0, 1),
-        (0, -1),
-        (1, 1),
-        (-1, 1),
-        (1, -1),
-        (-1, -1)
-    ];
-
-    for pair in surroundings {
-        grid.set_grid_cell_type((cell_coords.x as i32 + pair.0) as usize, (cell_coords.y as i32 + pair.1) as usize, SimGridCellType::Solid)?;
-    }
 
     Ok(())
 }
@@ -218,10 +203,11 @@ pub fn activate_components(
     faucets:        &Query<(Entity, &SimFaucet)>,
     //TODO: Add Drains
     grid:           &mut SimGrid,
-    ) {
-
+    ) -> Result<()> {
 
     for (_, faucet) in faucets.iter() {
-        faucet.run(commands, constraints, grid);
+        faucet.run(commands, constraints, grid)?;
     }
+
+    Ok(())
 }
