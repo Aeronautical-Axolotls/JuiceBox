@@ -230,7 +230,7 @@ impl Default for SimConstraints {
 
 ---
 
-This code defines a struct `SimConstraints` with several methods to modify the constraints of a simulation. The `change_gravity` method changes the gravity direction and strength. The `toggle_simulation_pause` method toggles the simulation pause by changing the number of incomplete iterations per frame. The `change_incompressibility_timestep` method changes the number of iterations for incompressibility per frame. The `change_collision_timestep` method changes the number of iterations for particle collision per frame.
+This code defines a struct `SimConstraints` with several methods to modify the constraints of a simulation. The `change_gravity` method changes the gravity direction and strength. The `toggle_simulation_pause` method toggles the simulation pause by changing the number of incompressibility iterations per frame. The `change_incompressibility_timestep` method changes the number of iterations for incompressibility per frame. The `change_collision_timestep` method changes the number of iterations for particle collision per frame.
 
 ```renderscript
 impl SimConstraints {
