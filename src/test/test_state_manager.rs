@@ -1,10 +1,12 @@
+use core::panic;
+
 use bevy::prelude::*;
-use crate::juice_renderer::draw_selection_circle;
+use crate::juice_renderer::{self, draw_selection_circle};
 use crate::simulation::sim_state_manager::{
 	select_particles,
 	delete_particle,
 };
-use crate::simulation::SimGridCellType;
+use crate::simulation::{self, SimFaucet, SimGridCellType};
 use crate::simulation::{
 	SimConstraints,
 	SimParticle,
@@ -148,7 +150,68 @@ pub fn test_select_grid_cells(
 	}
 }
 
+fn test_add_faucet_update(
+	mut commands:		Commands,
+	mut grid:			ResMut<SimGrid>
+    ) {
+
+    let faucet_pos = Vec2::new(grid.cell_size as f32, grid.cell_size as f32 * 10.0);
+    let surface_direction = None;
+
+    let Err(e) = simulation::sim_state_manager::add_faucet(&mut commands, grid.as_mut(), faucet_pos, surface_direction) else {
+
+        return;
+    };
+
+    panic!("{}", e);
+
+}
+
 #[test]
 fn add_faucet_test() {
 
+    //First we setup the test world in bevy
+    let mut juicebox_test = App::new();
+
+    juicebox_test.insert_resource(SimGrid::default());
+    juicebox_test.insert_resource(SimConstraints::default());
+
+	juicebox_test.add_systems(Startup, simulation::test_setup);
+	juicebox_test.add_systems(Update, simulation::test_update);
+
+    juicebox_test.add_systems(Update, test_add_faucet_update);
+
+    // Then we run 1 step through the simulation with update()
+    juicebox_test.update();
+
+    let faucet = juicebox_test.world.component_id::<SimFaucet>();
+
+    assert_ne!(None, faucet);
+
+}
+
+#[test]
+fn run_faucet_test() {
+
+    //First we setup the test world in bevy
+    let mut juicebox_test = App::new();
+
+    juicebox_test.insert_resource(SimGrid::default());
+    juicebox_test.insert_resource(SimConstraints::default());
+
+	juicebox_test.add_systems(Startup, simulation::test_setup);
+	juicebox_test.add_systems(Update, simulation::test_update);
+
+    juicebox_test.add_systems(Update, test_add_faucet_update);
+
+    // Then we run 1 step through the simulation with update()
+    juicebox_test.update();
+
+    let before_count = juicebox_test.world.resource::<SimConstraints>().particle_count;
+
+    juicebox_test.update();
+
+    let after_count = juicebox_test.world.resource::<SimConstraints>().particle_count;
+
+    assert_ne!(after_count, before_count);
 }

@@ -211,3 +211,17 @@ pub fn add_faucet(
 
     Ok(())
 }
+
+pub fn activate_components(
+    commands:		&mut Commands,
+    constraints:	&mut SimConstraints,
+    faucets:        &Query<(Entity, &SimFaucet)>,
+    //TODO: Add Drains
+    grid:           &mut SimGrid,
+    ) {
+
+
+    for (_, faucet) in faucets.iter() {
+        faucet.run(commands, constraints, grid);
+    }
+}
