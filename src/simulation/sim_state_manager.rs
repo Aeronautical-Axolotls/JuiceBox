@@ -1,3 +1,4 @@
+use core::panic;
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
@@ -64,7 +65,7 @@ pub fn add_particle(
 			"X-coordinate for particle creation is out of grid bounds!"
 		));
 	}
-	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
 		return Err(Error::OutOfGridBounds(
 			"Y-coordinate for particle creation is out of grid bounds!"
 		));
@@ -170,13 +171,43 @@ pub fn select_particles<'a>(
 	selected_particles
 }
 
-pub fn add_facet(
+pub fn add_faucet(
 	commands:			&mut Commands,
-	constraints:		&mut SimConstraints,
 	grid:				&mut SimGrid,
-    facet_pos:          Vec2,
-    surface_direction:  SimSurfaceDirection
-    ) {
+    faucet_pos:         Vec2,
+    surface_direction:  Option<SimSurfaceDirection>
+    ) -> Result<()> {
 
+	if faucet_pos[0] < 0.0 || faucet_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"X-coordinate for particle creation is out of grid bounds!"
+		));
+	}
+    if faucet_pos[1] < 0.0 || faucet_pos[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"Y-coordinate for particle creation is out of grid bounds!"
+		));
+	}
 
+    commands.spawn(
+        SimFaucet::new(faucet_pos, surface_direction)
+    );
+
+    let cell_coords = grid.get_cell_coordinates_from_position(&faucet_pos);
+    let surroundings: [(i32, i32); 8] = [
+        (1, 0),
+        (-1, 0),
+        (0, 1),
+        (0, -1),
+        (1, 1),
+        (-1, 1),
+        (1, -1),
+        (-1, -1)
+    ];
+
+    for pair in surroundings {
+        grid.set_grid_cell_type((cell_coords.x as i32 + pair.0) as usize, (cell_coords.y as i32 + pair.1) as usize, SimGridCellType::Solid)?;
+    }
+
+    Ok(())
 }

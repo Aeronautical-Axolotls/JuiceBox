@@ -147,3 +147,8 @@ pub fn test_select_grid_cells(
 		);
 	}
 }
+
+#[test]
+fn add_faucet_test() {
+
+}

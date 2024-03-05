@@ -8,7 +8,7 @@ use crate::error::Error;
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 
-use self::sim_state_manager::{delete_all_particles, delete_particle};
+use self::sim_state_manager::{add_particle, delete_all_particles, delete_particle};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -744,10 +744,29 @@ pub struct SimParticle {
 	pub lookup_index:	usize,	// Bucket index into spatial lookup for efficient neighbor search.
 }
 
-#[derive(Component, Debug, Clone)]
-pub struct SimFacet {
+#[derive(Component, Debug, Clone, Default)]
+pub struct SimFaucet {
     pub position:       Vec2,                   // Facet Postion in the simulation
-    pub direction:      SimSurfaceDirection,    // Direction to which the facet is connected with the wall
+    pub direction:      Option<SimSurfaceDirection>,    // Direction to which the faucet is connected with the wall
+}
+
+impl SimFaucet {
+    pub fn new(position: Vec2, direction: Option<SimSurfaceDirection>) -> Self {
+        Self {
+            position,
+            direction,
+        }
+    }
+
+    pub fn run(&self, commands: &mut Commands, constraints: &mut SimConstraints, grid: &mut SimGrid) {
+        let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32 / 2.0 ));
+        let velocity = Vec2::ZERO;
+        let Err(e) = add_particle(commands, constraints, grid, position, velocity) else {
+            return;
+        };
+
+        panic!("{}", e);
+    }
 }
 
 /// Simulation state manager initialization.
