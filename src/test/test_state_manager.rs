@@ -60,6 +60,7 @@ pub fn construct_test_simulation_layout(
     //     grid.set_grid_cell_type(i, 49, SimGridCellType::Solid);
     // }
 
+    // Add faucet
     let faucet_pos = Vec2::new(grid.cell_size as f32, grid.cell_size as f32 * 20.0);
     let surface_direction = None;
 
@@ -155,6 +156,7 @@ pub fn test_select_grid_cells(
 	}
 }
 
+/// runs the add_faucet() function for testing
 fn test_add_faucet_update(
 	mut commands:		Commands,
 	mut grid:			ResMut<SimGrid>
@@ -178,17 +180,21 @@ fn add_faucet_test() {
     //First we setup the test world in bevy
     let mut juicebox_test = App::new();
 
+    // Add our constraints and grid
     juicebox_test.insert_resource(SimGrid::default());
     juicebox_test.insert_resource(SimConstraints::default());
 
+    // Add our test setup environment
 	juicebox_test.add_systems(Startup, simulation::test_setup);
 	juicebox_test.add_systems(Update, simulation::test_update);
 
+    // Add the test function for our add_faucet state change
     juicebox_test.add_systems(Update, test_add_faucet_update);
 
     // Then we run 1 step through the simulation with update()
     juicebox_test.update();
 
+    // Verify we have added a faucet
     let faucet = juicebox_test.world.component_id::<SimFaucet>();
 
     assert_ne!(None, faucet);
@@ -207,16 +213,21 @@ fn run_faucet_test() {
 	juicebox_test.add_systems(Startup, simulation::test_setup);
 	juicebox_test.add_systems(Update, simulation::test_update);
 
+    // Add the test function for our add_faucet state change
     juicebox_test.add_systems(Update, test_add_faucet_update);
 
     // Then we run 1 step through the simulation with update()
     juicebox_test.update();
 
+    // Get particle count before faucet has ran
     let before_count = juicebox_test.world.resource::<SimConstraints>().particle_count;
 
     juicebox_test.update();
 
+    // Get particle count after faucet has ran
     let after_count = juicebox_test.world.resource::<SimConstraints>().particle_count;
 
+    // Verify that the amount of particles has changed,
+    // thus, the faucet successfully ran
     assert_ne!(after_count, before_count);
 }
