@@ -14,7 +14,7 @@ use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 use crate::file_system::{self, *};
 
-use self::sim_state_manager::{delete_all_particles, delete_particle};
+use self::sim_state_manager::{activate_components, add_particle, delete_all_particles, delete_particle};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -70,6 +70,7 @@ fn update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
+    faucets:		    Query<(Entity, &SimFaucet)>,
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
@@ -87,31 +88,25 @@ fn update(
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
 		step_simulation_once(
+            commands,
 			constraints.as_mut(),
 			grid.as_mut(),
 			&mut particles,
+            &faucets,
 			fixed_timestep
 		);
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
 		step_simulation_once(
+            commands,
 			constraints.as_mut(),
 			grid.as_mut(),
 			&mut particles,
+            &faucets,
 			fixed_timestep
 		);
 	}
-
-	// test_select_grid_cells(
-	// 	&mut commands,
-	// 	constraints.as_mut(),
-	// 	grid.as_mut(),
-	// 	&particles,
-	// 	&windows,
-	// 	&cameras,
-	// 	&mut gizmos
-	// );
 
 	// TODO: Check for and handle changes to gravity.
 	// TODO: Check for and handle tool usage.
@@ -119,11 +114,15 @@ fn update(
 
 /// Step the fluid simulation one time!
 fn step_simulation_once(
+	mut commands:	Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
+	faucets:		&Query<(Entity, &SimFaucet)>,
 	timestep:		f32) {
 
+    // Run drains and faucets
+    activate_components(&mut commands, constraints, faucets, grid);
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -158,12 +157,36 @@ pub fn reset_simulation_to_default(
 	particles:			&Query<(Entity, &mut SimParticle)>) {
 
 	println!("Resetting simulation to default...");
+
+	// Reset all particles.
 	delete_all_particles(commands, constraints, grid, particles);
-	*grid			= SimGrid::default();
-	*constraints	= SimConstraints::default();
+
+	// Reset the grid.
+	let reset_grid: SimGrid	= SimGrid::default();
+	let row_count: usize	= reset_grid.dimensions.0 as usize;
+	let col_count: usize	= reset_grid.dimensions.1 as usize;
+	grid.dimensions			= reset_grid.dimensions;
+	grid.cell_size			= reset_grid.cell_size;
+	grid.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
+	grid.cell_center		= vec![vec![0.0; row_count]; col_count];
+	grid.velocity_u			= vec![vec![0.0; row_count + 1]; col_count];
+	grid.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
+	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
+	grid.density			= vec![0.0; row_count * col_count];
+
+	// Reset constraints.
+	let reset_constraints: SimConstraints	= SimConstraints::default();
+	constraints.grid_particle_ratio			= reset_constraints.grid_particle_ratio;
+	constraints.timestep					= reset_constraints.timestep;
+	constraints.incomp_iters_per_frame		= reset_constraints.incomp_iters_per_frame;
+	constraints.collision_iters_per_frame	= reset_constraints.collision_iters_per_frame;
+	constraints.gravity						= reset_constraints.gravity;
+	constraints.particle_radius				= reset_constraints.particle_radius;
+	constraints.particle_count				= reset_constraints.particle_count;
+	constraints.particle_rest_density		= reset_constraints.particle_rest_density;
 }
 
-#[derive(Resource, Reflect)]
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource)]
 pub struct SimConstraints {
 	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio (0.0 = FLIP, 1.0 = PIC).
@@ -182,7 +205,7 @@ impl Default for SimConstraints {
 		SimConstraints {
 			grid_particle_ratio:		0.3,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
 			timestep:					1.0 / 120.0,
-			incomp_iters_per_frame:		5,
+			incomp_iters_per_frame:		100,
 			collision_iters_per_frame:	2,
 
 			// (9.81^2) * 2 = ~385 (Bevy caps FPS at 60, we run sim at 120).
@@ -227,6 +250,22 @@ pub enum SimGridCellType {
 	Solid,
     Fluid,
 	Air,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SimSurfaceDirection {
+    North,
+    South,
+    East,
+    West,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SimSurfaceDirection {
+    North,
+    South,
+    East,
+    West,
 }
 
 #[derive(Resource, Clone, Reflect)]
@@ -529,7 +568,12 @@ impl SimGrid {
 		let center_cell		= self.get_cell_coordinates_from_position(&position);
 
 		// For each nearby cell, add its density weighted based on position to final density value.
-		for cell in nearby_cells.iter() {
+		for mut cell in nearby_cells.iter() {
+
+			// If one of our cell is solid, use the center cell's density instead.
+			// if self.cell_type[cell.x as usize][cell.y as usize] == SimGridCellType::Solid {
+			// 	cell = &center_cell;
+			// }
 
 			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
@@ -744,6 +788,62 @@ pub struct SimParticle {
 	pub lookup_index:	usize,	// Bucket index into spatial lookup for efficient neighbor search.
 }
 
+#[derive(Component, Debug, Clone, Default)]
+pub struct SimFaucet {
+    pub position:       Vec2,                           // Faucet Postion in the simulation
+    pub direction:      Option<SimSurfaceDirection>,    // Direction to which the faucet is connected with the wall
+}
+
+impl SimFaucet {
+
+    pub fn new(
+        position: Vec2,
+        direction: Option<SimSurfaceDirection>
+        ) -> Self {
+
+        Self {
+            position,
+            direction,
+        }
+    }
+
+    /// Runs the faucet, adds fluid particles, enforces solids
+    pub fn run(
+        &self,
+        commands: &mut Commands,
+        constraints: &mut SimConstraints,
+        grid: &mut SimGrid
+        ) -> Result<()> {
+
+        let cell_coords = grid.get_cell_coordinates_from_position(&self.position);
+        let surroundings: [(i32, i32); 7] = [
+            (-1, 0),
+            (0, 1),
+            (0, -1),
+            (1, 1),
+            (-1, 1),
+            (1, -1),
+            (-1, -1)
+        ];
+
+        // Enforce boundary of solids, current impl before rendering sprite
+        for pair in surroundings {
+            grid.set_grid_cell_type(
+                (cell_coords.x as i32 + pair.0) as usize,
+                (cell_coords.y as i32 + pair.1) as usize,
+                SimGridCellType::Solid
+            )?;
+        }
+
+        // Run fluid
+        let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32));
+        let velocity = Vec2::ZERO;
+        add_particle(commands, constraints, grid, position, velocity)?;
+
+        Ok(())
+    }
+}
+
 /// Simulation state manager initialization.
 pub fn test_setup(
 	commands:			Commands,
@@ -762,15 +862,19 @@ pub fn test_update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
+    faucets:		    Query<(Entity, &SimFaucet)>,
+	mut commands:	Commands,
     ) {
 
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	let fixed_timestep: f32 = constraints.timestep;
 
     step_simulation_once(
+        commands,
         constraints.as_mut(),
         grid.as_mut(),
         &mut particles,
+        &faucets,
         fixed_timestep
     );
 
