@@ -260,14 +260,6 @@ pub enum SimSurfaceDirection {
     West,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SimSurfaceDirection {
-    North,
-    South,
-    East,
-    West,
-}
-
 #[derive(Resource, Clone, Reflect)]
 #[reflect(Resource)]
 pub struct SimGrid {
