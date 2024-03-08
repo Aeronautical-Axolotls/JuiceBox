@@ -309,6 +309,7 @@ fn drain_drain_test() {
     // Get particle count before drain has drained
     let before_count = juicebox_test.world.resource::<SimConstraints>().particle_count;
 
+    // Run a couple times to let the fluid fall
     juicebox_test.update();
     juicebox_test.update();
     juicebox_test.update();
@@ -316,10 +317,10 @@ fn drain_drain_test() {
     juicebox_test.update();
     juicebox_test.update();
 
-    // Get particle count after faucet has ran
+    // Get particle count after drain has drained
     let after_count = juicebox_test.world.resource::<SimConstraints>().particle_count;
 
     // Verify that the amount of particles has changed,
-    // thus, the faucet successfully ran
+    // thus, the drain successfully drained
     assert_ne!(after_count, before_count);
 }

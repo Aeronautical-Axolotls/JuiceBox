@@ -101,8 +101,8 @@ fn step_simulation_once(
 	drains:		    &Query<(Entity, &SimDrain)>,
 	timestep:		f32) {
 
-    // Run drains and faucets
-    activate_components(&mut commands, constraints, particles, faucets, drains, grid);
+    // Run drains and faucets, panics if something weird/bad happens
+    activate_components(&mut commands, constraints, particles, faucets, drains, grid).ok();
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -750,6 +750,7 @@ impl SimGrid {
 
 }
 
+/// Particle Object for simulation
 #[derive(Component, Debug, Clone)]
 pub struct SimParticle {
 	pub position:		Vec2, 	// This particle's [x, y] position.
@@ -757,6 +758,7 @@ pub struct SimParticle {
 	pub lookup_index:	usize,	// Bucket index into spatial lookup for efficient neighbor search.
 }
 
+/// Faucet Object for simulation
 #[derive(Component, Debug, Clone, Default)]
 pub struct SimFaucet {
     pub position:       Vec2,                           // Faucet Postion in the simulation
@@ -813,6 +815,7 @@ impl SimFaucet {
     }
 }
 
+/// Drain Object for simulation
 #[derive(Component, Debug, Clone, Default)]
 pub struct SimDrain {
     pub position:       Vec2,                           // Drain Postion in the simulation

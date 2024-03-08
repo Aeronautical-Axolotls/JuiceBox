@@ -154,6 +154,7 @@ pub fn select_particles<'a>(
 		let cell_lookup_index: usize = grid.get_lookup_index(selected_cell_coordinates[i]);
 		for particle_id in grid.get_particles_in_lookup(cell_lookup_index).iter() {
 
+            // Skip particles we can't find
             let Ok(particle_entity) = particles.get(*particle_id) else {
                 continue;
             };
