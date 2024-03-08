@@ -1,4 +1,3 @@
-use core::panic;
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
@@ -191,6 +190,32 @@ pub fn add_faucet(
 
     commands.spawn(
         SimFaucet::new(faucet_pos, surface_direction)
+    );
+
+
+    Ok(())
+}
+
+pub fn add_drain(
+	commands:			&mut Commands,
+	grid:				&mut SimGrid,
+    drain_pos:         Vec2,
+    surface_direction:  Option<SimSurfaceDirection>
+    ) -> Result<()> {
+
+	if drain_pos[0] < 0.0 || drain_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"X-coordinate for particle creation is out of grid bounds!"
+		));
+	}
+    if drain_pos[1] < 0.0 || drain_pos[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"Y-coordinate for particle creation is out of grid bounds!"
+		));
+	}
+
+    commands.spawn(
+        SimDrain::new(drain_pos, surface_direction)
     );
 
 

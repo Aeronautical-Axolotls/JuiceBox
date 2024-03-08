@@ -8,7 +8,7 @@ use crate::error::Error;
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 
-use self::sim_state_manager::{activate_components, add_particle, delete_all_particles, delete_particle};
+use self::sim_state_manager::{activate_components, add_particle, delete_all_particles, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -809,6 +809,7 @@ impl SimFaucet {
     }
 }
 
+#[derive(Component, Debug, Clone, Default)]
 pub struct SimDrain {
     pub position:       Vec2,                           // Drain Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall
@@ -816,6 +817,7 @@ pub struct SimDrain {
 
 impl SimDrain {
 
+    /// New Drain
     pub fn new(
         position: Vec2,
         direction: Option<SimSurfaceDirection>
@@ -827,13 +829,20 @@ impl SimDrain {
         }
     }
 
-    /// Runs the faucet, adds fluid particles, enforces solids
+    /// Removes nearby particles
     pub fn drain(
         &self,
         commands: &mut Commands,
         constraints: &mut SimConstraints,
-        grid: &mut SimGrid
+        grid: &mut SimGrid,
+        particles: &Query<(Entity, &mut SimParticle)>,
         ) -> Result<()> {
+
+        let nearby_particles = select_particles(particles, grid, self.position, 1.0);
+
+        for id in nearby_particles {
+            delete_particle(commands, constraints, particles, grid, id)?;
+        }
 
         Ok(())
     }
