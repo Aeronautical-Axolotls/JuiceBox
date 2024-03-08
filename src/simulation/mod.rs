@@ -809,6 +809,36 @@ impl SimFaucet {
     }
 }
 
+pub struct SimDrain {
+    pub position:       Vec2,                           // Drain Postion in the simulation
+    pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall
+}
+
+impl SimDrain {
+
+    pub fn new(
+        position: Vec2,
+        direction: Option<SimSurfaceDirection>
+        ) -> Self {
+
+        Self {
+            position,
+            direction,
+        }
+    }
+
+    /// Runs the faucet, adds fluid particles, enforces solids
+    pub fn drain(
+        &self,
+        commands: &mut Commands,
+        constraints: &mut SimConstraints,
+        grid: &mut SimGrid
+        ) -> Result<()> {
+
+        Ok(())
+    }
+}
+
 /// Simulation state manager initialization.
 pub fn test_setup(
 	commands:			Commands,
