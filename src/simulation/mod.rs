@@ -47,6 +47,7 @@ fn update(
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:		    Query<(Entity, &SimFaucet)>,
+    drains:		        Query<(Entity, &SimDrain)>,
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
@@ -69,6 +70,7 @@ fn update(
 			grid.as_mut(),
 			&mut particles,
             &faucets,
+            &drains,
 			fixed_timestep
 		);
 
@@ -80,6 +82,7 @@ fn update(
 			grid.as_mut(),
 			&mut particles,
             &faucets,
+            &drains,
 			fixed_timestep
 		);
 	}
@@ -95,10 +98,11 @@ fn step_simulation_once(
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	faucets:		&Query<(Entity, &SimFaucet)>,
+	drains:		    &Query<(Entity, &SimDrain)>,
 	timestep:		f32) {
 
     // Run drains and faucets
-    activate_components(&mut commands, constraints, faucets, grid);
+    activate_components(&mut commands, constraints, particles, faucets, drains, grid);
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -867,7 +871,8 @@ pub fn test_update(
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:		    Query<(Entity, &SimFaucet)>,
-	mut commands:	Commands,
+    drains:		        Query<(Entity, &SimDrain)>,
+	commands:	        Commands,
     ) {
 
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
@@ -879,6 +884,7 @@ pub fn test_update(
         grid.as_mut(),
         &mut particles,
         &faucets,
+        &drains,
         fixed_timestep
     );
 

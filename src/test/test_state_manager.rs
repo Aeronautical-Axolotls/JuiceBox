@@ -7,11 +7,15 @@ use crate::simulation::sim_state_manager::{
 	delete_particle,
     add_faucet,
 };
-use crate::simulation::{self, SimFaucet, SimGridCellType};
+use crate::simulation::SimSurfaceDirection;
 use crate::simulation::{
+    self,
 	SimConstraints,
 	SimParticle,
 	SimGrid,
+    SimFaucet,
+    SimGridCellType,
+    SimDrain,
 	sim_state_manager::{
 		add_particles_in_radius,
 		add_particle,
@@ -174,6 +178,24 @@ fn test_add_faucet_update(
 
 }
 
+/// runs the add_faucet() function for testing
+fn test_add_drain_update(
+	mut commands:		Commands,
+	mut grid:			ResMut<SimGrid>
+    ) {
+
+    let drain_pos = Vec2::new(grid.cell_size as f32 * 25.0, 1.0);
+    let surface_direction = Some(SimSurfaceDirection::South);
+
+    let Err(e) = simulation::sim_state_manager::add_drain(&mut commands, grid.as_mut(), drain_pos, surface_direction) else {
+
+        return;
+    };
+
+    panic!("{}", e);
+
+}
+
 #[test]
 fn add_faucet_test() {
 
@@ -222,6 +244,69 @@ fn run_faucet_test() {
     // Get particle count before faucet has ran
     let before_count = juicebox_test.world.resource::<SimConstraints>().particle_count;
 
+    juicebox_test.update();
+
+    // Get particle count after faucet has ran
+    let after_count = juicebox_test.world.resource::<SimConstraints>().particle_count;
+
+    // Verify that the amount of particles has changed,
+    // thus, the faucet successfully ran
+    assert_ne!(after_count, before_count);
+}
+
+#[test]
+fn add_drain_test() {
+
+    //First we setup the test world in bevy
+    let mut juicebox_test = App::new();
+
+    // Add our constraints and grid
+    juicebox_test.insert_resource(SimGrid::default());
+    juicebox_test.insert_resource(SimConstraints::default());
+
+    // Add our test setup environment
+	juicebox_test.add_systems(Startup, simulation::test_setup);
+	juicebox_test.add_systems(Update, simulation::test_update);
+
+    // Add the test function for our add_drain state change
+    juicebox_test.add_systems(Update, test_add_drain_update);
+
+    // Then we run 1 step through the simulation with update()
+    juicebox_test.update();
+
+    // Verify we have added a drain
+    let drain = juicebox_test.world.component_id::<SimDrain>();
+
+    assert_ne!(None, drain);
+
+}
+
+#[test]
+fn drain_drain_test() {
+
+    //First we setup the test world in bevy
+    let mut juicebox_test = App::new();
+
+    juicebox_test.insert_resource(SimGrid::default());
+    juicebox_test.insert_resource(SimConstraints::default());
+
+	juicebox_test.add_systems(Startup, simulation::test_setup);
+	juicebox_test.add_systems(Update, simulation::test_update);
+
+    // Add the test function for our add_drain state change
+    juicebox_test.add_systems(Update, test_add_drain_update);
+
+    // Then we run 1 step through the simulation with update()
+    juicebox_test.update();
+
+    // Get particle count before drain has drained
+    let before_count = juicebox_test.world.resource::<SimConstraints>().particle_count;
+
+    juicebox_test.update();
+    juicebox_test.update();
+    juicebox_test.update();
+    juicebox_test.update();
+    juicebox_test.update();
     juicebox_test.update();
 
     // Get particle count after faucet has ran

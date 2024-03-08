@@ -225,13 +225,18 @@ pub fn add_drain(
 pub fn activate_components(
     commands:		&mut Commands,
     constraints:	&mut SimConstraints,
+    particles:      &Query<(Entity, &mut SimParticle)>,
     faucets:        &Query<(Entity, &SimFaucet)>,
-    //TODO: Add Drains
+    drains:         &Query<(Entity, &SimDrain)>,
     grid:           &mut SimGrid,
     ) -> Result<()> {
 
     for (_, faucet) in faucets.iter() {
         faucet.run(commands, constraints, grid)?;
+    }
+
+    for (_, drain) in drains.iter() {
+        drain.drain(commands, constraints, grid, particles)?;
     }
 
     Ok(())
