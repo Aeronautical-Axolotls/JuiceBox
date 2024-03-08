@@ -154,8 +154,11 @@ pub fn select_particles<'a>(
 		let cell_lookup_index: usize = grid.get_lookup_index(selected_cell_coordinates[i]);
 		for particle_id in grid.get_particles_in_lookup(cell_lookup_index).iter() {
 
-			// TODO: Error checking here.  Don't use unwrap() in production!
-			let particle: &SimParticle = particles.get(*particle_id).unwrap().1;
+            let Ok(particle_entity) = particles.get(*particle_id) else {
+                continue;
+            };
+
+            let particle = particle_entity.1;
 
 			// Avoid an unnecessary sqrt() here:
 			let distance: f32 = Vec2::distance_squared(position, particle.position);

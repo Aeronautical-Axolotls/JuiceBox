@@ -6,6 +6,7 @@ use crate::simulation::sim_state_manager::{
 	select_particles,
 	delete_particle,
     add_faucet,
+    add_drain,
 };
 use crate::simulation::SimSurfaceDirection;
 use crate::simulation::{
@@ -65,10 +66,16 @@ pub fn construct_test_simulation_layout(
     // }
 
     // Add faucet
-    let faucet_pos = Vec2::new(grid.cell_size as f32, grid.cell_size as f32 * 20.0);
+    // let faucet_pos = Vec2::new(grid.cell_size as f32, grid.cell_size as f32 * 20.0);
+    // let surface_direction = None;
+
+    // add_faucet(&mut commands, grid, faucet_pos, surface_direction).ok();
+
+    // Add Drain
+    let drain_pos = Vec2::new(grid.cell_size as f32 * 25.0, 0.0);
     let surface_direction = None;
 
-    add_faucet(&mut commands, grid, faucet_pos, surface_direction).ok();
+    add_drain(&mut commands, grid, drain_pos, surface_direction).ok();
 
 	// Spawn a small test group of particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {

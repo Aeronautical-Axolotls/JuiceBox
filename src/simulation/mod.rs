@@ -842,10 +842,14 @@ impl SimDrain {
         particles: &Query<(Entity, &mut SimParticle)>,
         ) -> Result<()> {
 
-        let nearby_particles = select_particles(particles, grid, self.position, 1.0);
+        let nearby_particles = select_particles(particles, grid, self.position, grid.cell_size as f32);
 
         for id in nearby_particles {
-            delete_particle(commands, constraints, particles, grid, id)?;
+            let Err(e) = delete_particle(commands, constraints, particles, grid, id) else {
+                continue;
+            };
+            println!("{}", e);
+            continue;
         }
 
         Ok(())
