@@ -8,7 +8,7 @@ use crate::error::Error;
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 
-use self::sim_state_manager::{activate_components, add_particle, delete_all_particles, delete_particle};
+use self::sim_state_manager::{activate_components, add_particle, delete_all_particles, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -47,6 +47,7 @@ fn update(
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:		    Query<(Entity, &SimFaucet)>,
+    drains:		        Query<(Entity, &SimDrain)>,
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
@@ -69,6 +70,7 @@ fn update(
 			grid.as_mut(),
 			&mut particles,
             &faucets,
+            &drains,
 			fixed_timestep
 		);
 
@@ -80,6 +82,7 @@ fn update(
 			grid.as_mut(),
 			&mut particles,
             &faucets,
+            &drains,
 			fixed_timestep
 		);
 	}
@@ -95,10 +98,11 @@ fn step_simulation_once(
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	faucets:		&Query<(Entity, &SimFaucet)>,
+	drains:		    &Query<(Entity, &SimDrain)>,
 	timestep:		f32) {
 
-    // Run drains and faucets
-    activate_components(&mut commands, constraints, faucets, grid);
+    // Run drains and faucets, panics if something weird/bad happens
+    activate_components(&mut commands, constraints, particles, faucets, drains, grid).ok();
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -746,6 +750,7 @@ impl SimGrid {
 
 }
 
+/// Particle Object for simulation
 #[derive(Component, Debug, Clone)]
 pub struct SimParticle {
 	pub position:		Vec2, 	// This particle's [x, y] position.
@@ -753,6 +758,7 @@ pub struct SimParticle {
 	pub lookup_index:	usize,	// Bucket index into spatial lookup for efficient neighbor search.
 }
 
+/// Faucet Object for simulation
 #[derive(Component, Debug, Clone, Default)]
 pub struct SimFaucet {
     pub position:       Vec2,                           // Faucet Postion in the simulation
@@ -809,6 +815,50 @@ impl SimFaucet {
     }
 }
 
+/// Drain Object for simulation
+#[derive(Component, Debug, Clone, Default)]
+pub struct SimDrain {
+    pub position:       Vec2,                           // Drain Postion in the simulation
+    pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall
+}
+
+impl SimDrain {
+
+    /// New Drain
+    pub fn new(
+        position: Vec2,
+        direction: Option<SimSurfaceDirection>
+        ) -> Self {
+
+        Self {
+            position,
+            direction,
+        }
+    }
+
+    /// Removes nearby particles
+    pub fn drain(
+        &self,
+        commands: &mut Commands,
+        constraints: &mut SimConstraints,
+        grid: &mut SimGrid,
+        particles: &Query<(Entity, &mut SimParticle)>,
+        ) -> Result<()> {
+
+        let nearby_particles = select_particles(particles, grid, self.position, grid.cell_size as f32);
+
+        for id in nearby_particles {
+            let Err(e) = delete_particle(commands, constraints, particles, grid, id) else {
+                continue;
+            };
+            println!("{}", e);
+            continue;
+        }
+
+        Ok(())
+    }
+}
+
 /// Simulation state manager initialization.
 pub fn test_setup(
 	commands:			Commands,
@@ -828,7 +878,8 @@ pub fn test_update(
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:		    Query<(Entity, &SimFaucet)>,
-	mut commands:	Commands,
+    drains:		        Query<(Entity, &SimDrain)>,
+	commands:	        Commands,
     ) {
 
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
@@ -840,6 +891,7 @@ pub fn test_update(
         grid.as_mut(),
         &mut particles,
         &faucets,
+        &drains,
         fixed_timestep
     );
 

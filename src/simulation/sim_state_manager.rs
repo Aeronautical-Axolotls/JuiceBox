@@ -1,4 +1,3 @@
-use core::panic;
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
@@ -155,8 +154,12 @@ pub fn select_particles<'a>(
 		let cell_lookup_index: usize = grid.get_lookup_index(selected_cell_coordinates[i]);
 		for particle_id in grid.get_particles_in_lookup(cell_lookup_index).iter() {
 
-			// TODO: Error checking here.  Don't use unwrap() in production!
-			let particle: &SimParticle = particles.get(*particle_id).unwrap().1;
+            // Skip particles we can't find
+            let Ok(particle_entity) = particles.get(*particle_id) else {
+                continue;
+            };
+
+            let particle = particle_entity.1;
 
 			// Avoid an unnecessary sqrt() here:
 			let distance: f32 = Vec2::distance_squared(position, particle.position);
@@ -197,16 +200,47 @@ pub fn add_faucet(
     Ok(())
 }
 
+pub fn add_drain(
+	commands:			&mut Commands,
+	grid:				&mut SimGrid,
+    drain_pos:         Vec2,
+    surface_direction:  Option<SimSurfaceDirection>
+    ) -> Result<()> {
+
+	if drain_pos[0] < 0.0 || drain_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"X-coordinate for particle creation is out of grid bounds!"
+		));
+	}
+    if drain_pos[1] < 0.0 || drain_pos[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+		return Err(Error::OutOfGridBounds(
+			"Y-coordinate for particle creation is out of grid bounds!"
+		));
+	}
+
+    commands.spawn(
+        SimDrain::new(drain_pos, surface_direction)
+    );
+
+
+    Ok(())
+}
+
 pub fn activate_components(
     commands:		&mut Commands,
     constraints:	&mut SimConstraints,
+    particles:      &Query<(Entity, &mut SimParticle)>,
     faucets:        &Query<(Entity, &SimFaucet)>,
-    //TODO: Add Drains
+    drains:         &Query<(Entity, &SimDrain)>,
     grid:           &mut SimGrid,
     ) -> Result<()> {
 
     for (_, faucet) in faucets.iter() {
         faucet.run(commands, constraints, grid)?;
+    }
+
+    for (_, drain) in drains.iter() {
+        drain.drain(commands, constraints, grid, particles)?;
     }
 
     Ok(())
