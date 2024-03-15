@@ -42,6 +42,19 @@ use crate::juice_renderer;
 
 use super::*;
 
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum JuiceStates {
+	Running,
+	Saving,
+	Loading
+}
+
+impl Default for JuiceStates {
+	fn default() -> JuiceStates {
+		JuiceStates::Running
+	}
+}
+
 struct JuicePipeline;
 
 impl Pipeline for JuicePipeline {
@@ -51,8 +64,8 @@ impl Pipeline for JuicePipeline {
     type Key<'a> = &'a str;
 
     fn key(&self) -> Self::Key<'_> {
-        //"assets/scenes/save_test/test_save_2_bevy_save"
-        "assets/scenes/load_test/test_load_11_friends"
+        "assets/scenes/save_test/test_save_3_bevy_save"
+        //"assets/scenes/load_test/test_load_11_friends"
     }
 
     fn capture(builder: SnapshotBuilder) -> Snapshot {
@@ -73,113 +86,6 @@ impl Pipeline for JuicePipeline {
 }
 
 pub fn save_scene(world: &mut World) {
-    println!("Saving Scene...");
-
-    let start = SystemTime::now();
-
-    /*
-    let mut scene_world = World::new();
-    let type_registry = world.resource::<AppTypeRegistry>().clone();
-    scene_world.insert_resource(type_registry);
-    let mut test_constraints = SimConstraints::from_world(world);
-    let mut test_grid = SimGrid::from_world(world);
-    let mut test_particle = SimParticle::from_world(world);
-    scene_world.insert_resource(test_constraints);
-    scene_world.insert_resource(test_grid);
-    scene_world.spawn(test_particle);
-    let scene = DynamicScene::from_world(&scene_world);
-    let type_registry = world.resource::<AppTypeRegistry>();
-    let serialized_scene = scene.serialize_ron(type_registry).unwrap();
-    //info!("{}", serialized_scene);
-
-    #[cfg(not(target_arch = "wasm32"))]
-    IoTaskPool::get()
-        .spawn(async move {
-            // Write the scene RON data to file
-            File::create(format!("assets/scenes/test_save_1.scn.ron"))
-                .and_then(|mut file| file.write(serialized_scene.as_bytes()))
-                .expect("Error while writing scene to file");
-        })
-        .detach();
-    */
-
-
-    // Method #3
-
-    let mut path = format!("assets/scenes/test_save_3_2.scn.ron");
-
-    let entities_vec: Vec<Entity> = world
-    //.query_filtered::<Entity, With<Savable>>()
-    .query_filtered::<Entity, With<SimParticle>>()
-    .iter(world)
-    .collect();
-
-    //println!("{:#?}", entities_vec);
-
-    //let x = entities_vec.into_iter();
-
-    let mut scene_builder = DynamicSceneBuilder::from_world(world);
-    //let mut new_scene: DynamicScene = scene_builder.allow_all_resources().extract_resources().extract_entities(entities_vec.into_iter()).build(); // Look into [allow_resource]
-    let mut test_scene: DynamicScene = scene_builder.extract_entities(entities_vec.into_iter()).build();
-
-    //println!("{:#?}", test_scene.serialize_ron(world.resource::<AppTypeRegistry>()));
-
-    match test_scene.serialize_ron(world.resource::<AppTypeRegistry>()) {
-        Ok(serialized_scene) => match File::create(&path) {
-            Ok(mut file) => match file.write_all(serialized_scene.as_bytes()) {
-                Ok(()) => info!("save successful: {path:?}"),
-                Err(why) => error!("save failed: {why:?}"),
-            },
-            Err(why) => {
-                error!("file creation failed: {why:?}");
-            }
-        },
-        Err(why) => {
-            error!("serialization failed: {why:?}");
-        }
-    }
-
-    println!("\nTime elapsed during saving: {:#?}\n", start.elapsed().unwrap());
-
-    /*
-    let entities: Vec<Entity> = match mode {
-        SaveMode::Filtered => world
-            .query_filtered::<Entity>()
-            .iter(world)
-            .collect(),
-        SaveMode::Dump => world.iter_entities().collect(),
-    };
-    */
-
-    //println!("\n\n THE WORLD COMPONENT LIST \n\n");
-    //println!("{:#?}", world.components());
-
-    //println!("{:#?}", world.entities());
-    
-    //let mut iter_test = world.iter_entities();
-
-
-    //println!("{:#?}", world.inspect_entity(iter_test.next().unwrap().id()));
-    //println!("{:#?}", world.inspect_entity(iter_test.next().unwrap().id()));
-    //println!("{:#?}", world.inspect_entity(iter_test.next().unwrap().id()));
-    
-    /*
-    println!("Time: {:?}", world.resource::<Time>());
-
-    let scene = DynamicScene::from_world(world);
-    let type_registry = world.resource::<AppTypeRegistry>();
-
-    println!("{:?}", world.entities());
-
-    let serialized_scene = scene.serialize_ron(type_registry).unwrap();
-    println!("Serialized Scene:\n\n{}", serialized_scene);
-    */
-    
-
-    //let dynamic_scene = from_world(world);
-}
-
-pub fn save_scene_bevy_save(world: &mut World) {
     let start = SystemTime::now();
 
     world.save(JuicePipeline).expect("Should have saved correctly");
@@ -187,24 +93,12 @@ pub fn save_scene_bevy_save(world: &mut World) {
     println!("\nTime elapsed during bevy_save saving: {:#?}\n", start.elapsed().unwrap());
 }
 
-pub fn load_scene_bevy_save(world: &mut World) {
+pub fn load_scene(world: &mut World, /*mut file_state: ResMut<NextState<JuiceStates>>*/) {
+    println!("LOADING!!!!!!!!!!!!!!!!!!");
+
     world.load(JuicePipeline).expect("Should have loaded correctly");
-}
 
-pub fn load_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
-    println!("Loading Scene...");
-    commands.spawn(DynamicSceneBundle {scene: asset_server.load("scenes/test_load_3.scn.ron"),..default()});
-    /*
-    let particle: Entity = commands.spawn(
-		SimParticle {
-			position:	Vec2 {x: 20.0, y: 20.0},
-			velocity:	Vec2 {x: 0.0, y: 0.0},
-		}
-	).id();
-    */
-
-	// IMPORTANT: Links a sprite to each particle for rendering.
-	//juice_renderer::link_particle_sprite(&mut commands, particle);
+    //file_state.set(JuiceStates::Running);
 }
 
 pub fn get_file() -> &'static str {

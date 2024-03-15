@@ -3,9 +3,9 @@ pub mod sim_state_manager;
 pub mod util;
 
 use bevy::prelude::*;
+//use bevy::prelude::init_state;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::file_system::save_scene;
 use crate::juice_renderer;
 use crate::test;
 use crate::ui;
@@ -25,6 +25,8 @@ impl Plugin for Simulation {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimGrid::default());
 
+		app.add_state::<file_system::JuiceStates>();
+
 		// Setting up the type registry so the data can be accessed for file_system.rs
 		app.register_type::<SimParticle>();
 		app.register_type::<Option<Vec2>>();
@@ -42,9 +44,11 @@ impl Plugin for Simulation {
 
 		app.add_systems(Startup, setup);
 		app.add_systems(Update, update);
-		
-		//app.add_systems(PostStartup, file_system::save_scene); // Temporarily here for debug purposes
-		app.add_systems(PostStartup, file_system::load_scene_bevy_save); // Temporarily here for debug purposes
+		//app.add_systems(Update, file_system::load_scene_bevy_save.run_if(in_state(file_system::JuiceStates::Loading)));
+		app.add_systems(OnEnter(file_system::JuiceStates::Loading), load_scene);
+		app.add_systems(OnEnter(file_system::JuiceStates::Saving), save_scene);
+
+		//init_state = app.init_state::<file_system::JuiceStates>();
 	}
 }
 
@@ -76,8 +80,11 @@ fn update(
 	mut commands:	Commands,
 	mut gizmos:		Gizmos,
 	windows:		Query<&Window>,
-	cameras:		Query<(&Camera, &GlobalTransform)>
+	cameras:		Query<(&Camera, &GlobalTransform)>,
+	mut file_state: ResMut<NextState<file_system::JuiceStates>>
 	) {
+
+	// file_state.set(file_system::JuiceStates::Running); // CHANGE THIS TO ONLY BE IN file_system.save and file_system.load
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
