@@ -172,17 +172,94 @@ fn show_current_tool_menu(
 
 			// Show different buttons depending on which tool is currently selected.
 			match ui_state.selected_tool {
-				SimTool::Select			=> {  },
-				SimTool::Grab			=> {  },
-				SimTool::AddFluid		=> {  },
-				SimTool::RemoveFluid	=> {  },
-				SimTool::AddWall		=> {  },
-				SimTool::RemoveWall		=> {  },
-				SimTool::AddFaucet		=> {  },
-				SimTool::RemoveFaucet	=> {  },
-				SimTool::AddDrain		=> {  },
-				SimTool::RemoveDrain	=> {  },
-				_						=> {},
+
+				// For the Select tool, show some text as there are no options for Select.
+				SimTool::Select			=> {
+					ui.label("No options available for the Select tool!");
+				},
+
+				// For the Grab tool, show a slider for the grabbing radius.
+				SimTool::Grab			=> {
+					ui.add(egui::Slider::new(
+						&mut ui_state.grab_slider_radius,
+						1.0..=500.0
+					).text("Grab Radius"));
+				},
+
+				// For the Add Fluid tool, show density and radius sliders.
+				SimTool::AddFluid		=> {
+					ui.add(egui::Slider::new(
+						&mut ui_state.add_remove_fluid_radius,
+						1.0..=500.0
+					).text("Brush Radius"));
+					ui.add(egui::Slider::new(
+						&mut ui_state.add_fluid_density,
+						0.01..=10.0
+					).text("Fluid Density"));
+				},
+
+				// For the Remove Fluid tool, show a radius slider.
+				SimTool::RemoveFluid	=> {
+					ui.add(egui::Slider::new(
+						&mut ui_state.add_remove_fluid_radius,
+						1.0..=500.0
+					).text("Eraser Radius"));
+				},
+
+				// For the Add Wall tool, show some text as there are no options for Add Wall.
+				SimTool::AddWall		=> {
+					ui.label("No options available for the Add Wall tool!");
+				},
+
+				// For the Remove Wall tool, show some text as there are no options for Remove Wall.
+				SimTool::RemoveWall		=> {
+					ui.label("No options available for the Remove Wall tool!");
+				},
+
+				/* For the Add Faucet tool, show sliders for the direction, volume, and speed
+					of the fluid coming out of the faucet. */
+				SimTool::AddFaucet		=> {
+					ui.add(egui::Slider::new(
+						&mut ui_state.faucet_direction,
+						0.0..=360.0
+					).text("Faucet Direction"));
+					ui.add(egui::Slider::new(
+						&mut ui_state.faucet_radius,
+						1.0..=10.0
+					).text("Faucet Pipe Diameter"));
+					ui.add(egui::Slider::new(
+						&mut ui_state.faucet_pressure,
+						0.0..=100.0
+					).text("Faucet Pressure"));
+				},
+
+				// For the Remove Faucet tool, show some text as there are no options for Remove Faucet.
+				SimTool::RemoveFaucet	=> {
+					ui.label("No options available for the Remove Faucet tool!");
+				},
+
+				/* For the Add Drain tool, show a sucking radius radius slider and a pressure slider
+					for controlling how intensely a drain pulls fluid inwards. */
+				SimTool::AddDrain		=> {
+					ui.add(egui::Slider::new(
+						&mut ui_state.faucet_pressure,
+						0.0..=100.0
+					).text("Drain Suck Radius"));
+					ui.add(egui::Slider::new(
+						&mut ui_state.faucet_pressure,
+						0.0..=100.0
+					).text("Drain Pressure"));
+				},
+
+				// For the Remove Drain tool, show some text as there are no options for Remove Drain.
+				SimTool::RemoveDrain	=> {
+					ui.label("No options available for the Remove Drain tool!");
+				},
+
+				// It should literally not be possible for this final case to happen.
+				_						=> {
+					ui.label("If you are seeing this message, something is wrong :(");
+				},
 			}
 		});
 	});
@@ -342,6 +419,12 @@ pub struct UIStateManager {
 	show_selected_tool:			bool,
 	selected_tool:				SimTool,
 	tool_icon_handles:			Vec<Handle<Image>>,
+	grab_slider_radius:			f32,
+	add_remove_fluid_radius:	f32,
+	add_fluid_density:			f32,
+	faucet_direction:			f32,
+	faucet_radius:				f32,
+	faucet_pressure:			f32,
 
 	show_visualization:			bool,
 	show_grid:					bool,
@@ -363,10 +446,18 @@ pub struct UIStateManager {
 impl Default for UIStateManager {
 	fn default() -> UIStateManager {
 		UIStateManager {
+			// Currently selected tool menu.
 			show_selected_tool:			true,
 			selected_tool:				SimTool::Select,
 			tool_icon_handles:			vec![Handle::default(); UI_ICON_COUNT],
+			grab_slider_radius:			10.0,
+			add_remove_fluid_radius:	25.0,
+			add_fluid_density:			1.75,
+			faucet_direction:			45.0,
+			faucet_radius:				2.0,
+			faucet_pressure:			10.0,
 
+			// Visualization menu.
 			show_visualization:			false,
 			show_grid:					false,
 			show_velocity_vectors:		false,
@@ -381,9 +472,11 @@ impl Default for UIStateManager {
 				[util::JUICE_RED.r(), util::JUICE_RED.g(), util::JUICE_RED.b()],
 			],
 
+			// Play/pause.
 			is_paused:					false,
 			play_pause_icon_handles:	vec![Handle::default(); 2],
 
+			// Used for coherency between EGUI menus.
 			window_frame:				Frame::none(),
 			window_size:				Vec2::ZERO,
 			icon_size:					Vec2 { x: 30.0, y: 30.0 },
