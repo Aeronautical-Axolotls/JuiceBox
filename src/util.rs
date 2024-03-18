@@ -6,6 +6,7 @@ use std::{
 	f32::consts::PI,
 	time::SystemTime,
 };
+use image::{DynamicImage, ImageBuffer, RgbImage, RgbaImage};
 
 use crate::{juice_renderer::draw_vector_arrow, simulation::{sim_state_manager, SimConstraints, SimGrid, SimGridCellType, SimParticle}, test::test_state_manager};
 
@@ -348,9 +349,17 @@ pub fn create_window_title(title: &str) -> String {
 pub fn set_window_icon(windows: NonSend<WinitWindows>)
 {
 	let (icon_rgba, icon_width, icon_height) = {
-		let image = image::open("assets/juicebox_logo_256.png")
-			.expect("Failed to open icon!")
-			.into_rgba8();
+
+		// Load the JuiceBox logo icon, generating a black 16x16 image if it is not found.
+		let image_result = image::open("assets/juicebox_logo_256.png");
+		let image = match image_result {
+			Ok(img)		=> img.into_rgba8(),
+			Err(error)	=> {
+				let rgb_img: RgbaImage = RgbaImage::new(16, 16);
+				rgb_img
+			}
+		};
+
 		let (width, height)	= image.dimensions();
 		let rgba			= image.into_raw();
 		(rgba, width, height)
