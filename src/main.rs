@@ -9,7 +9,7 @@ pub mod error;
 pub mod test;
 pub mod ui;
 
-use ui::{init_user_interface, draw_user_interface, load_user_interface_icons, UIStateManager};
+use ui::interface::{init_user_interface, draw_user_interface, load_user_interface_icons, UIStateManager};
 use util::debug_state_controller;
 
 fn main() {
@@ -27,7 +27,7 @@ fn main() {
 	));
 
 	juicebox.insert_resource(UIStateManager::default());
-	juicebox.add_systems(Update, init_user_interface);
+	juicebox.add_systems(Startup, init_user_interface);
 	juicebox.add_systems(Update, draw_user_interface);
 
 	juicebox.add_systems(Startup, util::set_window_icon);
