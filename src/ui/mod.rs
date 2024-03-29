@@ -1,5 +1,5 @@
-mod interface;
-mod interaction;
+pub mod interface;
+pub mod interaction;
 
 use std::mem::transmute;
 

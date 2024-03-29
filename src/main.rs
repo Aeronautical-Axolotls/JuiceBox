@@ -9,7 +9,8 @@ pub mod error;
 pub mod test;
 pub mod ui;
 
-use ui::interface::{init_user_interface, draw_user_interface, load_user_interface_icons, UIStateManager};
+use ui::interface::{init_user_interface, draw_user_interface, load_user_interface_icons};
+use ui::UIStateManager;
 use util::debug_state_controller;
 
 fn main() {
