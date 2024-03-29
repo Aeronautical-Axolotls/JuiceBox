@@ -9,7 +9,6 @@ pub mod error;
 pub mod test;
 pub mod ui;
 
-use ui::{init_user_interface, draw_user_interface, load_user_interface_icons, UIStateManager};
 use util::debug_state_controller;
 
 fn main() {
@@ -19,16 +18,13 @@ fn main() {
 		DefaultPlugins.set(util::create_window_plugin()),
 		simulation::Simulation,
 		juice_renderer::JuiceRenderer,
+        ui::JuiceUI,
 		EguiPlugin,
 
 		// Non-release plugins:
 		LogDiagnosticsPlugin::default(),
 		FrameTimeDiagnosticsPlugin::default(),
 	));
-
-	juicebox.insert_resource(UIStateManager::default());
-	juicebox.add_systems(Startup, init_user_interface);
-	juicebox.add_systems(Update, draw_user_interface);
 
 	juicebox.add_systems(Startup, util::set_window_icon);
 	juicebox.add_systems(Update, util::control_camera);
