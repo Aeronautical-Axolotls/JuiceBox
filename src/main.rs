@@ -27,7 +27,7 @@ fn main() {
 	));
 
 	juicebox.insert_resource(UIStateManager::default());
-	juicebox.add_systems(Update, init_user_interface);
+	juicebox.add_systems(Startup, init_user_interface);
 	juicebox.add_systems(Update, draw_user_interface);
 
 	juicebox.add_systems(Startup, util::set_window_icon);
