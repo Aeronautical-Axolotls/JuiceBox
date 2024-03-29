@@ -1,61 +1,63 @@
-// https://www.youtube.com/watch?v=bbBh3oKibkE&t=351s&ab_channel=PhaestusFox
-// https://crates.io/crates/open
-// https://stackoverflow.com/questions/73311644/get-path-to-selected-files-in-active-explorer-window
-// https://github.com/Zeenobit/
-// https://bevy-cheatbook.github.io/builtins.html#schedules
-// https://crates.io/crates/filepath
+// TODO: Allow the loading to be called directly with a key instead of automatically opening a file dialog every time.
+// TODO: The app crashes when the user closes a file dialog or tries to select a wrong file. Fix this.
 
-// EXCLUSIVE SYSTEMS
-// Looks like reading / writing to the world blocks all other systems, so they can't run in parellel.
-// I need to add an exclusive system since I need that read access for saving. Probably for loading too?
-// https://github.com/bevyengine/bevy/issues/4158
-// https://www.reddit.com/r/bevy/comments/t6xffl/is_there_a_way_to_get_an_mut_world_in_a_system/
-// https://github.com/bevyengine/bevy/blob/main/examples/ecs/ecs_guide.rs GO TO LINE 198!!!!
-
-// CURRENT CHECKLIST TO FIGURE OUT!!!!
-// File Saving:
-// Am I actually connecting to the correct world?
-// How do I receive the data from the world all at once to write it into a file?
-// How should I deal with needing the save function to be an exclusive system?
-// How do I create a UI button with file saving if I would need to make the whole UI exclusive...?
-// What information am I getting when I call println!("{:#?}", world.entities());? The entities are listed, but it doesn't contain useful information.
-// Iterate over the entities with world.iter_entities() and try to get specific data individally.
-//
-// File Loading:
-// How can I easily wipe the pre-existing data to add the new data?
-// How can I link the particles I add to the world
-
-// Double Buffering:
-// https://docs.rs/bevy_double_res/latest/bevy_double_res/all.html
-// 
-
-
-use bevy::utils::petgraph::visit::Time;
-use bevy::{prelude::*, tasks::IoTaskPool, utils::Duration};
-use std::time::SystemTime;
-use std::{fs::File, io::Write};
 use bevy::ecs::query::*;
+use bevy::prelude::*;
 use bevy_save::*;
+use std;
 
-use crate::simulation::{SimParticle, SimGrid, SimConstraints};
-use crate::juice_renderer;
+use crate::simulation::{SimConstraints, SimGrid, SimGridCellType, SimParticle};
 
-use super::*;
+pub struct FileSystem;
+impl Plugin for FileSystem {
+    fn build(&self, app: &mut App) {
+        app.add_state::<JuiceStates>();
+
+        // Setting up the type registry so the data can be accessed
+        app.register_type::<SimParticle>();
+        app.register_type::<Option<Vec2>>();
+        app.register_type::<Option<Rect>>();
+        app.register_type::<SimConstraints>();
+        app.register_type::<SimGrid>();
+        app.register_type::<SimGridCellType>();
+        app.register_type::<(u16, u16)>();
+        app.register_type::<Vec<Vec<SimGridCellType>>>();
+        app.register_type::<Vec<SimGridCellType>>();
+        app.register_type::<Vec<Vec<f32>>>();
+        app.register_type::<Vec<f32>>();
+        app.register_type::<Vec<Vec<Entity>>>();
+        app.register_type::<Vec<Entity>>();
+
+        app.add_systems(OnEnter(JuiceStates::Loading), load_scene);
+        app.add_systems(OnEnter(JuiceStates::Saving), save_scene);
+        app.add_systems(OnExit(JuiceStates::Running), reset_state);
+    }
+}
 
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum JuiceStates {
-	Running,
-	Saving,
-	Loading
+    Running,
+    Saving,
+    Loading,
 }
 
 impl Default for JuiceStates {
-	fn default() -> JuiceStates {
-		JuiceStates::Running
-	}
+    fn default() -> JuiceStates {
+        JuiceStates::Running
+    }
 }
 
-struct JuicePipeline;
+pub struct JuicePipeline {
+    key: String,
+}
+
+impl JuicePipeline {
+    pub fn new(key: String) -> Self {
+        Self {
+            key: key,
+        }
+    }
+}
 
 impl Pipeline for JuicePipeline {
     type Backend = DefaultDebugBackend;
@@ -64,8 +66,7 @@ impl Pipeline for JuicePipeline {
     type Key<'a> = &'a str;
 
     fn key(&self) -> Self::Key<'_> {
-        "assets/scenes/save_test/test_save_3_bevy_save"
-        //"assets/scenes/load_test/test_load_11_friends"
+        return &self.key;
     }
 
     fn capture(builder: SnapshotBuilder) -> Snapshot {
@@ -73,7 +74,6 @@ impl Pipeline for JuicePipeline {
             .extract_resource::<SimGrid>()
             .extract_resource::<SimConstraints>()
             .extract_entities_matching(|e| e.contains::<SimParticle>())
-            //.extract_all_resources()
             .build()
     }
 
@@ -85,27 +85,57 @@ impl Pipeline for JuicePipeline {
     }
 }
 
-pub fn save_scene(world: &mut World) {
-    let start = SystemTime::now();
+fn save_scene(world: &mut World) {
+    let key = create_new_file();
 
-    world.save(JuicePipeline).expect("Should have saved correctly");
-
-    println!("\nTime elapsed during bevy_save saving: {:#?}\n", start.elapsed().unwrap());
+    world
+        .save(JuicePipeline::new(key))
+        .expect("Should have saved correctly");
 }
 
-pub fn load_scene(world: &mut World, /*mut file_state: ResMut<NextState<JuiceStates>>*/) {
-    println!("LOADING!!!!!!!!!!!!!!!!!!");
+fn load_scene(world: &mut World) {
+    let key = get_file();
 
-    world.load(JuicePipeline).expect("Should have loaded correctly");
-
-    //file_state.set(JuiceStates::Running);
+    world
+        .load(JuicePipeline::new(key))
+        .expect("Should have loaded correctly");
 }
 
-pub fn get_file() -> &'static str {
-    std::process::Command::new("explorer")
-    .arg(".")
-    .spawn()
-    .unwrap();
+fn reset_state(mut file_state: ResMut<NextState<JuiceStates>>) {
+    file_state.set(JuiceStates::Running);
+}
 
-    return "filepath";
+fn get_file() -> String {
+    let start_path = std::env::current_dir().unwrap(); // TODO: set this to assets
+
+    let key: &mut String = &mut rfd::FileDialog::new()
+        .add_filter("text", &["json"])  // Only allowing to select .json
+        .set_directory(&start_path)                      // Setting the initial folder of the file dialog to the assets folder
+        .pick_files()
+        .unwrap()[0]
+        .clone()                                            // Allows us to move PathBuf since it can't be copied on it's own
+        .into_os_string()
+        .into_string()
+        .expect("Wasn't able to parse filepath");
+    
+    key.truncate(key.len() - 5); // Removing the .json file extension
+    
+    key.to_string() // Removing mutability
+}
+
+fn create_new_file() -> String {
+    let start_path = std::env::current_dir().unwrap(); // TODO: set this to assets
+
+    let key: &mut String = &mut rfd::FileDialog::new()
+        .add_filter("text", &["json"])
+        .set_directory(&start_path)
+        .save_file()
+        .unwrap()
+        .into_os_string()
+        .into_string()
+        .expect("Wasn't able to parse filepath");
+
+    key.truncate(key.len() - 5); // Removing the .json file extension
+    
+    key.to_string() // Removing mutability
 }

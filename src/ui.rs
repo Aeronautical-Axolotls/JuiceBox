@@ -2,6 +2,7 @@ use std::mem::transmute;
 
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{schedule::{NextState, States}, system::{Query, Res, ResMut, Resource}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
+use bevy_save::Pipeline;
 
 use crate::file_system;
 use crate::util;
@@ -91,7 +92,7 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui, mut file_
 		);
 		// Do stuff when selection changes.
 		match file_selection {
-			1 => { println!("{}", file_system::get_file()) },
+			1 => { },
 			2 => { file_state.set(file_system::JuiceStates::Loading) },
 			3 => { file_state.set(file_system::JuiceStates::Saving) },
 			4 => {  },

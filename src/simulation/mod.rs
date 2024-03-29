@@ -12,7 +12,6 @@ use crate::ui;
 use sim_state_manager::*;
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
-use crate::file_system::{self, *};
 
 use self::sim_state_manager::{activate_components, add_particle, delete_all_particles, delete_particle};
 
@@ -25,30 +24,8 @@ impl Plugin for Simulation {
 		app.insert_resource(SimConstraints::default());
 		app.insert_resource(SimGrid::default());
 
-		app.add_state::<file_system::JuiceStates>();
-
-		// Setting up the type registry so the data can be accessed for file_system.rs
-		app.register_type::<SimParticle>();
-		app.register_type::<Option<Vec2>>();
-		app.register_type::<Option<Rect>>();
-		app.register_type::<SimConstraints>();
-		app.register_type::<SimGrid>();
-		app.register_type::<SimGridCellType>();
-		app.register_type::<(u16, u16)>();
-		app.register_type::<Vec<Vec<SimGridCellType>>>();
-		app.register_type::<Vec<SimGridCellType>>();
-		app.register_type::<Vec<Vec<f32>>>();
-		app.register_type::<Vec<f32>>();
-		app.register_type::<Vec<Vec<Entity>>>();
-		app.register_type::<Vec<Entity>>();
-
 		app.add_systems(Startup, setup);
 		app.add_systems(Update, update);
-		//app.add_systems(Update, file_system::load_scene_bevy_save.run_if(in_state(file_system::JuiceStates::Loading)));
-		app.add_systems(OnEnter(file_system::JuiceStates::Loading), load_scene);
-		app.add_systems(OnEnter(file_system::JuiceStates::Saving), save_scene);
-
-		//init_state = app.init_state::<file_system::JuiceStates>();
 	}
 }
 
@@ -80,11 +57,8 @@ fn update(
 	mut commands:	Commands,
 	mut gizmos:		Gizmos,
 	windows:		Query<&Window>,
-	cameras:		Query<(&Camera, &GlobalTransform)>,
-	mut file_state: ResMut<NextState<file_system::JuiceStates>>
+	cameras:		Query<(&Camera, &GlobalTransform)>
 	) {
-
-	// file_state.set(file_system::JuiceStates::Running); // CHANGE THIS TO ONLY BE IN file_system.save and file_system.load
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.

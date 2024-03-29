@@ -27,6 +27,7 @@ fn main() {
 		}),
 		simulation::Simulation,
 		juice_renderer::JuiceRenderer,
+		file_system::FileSystem,
 		EguiPlugin,
 		SavePlugin,
 
