@@ -460,7 +460,7 @@ pub fn load_user_interface_icons(
 	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
 		asset_server.load("../assets/ui/icons_og/select_og.png"),
-		asset_server.load("../assets/ui/icons_og/zoom_og.png"),
+		asset_server.load("../assets/ui/icons_og/magnifyingglass_og.png"),
 		asset_server.load("../assets/ui/icons_og/grab_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
