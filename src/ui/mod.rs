@@ -1,12 +1,22 @@
-pub mod interface;
-pub mod interaction;
+mod interface;
+mod interaction;
 
 use std::mem::transmute;
 
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
-
+use bevy::prelude::*;
 use crate::util;
+
+pub struct JuiceUI;
+impl Plugin for JuiceUI {
+
+	fn build(&self, app: &mut App) {
+        app.insert_resource(UIStateManager::default());
+        app.add_systems(Startup, init_ui);
+        app.add_systems(Update, update_ui);
+	}
+}
 
 const UI_ICON_COUNT: usize = 10;
 #[derive(Clone, Copy, Debug)]
@@ -126,4 +136,22 @@ impl Default for UIStateManager {
 			icon_size:					Vec2 { x: 30.0, y: 30.0 },
 		}
 	}
+}
+
+pub fn init_ui(
+	mut contexts:	EguiContexts,
+	asset_server:	Res<AssetServer>,
+	mut ui_state:	ResMut<UIStateManager>,
+	windows:		Query<&Window>) {
+
+    interface::init_user_interface(contexts, asset_server, ui_state, windows);
+
+}
+
+pub fn update_ui(
+	mut contexts:	EguiContexts,
+	mut ui_state:	ResMut<UIStateManager>) {
+
+    interface::draw_user_interface(contexts, ui_state);
+
 }
