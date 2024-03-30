@@ -124,7 +124,7 @@ pub fn init_saving(key: Option<String>, mut file_state: ResMut<NextState<JuiceSt
         // TODO: Set key as argument
     } else {
         println!("No key was provided");
-        // TODO: Run create_new_file() to create File Dialog for user
+        // TODO: Run create_new_file() to create file dialog for user
         // TODO: Set key as string returned
     }
 
@@ -134,7 +134,7 @@ pub fn init_saving(key: Option<String>, mut file_state: ResMut<NextState<JuiceSt
 /// Triggers a file dialog asking user for filepath, saves the data into the file. Function runs when state = JuiceStates::Saving.
 /// Does nothing if user doesn't select a file.
 fn save_scene(world: &mut World) {
-    let key = create_new_file(); // TODO: Ask this in init_saving() and find a way to pass it into here.
+    let key = create_new_file(); // TODO: Run this in init_saving() and find a way to pass it into here.
 
     if (key.is_some()) {
         world
@@ -148,8 +148,12 @@ fn save_scene(world: &mut World) {
 pub fn init_loading(key: Option<String>, mut file_state: ResMut<NextState<JuiceStates>>) {
     if (key.is_some()) {
         println!("Key was provided: {}", key.unwrap());
+        // TODO: Test to see if key is valid
+        // TODO: Set key as argument
     } else {
         println!("No key was provided");
+        // TODO: Run get_file() to create file dialog for user
+        // TODO: Set key as string returned
     }
 
     file_state.set(JuiceStates::Loading); // Triggers load_scene()
@@ -157,7 +161,7 @@ pub fn init_loading(key: Option<String>, mut file_state: ResMut<NextState<JuiceS
 
 /// Runs file dialog asking user for filepath, loads the file into the world. Function runs when state = JuiceStates::Loading.
 fn load_scene(world: &mut World) {
-    let key = get_file(); // TODO: Ask this in init_loading() and find a way to pass it into here.
+    let key = get_file(); // TODO: Run this in init_loading() and find a way to pass it into here.
 
     if (key.is_some()) {
         world
@@ -171,7 +175,7 @@ fn reset_state(mut file_state: ResMut<NextState<JuiceStates>>) {
     file_state.set(JuiceStates::Running);
 }
 
-/// Triggers a file dialog asking user to select an existing .json file. Returns the path to it as an Option<String>.
+/// Triggers a file dialog asking user to select an existing .juice file. Returns the path to it as an Option<String>.
 fn get_file() -> Option<String> {
     let start_path = std::env::current_dir().unwrap();
 
@@ -188,7 +192,7 @@ fn get_file() -> Option<String> {
             .into_string()
             .expect("Wasn't able to parse filepath");
 
-        key.truncate(key.len() - 6); // Removing the .json file extension, bevy_save breaks otherwise.
+        key.truncate(key.len() - 6); // Removing the .juice file extension, bevy_save breaks otherwise.
 
         return Some(key.to_string()); // Removing mutability
     } else {
@@ -196,7 +200,7 @@ fn get_file() -> Option<String> {
     }
 }
 
-/// Runs a file dialog asking user to create a new .json file. Returns the path to it as an Option<String>.
+/// Runs a file dialog asking user to create a new .juice file. Returns the path to it as an Option<String>.
 ///
 /// Does not actually create a file, just passes a String to where one should be created.
 fn create_new_file() -> Option<String> {
@@ -214,7 +218,7 @@ fn create_new_file() -> Option<String> {
             .into_string()
             .expect("Wasn't able to parse filepath");
 
-        key.truncate(key.len() - 6); // Removing the .json file extension, bevy_save breaks otherwise.
+        key.truncate(key.len() - 6); // Removing the .juice file extension, bevy_save breaks otherwise.
 
         return Some(key.to_string()); // Removing mutability
     } else {
