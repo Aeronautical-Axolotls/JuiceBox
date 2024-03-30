@@ -12,7 +12,6 @@ pub mod file_system;
 pub mod test;
 pub mod ui;
 
-use ui::{init_user_interface, draw_user_interface, load_user_interface_icons, UIStateManager};
 use util::debug_state_controller;
 
 fn main() {
@@ -27,6 +26,7 @@ fn main() {
 		}),
 		simulation::Simulation,
 		juice_renderer::JuiceRenderer,
+        ui::JuiceUI,
 		file_system::FileSystem,
 		EguiPlugin,
 		SavePlugin,
@@ -35,10 +35,6 @@ fn main() {
 		LogDiagnosticsPlugin::default(),
 		FrameTimeDiagnosticsPlugin::default(),
 	));
-
-	juicebox.insert_resource(UIStateManager::default());
-	juicebox.add_systems(Update, init_user_interface);
-	juicebox.add_systems(Update, draw_user_interface);
 
 	juicebox.add_systems(Startup, util::set_window_icon);
 	juicebox.add_systems(Update, util::control_camera);
