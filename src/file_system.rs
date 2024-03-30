@@ -1,4 +1,5 @@
 // TODO: Allow the loading to be called directly with a key instead of automatically opening a file dialog every time.
+// TODO: Record the current filepath for regular saving, only Save As works currently.
 // TODO: The app crashes when the user closes a file dialog or tries to select a wrong file. Fix this.
 
 use bevy::ecs::query::*;
@@ -7,6 +8,16 @@ use bevy_save::*;
 use std;
 
 use crate::simulation::{SimConstraints, SimGrid, SimGridCellType, SimParticle};
+
+use std::io::{
+    Read,
+    Write,
+};
+
+use serde::{
+    de::DeserializeSeed,
+    Serialize,
+};
 
 pub struct FileSystem;
 impl Plugin for FileSystem {
@@ -47,21 +58,40 @@ impl Default for JuiceStates {
     }
 }
 
-pub struct JuicePipeline {
+/// Custom file format. Extension is set to .juice, but under the hood it's really just json.
+/// Connects to bevy_save's JSONFormat implementation and uses that.
+pub struct JUICEFormat;
+
+impl Format for JUICEFormat {
+    fn extension() -> &'static str {
+        ".juice"
+    }
+
+    fn serialize<W: Write, T: Serialize>(writer: W, value: &T) -> Result<(), Error> {
+        JSONFormat::serialize(writer, value)
+    }
+
+    fn deserialize<R: Read, S: for<'de> DeserializeSeed<'de, Value = T>, T>(
+        reader: R,
+        seed: S,
+    ) -> Result<T, Error> {
+        JSONFormat::deserialize(reader, seed)
+    }
+}
+
+struct JuicePipeline {
     key: String,
 }
 
 impl JuicePipeline {
     pub fn new(key: String) -> Self {
-        Self {
-            key: key,
-        }
+        Self { key: key }
     }
 }
 
 impl Pipeline for JuicePipeline {
     type Backend = DefaultDebugBackend;
-    type Format = DefaultDebugFormat;
+    type Format = JUICEFormat;
 
     type Key<'a> = &'a str;
 
@@ -85,57 +115,109 @@ impl Pipeline for JuicePipeline {
     }
 }
 
+/// Sets file_system.rs state to Saving, which triggers save_scene() to run.
+/// UNFINISHED FUNCTIONALITY - If a String is passed in the key argument, save into that function. Otherwise run a file dialog asking the user.
+pub fn init_saving(key: Option<String>, mut file_state: ResMut<NextState<JuiceStates>>) {
+    if (key.is_some()) {
+        println!("Key was provided: {}", key.unwrap());
+        // TODO: Test to see if key is valid
+        // TODO: Set key as argument
+    } else {
+        println!("No key was provided");
+        // TODO: Run create_new_file() to create File Dialog for user
+        // TODO: Set key as string returned
+    }
+
+    file_state.set(JuiceStates::Saving); // Triggers save_scene()
+}
+
+/// Triggers a file dialog asking user for filepath, saves the data into the file. Function runs when state = JuiceStates::Saving.
+/// Does nothing if user doesn't select a file.
 fn save_scene(world: &mut World) {
-    let key = create_new_file();
+    let key = create_new_file(); // TODO: Ask this in init_saving() and find a way to pass it into here.
 
-    world
-        .save(JuicePipeline::new(key))
-        .expect("Should have saved correctly");
+    if (key.is_some()) {
+        world
+            .save(JuicePipeline::new(key.unwrap()))
+            .expect("Did not save correctly, perhaps filepath was incorrect?");
+    }
 }
 
+/// Sets file_system.rs state to Loading, which triggers load_scene() to run.
+/// UNFINISHED FUNCTIONALITY - If a String is passed in the key argument, load that function. Otherwise run a file dialog asking the user.
+pub fn init_loading(key: Option<String>, mut file_state: ResMut<NextState<JuiceStates>>) {
+    if (key.is_some()) {
+        println!("Key was provided: {}", key.unwrap());
+    } else {
+        println!("No key was provided");
+    }
+
+    file_state.set(JuiceStates::Loading); // Triggers load_scene()
+}
+
+/// Runs file dialog asking user for filepath, loads the file into the world. Function runs when state = JuiceStates::Loading.
 fn load_scene(world: &mut World) {
-    let key = get_file();
+    let key = get_file(); // TODO: Ask this in init_loading() and find a way to pass it into here.
 
-    world
-        .load(JuicePipeline::new(key))
-        .expect("Should have loaded correctly");
+    if (key.is_some()) {
+        world
+            .load(JuicePipeline::new(key.unwrap()))
+            .expect("Did not save correctly, perhaps filepath was incorrect?");
+    }
 }
 
+/// Sets state back to JuiceStates::Running.
 fn reset_state(mut file_state: ResMut<NextState<JuiceStates>>) {
     file_state.set(JuiceStates::Running);
 }
 
-fn get_file() -> String {
-    let start_path = std::env::current_dir().unwrap(); // TODO: set this to assets
+/// Triggers a file dialog asking user to select an existing .json file. Returns the path to it as an Option<String>.
+fn get_file() -> Option<String> {
+    let start_path = std::env::current_dir().unwrap();
 
-    let key: &mut String = &mut rfd::FileDialog::new()
-        .add_filter("text", &["json"])  // Only allowing to select .json
-        .set_directory(&start_path)                      // Setting the initial folder of the file dialog to the assets folder
-        .pick_files()
-        .unwrap()[0]
-        .clone()                                            // Allows us to move PathBuf since it can't be copied on it's own
-        .into_os_string()
-        .into_string()
-        .expect("Wasn't able to parse filepath");
-    
-    key.truncate(key.len() - 5); // Removing the .json file extension
-    
-    key.to_string() // Removing mutability
+    let selected_path = rfd::FileDialog::new()
+        .add_filter("text", &["juice"]) // Only allowing to select .json
+        .set_directory(&start_path) // Setting the initial folder of the file dialog to the assets folder
+        .pick_files();
+
+    if (selected_path.is_some()) {
+        let key: &mut String = &mut selected_path
+            .unwrap()[0]
+            .clone() // Allows us to move PathBuf since it can't be copied on it's own
+            .into_os_string()
+            .into_string()
+            .expect("Wasn't able to parse filepath");
+
+        key.truncate(key.len() - 6); // Removing the .json file extension, bevy_save breaks otherwise.
+
+        return Some(key.to_string()); // Removing mutability
+    } else {
+        return None;
+    }
 }
 
-fn create_new_file() -> String {
-    let start_path = std::env::current_dir().unwrap(); // TODO: set this to assets
+/// Runs a file dialog asking user to create a new .json file. Returns the path to it as an Option<String>.
+///
+/// Does not actually create a file, just passes a String to where one should be created.
+fn create_new_file() -> Option<String> {
+    let start_path = std::env::current_dir().unwrap();
 
-    let key: &mut String = &mut rfd::FileDialog::new()
-        .add_filter("text", &["json"])
+    let selected_path = rfd::FileDialog::new()
+        .add_filter("text", &["juice"])
         .set_directory(&start_path)
-        .save_file()
-        .unwrap()
-        .into_os_string()
-        .into_string()
-        .expect("Wasn't able to parse filepath");
+        .save_file();
 
-    key.truncate(key.len() - 5); // Removing the .json file extension
-    
-    key.to_string() // Removing mutability
+    if (selected_path.is_some()) {
+        let key: &mut String = &mut selected_path
+            .unwrap()
+            .into_os_string()
+            .into_string()
+            .expect("Wasn't able to parse filepath");
+
+        key.truncate(key.len() - 6); // Removing the .json file extension, bevy_save breaks otherwise.
+
+        return Some(key.to_string()); // Removing mutability
+    } else {
+        return None;
+    }
 }

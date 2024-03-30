@@ -93,9 +93,9 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui, mut file_
 		// Do stuff when selection changes.
 		match file_selection {
 			1 => { },
-			2 => { file_state.set(file_system::JuiceStates::Loading) },
-			3 => { file_state.set(file_system::JuiceStates::Saving) },
-			4 => {  },
+			2 => { file_system::init_loading(None, file_state) },
+			3 => { },
+			4 => { file_system::init_saving(None, file_state) },
 			_ => {},
 		}
 
