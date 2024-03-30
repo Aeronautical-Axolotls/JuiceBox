@@ -6,6 +6,8 @@ use std::mem::transmute;
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 use bevy::prelude::*;
+
+use crate::file_system;
 use crate::util;
 
 pub struct JuiceUI;
@@ -150,8 +152,9 @@ pub fn init_ui(
 
 pub fn update_ui(
 	mut contexts:	EguiContexts,
-	mut ui_state:	ResMut<UIStateManager>) {
+	mut ui_state:	ResMut<UIStateManager>,
+	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
-    interface::draw_user_interface(contexts, ui_state);
+    interface::draw_user_interface(contexts, ui_state, file_state);
 
 }

@@ -1,9 +1,10 @@
 use std::mem::transmute;
 
 use super::{UIStateManager, SimTool, UI_ICON_COUNT};
-use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
+use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{schedule::NextState, system::{Query, Res, ResMut, Resource}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 
+use crate::file_system;
 use crate::util;
 
 pub fn init_user_interface(
@@ -18,10 +19,11 @@ pub fn init_user_interface(
 
 pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
-	mut ui_state:	ResMut<UIStateManager>) {
+	mut ui_state:	ResMut<UIStateManager>,
+	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
 	// Show "static" UI menus.
-	show_scene_manager_menu(&mut ui_state, &mut contexts);
+	show_scene_manager_menu(&mut ui_state, &mut contexts, file_state);
 	show_play_pause_menu(&mut ui_state, &mut contexts);
 
 	// Show hideable UI menus.
@@ -32,7 +34,8 @@ pub fn draw_user_interface(
 /// Create menu for file saving/loading and tool selection.
 fn show_scene_manager_menu(
 	ui_state:	&mut UIStateManager,
-	contexts:	&mut EguiContexts) {
+	contexts:	&mut EguiContexts,
+	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
 	/* For each UI icon that we need to load, get their handle from our UI State Manager.  Then,
 		convert that into an eGUI-readable egui::Image format!  This is done by iterating through
@@ -65,14 +68,17 @@ fn show_scene_manager_menu(
 		ui.set_width(ui_state.window_size.y);
 
 		// Show the file manager panel, a horizontal separator, and the tool manager panel.
-		show_file_manager_panel(ui_state, ui);
+		show_file_manager_panel(ui_state, ui, file_state);
 		ui.separator();
 		show_tool_manager_panel(ui_state, ui, &tool_icons);
 	});
 }
 
 /// File management row; align horizontally wrapped.
-fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
+fn show_file_manager_panel(
+	ui_state: &mut UIStateManager,
+	ui: &mut Ui,
+	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
 	ui.horizontal_wrapped(|ui| {
 
@@ -88,9 +94,9 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
 		// Do stuff when selection changes.
 		match file_selection {
 			1 => {  },
-			2 => {  },
+			2 => { file_system::init_loading(None, file_state) },
 			3 => {  },
-			4 => {  },
+			4 => { file_system::init_saving(None, file_state) },
 			_ => {},
 		}
 
