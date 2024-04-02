@@ -1,5 +1,5 @@
 use bevy::{
-	core_pipeline::prelude::ClearColor, prelude::*, sprite::MaterialMesh2dBundle
+	core_pipeline::prelude::ClearColor, prelude::*, render::{view::PostProcessWrite, Render}, sprite::MaterialMesh2dBundle
 };
 use crate::{
 	simulation::{
@@ -7,10 +7,8 @@ use crate::{
 		SimGrid,
 		SimGridCellType,
 		SimParticle,
-	}, test::test_renderer::test_draw_gravity_vector_arrow, util::{
-		self,
-		JUICE_BLUE,
-		JUICE_GREEN
+	}, util::{
+		self, cartesian_to_polar, JUICE_BLUE, JUICE_GREEN
 	}
 };
 
@@ -23,7 +21,6 @@ impl Plugin for JuiceRenderer {
 		app.insert_resource(GridRenderData::default());
 
 		app.add_systems(Startup, setup_renderer);
-		app.add_systems(Update, test_draw_gravity_vector_arrow);
 
 		app.add_systems(Update, update_particle_position);
 		app.add_systems(Update, update_particle_color);
@@ -32,6 +29,8 @@ impl Plugin for JuiceRenderer {
 		app.add_systems(Update, draw_grid_vectors);
 		app.add_systems(Update, draw_grid_cells);
 		app.add_systems(Update, draw_grid_solids);
+
+		app.add_systems(PostUpdate, draw_gravity_arrow);
 	}
 }
 
@@ -500,4 +499,19 @@ pub fn draw_vector_arrow(
 /// Draws a circle around the mouse cursor.
 pub fn draw_selection_circle(gizmos: &mut Gizmos, position: Vec2, radius: f32, color: Color) {
 	gizmos.circle_2d(position, radius, color);
+}
+
+/// Draw the gravity arrow!
+fn draw_gravity_arrow(
+	constraints:	Res<SimConstraints>,
+	grid:			Res<SimGrid>,
+	mut gizmos:		Gizmos) {
+
+	let polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
+	let arrow_base: Vec2	= Vec2 {
+		x: (grid.dimensions.1 * grid.cell_size) as f32 / 2.0,
+		y: (grid.dimensions.0 * grid.cell_size) as f32 / 2.0
+	};
+
+	draw_vector_arrow(arrow_base, polar_gravity.y, polar_gravity.x / 6.0, Color::GOLD, &mut gizmos);
 }

@@ -18,10 +18,11 @@ impl Plugin for JuiceUI {
 	}
 }
 
-const UI_ICON_COUNT: usize = 10;
+const UI_ICON_COUNT: usize = 11;
 #[derive(Clone, Copy, Debug)]
 pub enum SimTool {
 	Select			= 0,
+	Zoom,
 	Grab,
 	AddFluid,
 	RemoveFluid,
@@ -37,15 +38,16 @@ impl Into<SimTool> for usize {
 	fn into(self) -> SimTool {
 		match self {
 			0	=> { SimTool::Select },
-			1	=> { SimTool::Grab },
-			2	=> { SimTool::AddFluid },
-			3	=> { SimTool::RemoveFluid },
-			4	=> { SimTool::AddWall },
-			5	=> { SimTool::RemoveWall },
-			6	=> { SimTool::AddFaucet },
-			7	=> { SimTool::RemoveFaucet },
-			8	=> { SimTool::AddDrain },
-			9	=> { SimTool::RemoveDrain },
+			1	=> { SimTool::Zoom },
+			2	=> { SimTool::Grab },
+			3	=> { SimTool::AddFluid },
+			4	=> { SimTool::RemoveFluid },
+			5	=> { SimTool::AddWall },
+			6	=> { SimTool::RemoveWall },
+			7	=> { SimTool::AddFaucet },
+			8	=> { SimTool::RemoveFaucet },
+			9	=> { SimTool::AddDrain },
+			10	=> { SimTool::RemoveDrain },
 			_	=> { eprintln!("Invalid SimTool; defaulting to Select!"); SimTool::Select },
 		}
 	}
@@ -55,6 +57,7 @@ impl SimTool {
     fn as_str(&self) -> &'static str {
         match self {
 			Self::Select		=> { "Select" },
+			Self::Zoom			=> { "Zoom" },
 			Self::Grab			=> { "Grab" },
 			Self::AddFluid		=> { "Add Fluid" },
 			Self::RemoveFluid	=> { "Remove Fluid" },
@@ -73,6 +76,7 @@ pub struct UIStateManager {
 	show_selected_tool:			bool,
 	selected_tool:				SimTool,
 	tool_icon_handles:			Vec<Handle<Image>>,
+	zoom_slider:				f32,
 	grab_slider_radius:			f32,
 	add_remove_fluid_radius:	f32,
 	add_fluid_density:			f32,
@@ -95,6 +99,8 @@ pub struct UIStateManager {
 	window_frame:				Frame,
 	window_size:				Vec2,
 	icon_size:					Vec2,
+
+	show_informational:			bool,
 }
 
 impl Default for UIStateManager {
@@ -104,6 +110,7 @@ impl Default for UIStateManager {
 			show_selected_tool:			true,
 			selected_tool:				SimTool::Select,
 			tool_icon_handles:			vec![Handle::default(); UI_ICON_COUNT],
+			zoom_slider:				1.0,
 			grab_slider_radius:			10.0,
 			add_remove_fluid_radius:	25.0,
 			add_fluid_density:			1.75,
@@ -134,6 +141,9 @@ impl Default for UIStateManager {
 			window_frame:				Frame::none(),
 			window_size:				Vec2::ZERO,
 			icon_size:					Vec2 { x: 30.0, y: 30.0 },
+
+			// Show the informational window at the start of the program?
+			show_informational:			true,
 		}
 	}
 }
@@ -141,17 +151,17 @@ impl Default for UIStateManager {
 pub fn init_ui(
 	mut contexts:	EguiContexts,
 	asset_server:	Res<AssetServer>,
-	mut ui_state:	ResMut<UIStateManager>,
-	windows:		Query<&Window>) {
+	mut ui_state:	ResMut<UIStateManager>) {
 
-    interface::init_user_interface(contexts, asset_server, ui_state, windows);
+    interface::init_user_interface(contexts, asset_server, ui_state);
 
 }
 
 pub fn update_ui(
 	mut contexts:	EguiContexts,
-	mut ui_state:	ResMut<UIStateManager>) {
+	mut ui_state:	ResMut<UIStateManager>,
+	windows:		Query<&Window>) {
 
-    interface::draw_user_interface(contexts, ui_state);
+    interface::draw_user_interface(contexts, ui_state, windows);
 
 }

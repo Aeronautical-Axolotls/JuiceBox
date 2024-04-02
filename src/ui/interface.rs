@@ -2,23 +2,25 @@ use std::mem::transmute;
 
 use super::{UIStateManager, SimTool, UI_ICON_COUNT};
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
-use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
+use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Separator, Ui, Vec2},EguiContexts};
 
 use crate::util;
 
 pub fn init_user_interface(
 	mut contexts:	EguiContexts,
 	asset_server:	Res<AssetServer>,
-	mut ui_state:	ResMut<UIStateManager>,
-	windows:		Query<&Window>) {
+	mut ui_state:	ResMut<UIStateManager>) {
 
-	calculate_window_parameters(&mut ui_state, &mut contexts, windows.single());
 	load_user_interface_icons(&mut ui_state, &asset_server);
 }
 
 pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
-	mut ui_state:	ResMut<UIStateManager>) {
+	mut ui_state:	ResMut<UIStateManager>,
+	windows:		Query<&Window>) {
+
+	// Make sure the UI is aware of the window size so we can grow/shrink when needed.
+	calculate_window_parameters(&mut ui_state, &mut contexts, windows.single());
 
 	// Show "static" UI menus.
 	show_scene_manager_menu(&mut ui_state, &mut contexts);
@@ -27,6 +29,57 @@ pub fn draw_user_interface(
 	// Show hideable UI menus.
 	if ui_state.show_selected_tool { show_current_tool_menu(&mut ui_state, &mut contexts); }
 	if ui_state.show_visualization { show_visualization_menu(&mut ui_state, &mut contexts); }
+	if ui_state.show_informational { show_informational_menu(&mut ui_state, &mut contexts); }
+}
+
+/// Create the "splash" menu that appears once when the program is started.
+fn show_informational_menu(
+	ui_state:	&mut UIStateManager,
+	contexts:	&mut EguiContexts) {
+
+	// Create an eGUI window.
+	egui::Window::new("Welcome to JuiceBox!")
+		.frame(ui_state.window_frame)
+		.default_pos(Pos2 { x: ui_state.window_size.x / 2.0, y: ui_state.window_size.y / 2.0 })
+		.pivot(Align2::CENTER_CENTER)
+		.resizable(false)
+		.title_bar(false)
+		.show(contexts.ctx_mut(), |ui| {
+
+		ui.horizontal_wrapped(|ui| {
+
+			ui.vertical_centered(|ui| {
+				ui.heading("Welcome to JuiceBox!");
+				ui.end_row();
+				ui.label("(Spilling encouraged)");
+				ui.separator();
+				ui.add_visible(false, egui::Separator::default());
+			});
+
+			ui.label("Keyboard controls:");
+			ui.end_row();
+			ui.label(" • Arrow keys - Move the camera around.");
+			ui.end_row();
+			ui.label(" • Q & E - Zoom in/out.");
+			ui.end_row();
+			ui.label(" • R - Reset Simulation.");
+			ui.end_row();
+			ui.label(" • F (Hold) - Pause the simulation.");
+			ui.end_row();
+			ui.label(" • G (Tap) - Run one step of the simulation while paused.");
+			ui.end_row();
+
+			ui.vertical_centered(|ui| {
+				ui.add_visible(false, egui::Separator::default());
+				ui.separator();
+
+
+				if ui.button("Get Spilling!").clicked() {
+					ui_state.show_informational = false;
+				}
+			});
+		});
+	});
 }
 
 /// Create menu for file saving/loading and tool selection.
@@ -110,7 +163,7 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
 		}
 
 		// "View" scene dropdown.
-		let view_options		= ["View", "Current Tool", "Visualization"];
+		let view_options		= ["View", "Current Tool", "Visualization", "Controls/Info"];
 		let mut view_selection	= 0;
 		egui::ComboBox::from_id_source(2).show_index(
 			ui,
@@ -121,7 +174,8 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
 		// Do stuff when selection changes.
 		match view_selection {
 			1 => { ui_state.show_selected_tool = !ui_state.show_selected_tool },
-			2 => { ui_state.show_visualization = !ui_state.show_visualization }
+			2 => { ui_state.show_visualization = !ui_state.show_visualization },
+			3 => { ui_state.show_informational = !ui_state.show_informational },
 			_ => {},
 		}
 	});
@@ -177,6 +231,14 @@ fn show_current_tool_menu(
 				// For the Select tool, show some text as there are no options for Select.
 				SimTool::Select			=> {
 					ui.label("No options available for the Select tool!");
+				},
+
+				// For the Zoom tool, show a slider for the grabbing radius.
+				SimTool::Zoom			=> {
+					ui.add(egui::Slider::new(
+						&mut ui_state.zoom_slider,
+						0.1..=50.0
+					).text("Zoom!"));
 				},
 
 				// For the Grab tool, show a slider for the grabbing radius.
@@ -398,6 +460,7 @@ pub fn load_user_interface_icons(
 	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
 		asset_server.load("../assets/ui/icons_og/select_og.png"),
+		asset_server.load("../assets/ui/icons_og/magnifyingglass_og.png"),
 		asset_server.load("../assets/ui/icons_og/grab_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),

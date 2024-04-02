@@ -1,9 +1,10 @@
 use bevy::{
-	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Vec2, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
+	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Quat, Vec2, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
 };
+use bevy_egui::egui::lerp;
 use winit::window::Icon;
 use std::{
-	f32::consts::PI,
+	f32::consts::{FRAC_PI_2, PI},
 	time::SystemTime,
 };
 use image::{DynamicImage, ImageBuffer, RgbImage, RgbaImage};
@@ -111,10 +112,11 @@ pub fn debug_state_controller(
 
 /// Basic camera controller.
 pub fn control_camera(
-	keys:			Res<Input<KeyCode>>,
-	time:			Res<Time>,
-	grid:			Res<SimGrid>,
-	mut cameras:	Query<(
+	keys:				Res<Input<KeyCode>>,
+	time:				Res<Time>,
+	grid:				Res<SimGrid>,
+	mut constraints:	ResMut<SimConstraints>,
+	mut cameras:		Query<(
 		&mut Transform,
 		&mut OrthographicProjection,
 		With<Camera>
@@ -132,8 +134,9 @@ pub fn control_camera(
 	let min_zoom: f32		= (grid.cell_size as f32) * 0.0075;
 	let max_zoom: f32		= (grid.cell_size as f32) / 2.0;
 
-	// Move and zoom each camera.
+	// Move, zoom, and rotate each camera.
 	for (mut transform, mut projection, _) in cameras.iter_mut() {
+
 		let speed_mod: f32		= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
 		let camera_speed: f32	= (150.0 + (150.0 * speed_mod)) * projection.scale * delta_time;
 		let zoom_speed: f32		= (0.5 + speed_mod) * delta_time;
@@ -171,6 +174,10 @@ pub fn control_camera(
 		if keys.pressed(KeyCode::E) {
 			projection.scale = f32::min(projection.scale + zoom_speed, max_zoom);
 		}
+
+		// Rotate the camera depending on the direction of gravity.
+		let gravity_angle: f32		= cartesian_to_polar(constraints.gravity).y;
+		transform.rotation = Quat::from_rotation_z(gravity_angle + FRAC_PI_2);
 	}
 }
 
