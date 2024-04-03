@@ -8,8 +8,8 @@ use crate::error::Error;
 use crate::ui::SimTool;
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
-use crate::events::*;
-use self::sim_state_manager::{activate_components, add_particle, delete_all_particles, delete_particle, select_particles};
+use crate::events::{ResetEvent, UseToolEvent};
+use self::sim_state_manager::{activate_components, add_faucet, add_particle, delete_all_particles, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -149,7 +149,7 @@ fn handle_events(
 
             }
             SimTool::AddFaucet => {
-
+                add_faucet(commands, grid, tool_use.pos, None).ok();
             }
             SimTool::RemoveFaucet => {
 

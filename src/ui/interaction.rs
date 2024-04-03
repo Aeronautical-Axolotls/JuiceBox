@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::input::mouse::MouseMotion;
-use crate::events::*;
+use crate::events::{ResetEvent, UseToolEvent};
 use crate::util::*;
 use crate::ui::UIStateManager;
 use crate::simulation::SimConstraints;
@@ -13,8 +13,8 @@ pub fn handle_input(
 	mut mouse_motion:	EventReader<MouseMotion>,
 	windows:			Query<&Window>,
 	cameras:			Query<(&Camera, &GlobalTransform)>,
-    mut ev_reset:           EventWriter<ResetEvent>,
-    mut ev_tool_use:        EventWriter<UseToolEvent>,
+    mut ev_reset:       EventWriter<ResetEvent>,
+    mut ev_tool_use:    EventWriter<UseToolEvent>,
     mut ui_state:       ResMut<UIStateManager>) {
 
 	// Reset simulation when we press R.
@@ -33,7 +33,6 @@ pub fn handle_input(
 		// 	grid.as_mut(),
 		// 	commands
 		// );
-
 
 		return;
 	}

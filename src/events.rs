@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::ecs::event::Event;
 use crate::ui::SimTool;
 
 #[derive(Event)]

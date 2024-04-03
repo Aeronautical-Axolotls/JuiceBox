@@ -7,6 +7,8 @@ use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMu
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 use bevy::prelude::*;
 use crate::util;
+use self::interaction::handle_input;
+use crate::events::{ResetEvent, UseToolEvent};
 
 pub struct JuiceUI;
 impl Plugin for JuiceUI {
@@ -15,6 +17,9 @@ impl Plugin for JuiceUI {
         app.insert_resource(UIStateManager::default());
         app.add_systems(Startup, init_ui);
         app.add_systems(Update, update_ui);
+        app.add_event::<ResetEvent>();
+        app.add_event::<UseToolEvent>();
+        app.add_systems(Update, handle_input);
 	}
 }
 
