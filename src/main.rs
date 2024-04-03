@@ -7,6 +7,7 @@ pub mod util;
 pub mod juice_renderer;
 pub mod error;
 pub mod test;
+pub mod events;
 pub mod ui;
 
 use util::debug_state_controller;
