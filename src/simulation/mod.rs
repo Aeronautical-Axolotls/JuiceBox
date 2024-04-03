@@ -91,6 +91,18 @@ fn update(
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
+
+        handle_events(
+            ev_reset,
+            ev_tool_use,
+            &mut commands,
+            constraints.as_mut(),
+            grid.as_mut(),
+            &mut particles,
+            &faucets,
+            &drains,
+        );
+
 		step_simulation_once(
             commands,
 			constraints.as_mut(),
@@ -101,11 +113,9 @@ fn update(
 			fixed_timestep
 		);
 	}
-
-	// TODO: Check for and handle changes to gravity.
-	// TODO: Check for and handle tool usage.
 }
 
+/// Handles incoming events from the UI
 fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
@@ -117,50 +127,50 @@ fn handle_events(
 	drains:		        &Query<(Entity, &SimDrain)>,
     ) {
 
+    // If there is a reset event sent, we reset the simulation
     for _ in ev_reset.read() {
         reset_simulation_to_default(commands, constraints, grid, particles)
     }
 
+    // For every tool usage, we change the state
     for tool_use in ev_tool_use.read() {
 
         match tool_use.tool {
             SimTool::Select => {
-
+                // TODO: Handle Select usage
             }
             SimTool::Grab => {
-
+                // TODO: Handle Grab usage
             }
             SimTool::AddFluid => {
-
+                // TODO: Handle Add Fluid usage
             }
             SimTool::RemoveFluid => {
-
+                // TODO: Handle Remove Fluid usage
             }
             SimTool::AddWall => {
-
+                // TODO: Handle Add Wall usage
             }
             SimTool::RemoveWall => {
-
+                // TODO: Handle Remove Wall usage
             }
             SimTool::AddDrain => {
-
+                // TODO: Handle Add Drain usage
             }
             SimTool::RemoveDrain => {
-
+                // TODO: Handle Remove Drain usage
             }
             SimTool::AddFaucet => {
                 add_faucet(commands, grid, tool_use.pos, None).ok();
             }
             SimTool::RemoveFaucet => {
-
+                // TODO: Handle Remove Faucet usage
             }
             SimTool::Zoom => {
-
+                // TODO: Handle Zoom usage
             }
         }
-
     }
-
 }
 
 /// Step the fluid simulation one time!
