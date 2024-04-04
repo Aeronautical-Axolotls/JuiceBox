@@ -7,6 +7,7 @@ pub mod util;
 pub mod juice_renderer;
 pub mod error;
 pub mod test;
+pub mod events;
 pub mod ui;
 
 use util::debug_state_controller;
@@ -28,7 +29,7 @@ fn main() {
 
 	juicebox.add_systems(Startup, util::set_window_icon);
 	juicebox.add_systems(Update, util::control_camera);
-	juicebox.add_systems(Update, debug_state_controller);
+	// juicebox.add_systems(Update, debug_state_controller);
 
 	juicebox.run();
 }
