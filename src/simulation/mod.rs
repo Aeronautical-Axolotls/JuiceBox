@@ -6,9 +6,10 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::ui::SimTool;
+use crate::util::{cartesian_to_polar, polar_to_cartesian};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
-use crate::events::{ResetEvent, UseToolEvent};
+use crate::events::{GravityChangeEvent, ResetEvent, UseToolEvent};
 use self::sim_state_manager::{activate_components, add_faucet, add_particle, delete_all_particles, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -56,7 +57,8 @@ fn update(
 	windows:		Query<&Window>,
 	cameras:		Query<(&Camera, &GlobalTransform)>,
     mut ev_tool_use: EventReader<UseToolEvent>,
-    mut ev_reset:   EventReader<ResetEvent>
+    mut ev_reset:   EventReader<ResetEvent>,
+	mut ev_gravity:   EventReader<GravityChangeEvent>
 	) {
 
 	// TODO: Check for and handle simulation saving/loading.
@@ -71,6 +73,7 @@ fn update(
         handle_events(
             ev_reset,
             ev_tool_use,
+			ev_gravity,
             &mut commands,
             constraints.as_mut(),
             grid.as_mut(),
@@ -95,6 +98,7 @@ fn update(
         handle_events(
             ev_reset,
             ev_tool_use,
+			ev_gravity,
             &mut commands,
             constraints.as_mut(),
             grid.as_mut(),
@@ -119,6 +123,7 @@ fn update(
 fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
+	mut ev_gravity:     EventReader<GravityChangeEvent>,
 	commands:	        &mut Commands,
 	constraints:	    &mut SimConstraints,
 	grid:			    &mut SimGrid,
@@ -171,6 +176,19 @@ fn handle_events(
             }
         }
     }
+
+	// For all gravity change events, change gravity!
+	for gravity_change in ev_gravity.read() {
+
+		// Convert existing gravity to polar coordinates.
+		let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
+		polar_gravity.x				+= 200.0 * gravity_change.magnitude as f32 * constraints.timestep;
+		polar_gravity.y				+= 4.0 * gravity_change.direction as f32 * constraints.timestep;
+
+		// Limit the magnitude of the vector to prevent ugly behavior near 0.0.
+		polar_gravity.x				= f32::max(0.0, polar_gravity.x);
+		constraints.gravity			= polar_to_cartesian(polar_gravity);
+	}
 }
 
 /// Step the fluid simulation one time!
