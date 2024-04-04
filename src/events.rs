@@ -32,3 +32,21 @@ impl UseToolEvent {
 */
 #[derive(Event)]
 pub struct ResetEvent;
+
+// Event that sends camera controller impulses.
+#[derive(Event)]
+pub struct CameraEvent {
+	pub z_rotation:		f32,
+	pub translation:	Vec2,
+	pub zoom:			f32,
+}
+
+/* Event that controls play/pause/stepping.  Here is how it works:
+	- is_step_event == true, sim_paused == true: Simulation steps one time.
+	- is_step_event == true, sim_paused == false: Simulation pauses and steps one time.
+	- is_step_event == false, sim_paused == true: Simulation unpauses.
+	- is_step_event == false, sim_paused == false: Simulation pauses. */
+#[derive(Event)]
+pub struct PlayPauseStepEvent {
+	is_step_event: bool,
+}
