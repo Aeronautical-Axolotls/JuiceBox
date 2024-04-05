@@ -2,7 +2,7 @@ use bevy::{
 	core_pipeline::prelude::ClearColor, prelude::*, render::{view::PostProcessWrite, Render}, sprite::MaterialMesh2dBundle
 };
 use crate::{
-	events::CameraEvent, simulation::{
+	simulation::{
 		SimConstraints,
 		SimGrid,
 		SimGridCellType,
@@ -31,7 +31,6 @@ impl Plugin for JuiceRenderer {
 		app.add_systems(Update, draw_grid_solids);
 
 		app.add_systems(PostUpdate, draw_gravity_arrow);
-		app.add_systems(PostUpdate, handle_camera_events);
 	}
 }
 
@@ -515,18 +514,4 @@ fn draw_gravity_arrow(
 	};
 
 	draw_vector_arrow(arrow_base, polar_gravity.y, polar_gravity.x / 6.0, Color::GOLD, &mut gizmos);
-}
-
-/// Handle events send for the camera!
-fn handle_camera_events(
-	ev_camera:			EventReader<CameraEvent>,
-	time:				Res<Time>,
-	grid:				Res<SimGrid>,
-	mut constraints:	ResMut<SimConstraints>,
-	mut cameras:		Query<(
-		&mut Transform,
-		&mut OrthographicProjection,
-		With<Camera>
-	)>) {
-
 }

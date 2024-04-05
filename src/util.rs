@@ -112,15 +112,17 @@ pub fn debug_state_controller(
 
 /// Basic camera controller.
 pub fn control_camera(
-	keys:				Res<Input<KeyCode>>,
-	time:				Res<Time>,
-	grid:				Res<SimGrid>,
-	mut constraints:	ResMut<SimConstraints>,
-	mut cameras:		Query<(
-		&mut Transform,
-		&mut OrthographicProjection,
-		With<Camera>
-	)>) {
+	time:				&Time,
+	grid:				&SimGrid,
+	mut constraints:	&mut SimConstraints,
+	mut camera:			&mut (&mut Transform, &mut OrthographicProjection),
+	camera_speed:		f32,
+	zoom_speed:			f32,
+	speed_mod:			f32,
+	horizontal_move:	i8,
+	vertical_move:		i8,
+	zoom_change:		i8,
+	) {
 
 	// Necessary for framerate-independent camera movement.
 	let delta_time: f32 = time.delta_seconds();
@@ -134,46 +136,40 @@ pub fn control_camera(
 	let min_zoom: f32		= (grid.cell_size as f32) * 0.0075;
 	let max_zoom: f32		= (grid.cell_size as f32) / 2.0;
 
-	// Move, zoom, and rotate each camera.
-	for (mut transform, mut projection, _) in cameras.iter_mut() {
+	let transform = &mut camera.0;
+	let projection = &mut camera.1;
 
-		let speed_mod: f32		= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
-		let camera_speed: f32	= (150.0 + (150.0 * speed_mod)) * projection.scale * delta_time;
-		let zoom_speed: f32		= (0.5 + speed_mod) * delta_time;
+	// Calculate the camera's true speed of movement and zooming.
+	let camera_speed: f32	= (camera_speed + (camera_speed * speed_mod)) * projection.scale * delta_time;
+	let zoom_speed: f32		= (zoom_speed + speed_mod) * delta_time;
 
-		// Necessary data to make that camera move!
-		let vertical_move: i8	= keys.pressed(KeyCode::W) as i8 - keys.pressed(KeyCode::S) as i8;
-		let horizontal_move: i8	= keys.pressed(KeyCode::D) as i8 - keys.pressed(KeyCode::A) as i8;
-		let z_rot_rads: f32		= transform.rotation.to_euler(bevy::math::EulerRot::XYZ).2;
-		let sin_rot: f32		= f32::sin(z_rot_rads);
-		let cos_rot: f32		= f32::cos(z_rot_rads);
+	// Necessary data to make that camera move!
+	let z_rot_rads: f32		= transform.rotation.to_euler(bevy::math::EulerRot::XYZ).2;
+	let sin_rot: f32		= f32::sin(z_rot_rads);
+	let cos_rot: f32		= f32::cos(z_rot_rads);
 
-		// Handle camera movement, taking camera rotation into account.
-		transform.translation.x += ((horizontal_move as f32 * cos_rot) + (vertical_move as f32 * sin_rot * -1.0)) * camera_speed;
-		transform.translation.y += ((horizontal_move as f32 * sin_rot) + (vertical_move as f32 * cos_rot)) * camera_speed;
+	// Handle camera movement, taking camera rotation into account.
+	transform.translation.x += ((horizontal_move as f32 * cos_rot) + (vertical_move as f32 * sin_rot * -1.0)) * camera_speed;
+	transform.translation.y += ((horizontal_move as f32 * sin_rot) + (vertical_move as f32 * cos_rot)) * camera_speed;
 
-		// Clamp position values to within some reasonable bounds.
-		transform.translation.x = f32::max(
-			f32::min(transform.translation.x, max_x_position),
-			min_x_position
-		);
-		transform.translation.y = f32::max(
-			f32::min(transform.translation.y, max_y_position),
-			min_y_position
-		);
+	// Clamp position values to within some reasonable bounds.
+	transform.translation.x = f32::max(
+		f32::min(transform.translation.x, max_x_position),
+		min_x_position
+	);
+	transform.translation.y = f32::max(
+		f32::min(transform.translation.y, max_y_position),
+		min_y_position
+	);
 
-		// Zoom in/out respectively.
-		if keys.pressed(KeyCode::Q) {
-			projection.scale = f32::max(projection.scale - zoom_speed, min_zoom);
-		}
-		if keys.pressed(KeyCode::E) {
-			projection.scale = f32::min(projection.scale + zoom_speed, max_zoom);
-		}
+	// Zoom in/out respectively, clamping to some reasonable bounds.
+	projection.scale += zoom_speed * zoom_change as f32;
+	projection.scale = f32::max(projection.scale, min_zoom);
+	projection.scale = f32::min(projection.scale, max_zoom);
 
-		// Rotate the camera depending on the direction of gravity.
-		let gravity_angle: f32		= cartesian_to_polar(constraints.gravity).y;
-		transform.rotation			= Quat::from_rotation_z(gravity_angle + FRAC_PI_2);
-	}
+	// Rotate the camera depending on the direction of gravity.
+	let gravity_angle: f32	= cartesian_to_polar(constraints.gravity).y;
+	transform.rotation		= Quat::from_rotation_z(gravity_angle + FRAC_PI_2);
 }
 
 /// Get the mouse cursor's position on the screen!  Returns (0.0, 0.0) if cursor position not found.

@@ -9,7 +9,7 @@ use crate::ui::SimTool;
 use crate::util::{cartesian_to_polar, polar_to_cartesian};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
-use crate::events::{GravityChangeEvent, ResetEvent, UseToolEvent};
+use crate::events::{ResetEvent, UseToolEvent};
 use self::sim_state_manager::{activate_components, add_faucet, add_particle, delete_all_particles, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -57,8 +57,7 @@ fn update(
 	windows:		Query<&Window>,
 	cameras:		Query<(&Camera, &GlobalTransform)>,
     mut ev_tool_use: EventReader<UseToolEvent>,
-    mut ev_reset:   EventReader<ResetEvent>,
-	mut ev_gravity:   EventReader<GravityChangeEvent>
+    mut ev_reset:   EventReader<ResetEvent>
 	) {
 
 	// TODO: Check for and handle simulation saving/loading.
@@ -67,21 +66,19 @@ fn update(
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	let fixed_timestep: f32 = constraints.timestep;
 
+	handle_events(
+		ev_reset,
+		ev_tool_use,
+		&mut commands,
+		constraints.as_mut(),
+		grid.as_mut(),
+		&mut particles,
+		&faucets,
+		&drains,
+	);
+
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
-
-        handle_events(
-            ev_reset,
-            ev_tool_use,
-			ev_gravity,
-            &mut commands,
-            constraints.as_mut(),
-            grid.as_mut(),
-            &mut particles,
-            &faucets,
-            &drains,
-        );
-
 		step_simulation_once(
             commands,
 			constraints.as_mut(),
@@ -94,19 +91,6 @@ fn update(
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
-
-        handle_events(
-            ev_reset,
-            ev_tool_use,
-			ev_gravity,
-            &mut commands,
-            constraints.as_mut(),
-            grid.as_mut(),
-            &mut particles,
-            &faucets,
-            &drains,
-        );
-
 		step_simulation_once(
             commands,
 			constraints.as_mut(),
@@ -123,14 +107,12 @@ fn update(
 fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
-	mut ev_gravity:     EventReader<GravityChangeEvent>,
 	commands:	        &mut Commands,
 	constraints:	    &mut SimConstraints,
 	grid:			    &mut SimGrid,
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
 	faucets:		    &Query<(Entity, &SimFaucet)>,
-	drains:		        &Query<(Entity, &SimDrain)>,
-    ) {
+	drains:		        &Query<(Entity, &SimDrain)>) {
 
     // If there is a reset event sent, we reset the simulation
     for _ in ev_reset.read() {
@@ -176,19 +158,19 @@ fn handle_events(
             }
         }
     }
+}
 
-	// For all gravity change events, change gravity!
-	for gravity_change in ev_gravity.read() {
+/// Change the direction and strength of gravity!
+pub fn change_gravity(constraints: &mut SimConstraints, magnitude_change: f32, direction_change: f32) {
 
-		// Convert existing gravity to polar coordinates.
-		let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
-		polar_gravity.x				+= 200.0 * gravity_change.magnitude as f32 * constraints.timestep;
-		polar_gravity.y				+= 4.0 * gravity_change.direction as f32 * constraints.timestep;
+	// Convert existing gravity to polar coordinates.
+	let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
+	polar_gravity.x				+= 200.0 * magnitude_change as f32 * constraints.timestep;
+	polar_gravity.y				+= 4.0 * direction_change as f32 * constraints.timestep;
 
-		// Limit the magnitude of the vector to prevent ugly behavior near 0.0.
-		polar_gravity.x				= f32::max(0.0, polar_gravity.x);
-		constraints.gravity			= polar_to_cartesian(polar_gravity);
-	}
+	// Limit the magnitude of the vector to prevent ugly behavior near 0.0.
+	polar_gravity.x				= f32::max(0.0, polar_gravity.x);
+	constraints.gravity			= polar_to_cartesian(polar_gravity);
 }
 
 /// Step the fluid simulation one time!

@@ -6,7 +6,7 @@ use std::mem::transmute;
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 use bevy::prelude::*;
-use crate::{events::{CameraEvent, GravityChangeEvent, PlayPauseStepEvent}, util};
+use crate::{events::{PlayPauseStepEvent}, util};
 use self::interaction::handle_input;
 use crate::events::{ResetEvent, UseToolEvent};
 
@@ -22,9 +22,7 @@ impl Plugin for JuiceUI {
 
 		app.add_event::<ResetEvent>();
         app.add_event::<UseToolEvent>();
-		app.add_event::<GravityChangeEvent>();
 		app.add_event::<PlayPauseStepEvent>();
-		app.add_event::<CameraEvent>();
 	}
 }
 
