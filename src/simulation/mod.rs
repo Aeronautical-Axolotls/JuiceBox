@@ -53,12 +53,8 @@ fn update(
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
-	mut gizmos:		Gizmos,
-	windows:		Query<&Window>,
-	cameras:		Query<(&Camera, &GlobalTransform)>,
-    mut ev_tool_use: EventReader<UseToolEvent>,
-    mut ev_reset:   EventReader<ResetEvent>
-	) {
+    ev_tool_use: EventReader<UseToolEvent>,
+    ev_reset:   EventReader<ResetEvent>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
@@ -127,7 +123,7 @@ fn handle_events(
                 // TODO: Handle Select usage
             }
             SimTool::Grab => {
-                // TODO: Handle Grab usage
+                // TODO: Handle Grab usage.
             }
             SimTool::AddFluid => {
                 // TODO: Handle Add Fluid usage
@@ -152,9 +148,10 @@ fn handle_events(
             }
             SimTool::RemoveFaucet => {
                 // TODO: Handle Remove Faucet usage
+
             }
-            SimTool::Zoom => {
-                // TODO: Handle Zoom usage
+            SimTool::Camera => {
+                // TODO: Handle Camera usage.
             }
         }
     }

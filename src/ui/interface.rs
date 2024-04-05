@@ -58,7 +58,9 @@ fn show_informational_menu(
 
 			ui.label("Keyboard controls:");
 			ui.end_row();
-			ui.label(" • Arrow keys - Move the camera around.");
+			ui.label(" • Arrow keys - Rotate and change the strength of gravity.");
+			ui.end_row();
+			ui.label(" • WASD - Move the camera around.");
 			ui.end_row();
 			ui.label(" • Q & E - Zoom in/out.");
 			ui.end_row();
@@ -233,8 +235,8 @@ fn show_current_tool_menu(
 					ui.label("No options available for the Select tool!");
 				},
 
-				// For the Zoom tool, show a slider for the grabbing radius.
-				SimTool::Zoom			=> {
+				// For the Move Camera tool, show a slider for the grabbing radius.
+				SimTool::Camera			=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.zoom_slider,
 						0.1..=50.0
@@ -460,7 +462,7 @@ pub fn load_user_interface_icons(
 	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
 		asset_server.load("../assets/ui/icons_og/select_og.png"),
-		asset_server.load("../assets/ui/icons_og/magnifyingglass_og.png"),
+		asset_server.load("../assets/ui/icons_og/movecamera_og.png"),
 		asset_server.load("../assets/ui/icons_og/grab_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),

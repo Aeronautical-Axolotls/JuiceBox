@@ -7,7 +7,7 @@ use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMu
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 use bevy::prelude::*;
 use crate::{events::{PlayPauseStepEvent}, util};
-use self::interaction::handle_input;
+use self::interaction::{change_cursor_icon, handle_input};
 use crate::events::{ResetEvent, UseToolEvent};
 
 pub struct JuiceUI;
@@ -19,6 +19,7 @@ impl Plugin for JuiceUI {
 
 		app.add_systems(Update, update_ui);
         app.add_systems(Update, handle_input);
+		app.add_systems(Update, change_cursor_icon);
 
 		app.add_event::<ResetEvent>();
         app.add_event::<UseToolEvent>();
@@ -30,7 +31,7 @@ const UI_ICON_COUNT: usize = 11;
 #[derive(Clone, Copy, Debug)]
 pub enum SimTool {
 	Select			= 0,
-	Zoom,
+	Camera,
 	Grab,
 	AddFluid,
 	RemoveFluid,
@@ -46,7 +47,7 @@ impl Into<SimTool> for usize {
 	fn into(self) -> SimTool {
 		match self {
 			0	=> { SimTool::Select },
-			1	=> { SimTool::Zoom },
+			1	=> { SimTool::Camera },
 			2	=> { SimTool::Grab },
 			3	=> { SimTool::AddFluid },
 			4	=> { SimTool::RemoveFluid },
@@ -65,7 +66,7 @@ impl SimTool {
     fn as_str(&self) -> &'static str {
         match self {
 			Self::Select		=> { "Select" },
-			Self::Zoom			=> { "Zoom" },
+			Self::Camera		=> { "Camera" },
 			Self::Grab			=> { "Grab" },
 			Self::AddFluid		=> { "Add Fluid" },
 			Self::RemoveFluid	=> { "Remove Fluid" },

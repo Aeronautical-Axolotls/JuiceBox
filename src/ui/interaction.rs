@@ -7,6 +7,8 @@ use crate::util::*;
 use crate::ui::UIStateManager;
 use crate::simulation::{change_gravity, SimConstraints, SimGrid};
 
+use super::SimTool;
+
 /// Debugging state controller.
 pub fn handle_input(
 	mut constraints:	ResMut<SimConstraints>,
@@ -102,4 +104,46 @@ pub fn handle_input(
 		// 	SimGridCellType::Air
 		// );
 	}
+}
+
+/// Handles incoming events from the UI
+pub fn change_cursor_icon(
+    mut ev_reset:       EventReader<ResetEvent>,
+    mut ev_tool_use:    EventReader<UseToolEvent>,
+	mut windows:		Query<&mut Window>,
+	ui_state:			Res<UIStateManager>) {
+
+	// Set the default cursor icon.
+	let mut window = windows.single_mut();
+	window.cursor.icon = CursorIcon::Default;
+
+    // If there is a reset event sent, set the icon to loading!
+    for _ in ev_reset.read() {
+		window.cursor.icon = CursorIcon::Wait;
+		return;
+    }
+
+	// Change the cursor icon depending on the currently selected tool.
+	println!("{:?}", ui_state.selected_tool);
+	match ui_state.selected_tool {
+		SimTool::Select			=> window.cursor.icon = CursorIcon::Default,
+		SimTool::Camera			=> window.cursor.icon = CursorIcon::Move,
+		SimTool::Grab			=> window.cursor.icon = CursorIcon::Hand,
+		SimTool::AddFluid		=> window.cursor.icon = CursorIcon::Hand,
+		SimTool::RemoveFluid	=> window.cursor.icon = CursorIcon::Hand,
+		SimTool::AddWall		=> window.cursor.icon = CursorIcon::Hand,
+		SimTool::RemoveWall		=> window.cursor.icon = CursorIcon::Hand,
+		SimTool::AddDrain		=> window.cursor.icon = CursorIcon::Hand,
+		SimTool::RemoveDrain	=> window.cursor.icon = CursorIcon::Hand,
+		SimTool::AddFaucet		=> window.cursor.icon = CursorIcon::Hand,
+		SimTool::RemoveFaucet	=> window.cursor.icon = CursorIcon::Hand,
+	}
+
+    // For tools that need an icon change when in use:
+    for tool_use in ev_tool_use.read() {
+        match tool_use.tool {
+            SimTool::Grab	=> window.cursor.icon = CursorIcon::Grabbing,
+			_				=> {},
+        }
+    }
 }
