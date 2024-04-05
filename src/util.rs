@@ -141,31 +141,26 @@ pub fn control_camera(
 		let camera_speed: f32	= (150.0 + (150.0 * speed_mod)) * projection.scale * delta_time;
 		let zoom_speed: f32		= (0.5 + speed_mod) * delta_time;
 
-		// Move up/down/left/right respectively.
-		if keys.pressed(KeyCode::W) {
-			transform.translation.y = f32::min(
-				transform.translation.y + camera_speed,
-				max_y_position
-			);
-		}
-		if keys.pressed(KeyCode::A) {
-			transform.translation.x = f32::max(
-				transform.translation.x - camera_speed,
-				min_x_position
-			);
-		}
-		if keys.pressed(KeyCode::S) {
-			transform.translation.y = f32::max(
-				transform.translation.y - camera_speed,
-				min_y_position
-			);
-		}
-		if keys.pressed(KeyCode::D) {
-			transform.translation.x = f32::min(
-				transform.translation.x + camera_speed,
-				max_x_position
-			);
-		}
+		// Necessary data to make that camera move!
+		let vertical_move: i8	= keys.pressed(KeyCode::W) as i8 - keys.pressed(KeyCode::S) as i8;
+		let horizontal_move: i8	= keys.pressed(KeyCode::D) as i8 - keys.pressed(KeyCode::A) as i8;
+		let z_rot_rads: f32		= transform.rotation.to_euler(bevy::math::EulerRot::XYZ).2;
+		let sin_rot: f32		= f32::sin(z_rot_rads);
+		let cos_rot: f32		= f32::cos(z_rot_rads);
+
+		// Handle camera movement, taking camera rotation into account.
+		transform.translation.x += ((horizontal_move as f32 * cos_rot) + (vertical_move as f32 * sin_rot * -1.0)) * camera_speed;
+		transform.translation.y += ((horizontal_move as f32 * sin_rot) + (vertical_move as f32 * cos_rot)) * camera_speed;
+
+		// Clamp position values to within some reasonable bounds.
+		transform.translation.x = f32::max(
+			f32::min(transform.translation.x, max_x_position),
+			min_x_position
+		);
+		transform.translation.y = f32::max(
+			f32::min(transform.translation.y, max_y_position),
+			min_y_position
+		);
 
 		// Zoom in/out respectively.
 		if keys.pressed(KeyCode::Q) {
@@ -177,7 +172,7 @@ pub fn control_camera(
 
 		// Rotate the camera depending on the direction of gravity.
 		let gravity_angle: f32		= cartesian_to_polar(constraints.gravity).y;
-		transform.rotation = Quat::from_rotation_z(gravity_angle + FRAC_PI_2);
+		transform.rotation			= Quat::from_rotation_z(gravity_angle + FRAC_PI_2);
 	}
 }
 

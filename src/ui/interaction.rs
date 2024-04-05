@@ -7,10 +7,8 @@ use crate::simulation::SimConstraints;
 
 /// Debugging state controller.
 pub fn handle_input(
-    mut constraints:    ResMut<SimConstraints>,
 	keys:				Res<Input<KeyCode>>,
 	mouse:				Res<Input<MouseButton>>,
-	mut mouse_motion:	EventReader<MouseMotion>,
 	windows:			Query<&Window>,
 	cameras:			Query<(&Camera, &GlobalTransform)>,
     mut ev_reset:       EventWriter<ResetEvent>,
@@ -46,13 +44,6 @@ pub fn handle_input(
 
 	let left_mouse_pressed: bool = mouse.pressed(MouseButton::Left);
 	let right_mouse_pressed: bool = mouse.pressed(MouseButton::Right);
-
-	// Get the mouse's motion between this and the last frame.
-	let mut cursor_delta: Vec2 = Vec2::ZERO;
-	for event in mouse_motion.read() {
-		cursor_delta.x = event.delta.x;
-		cursor_delta.y = event.delta.y;
-	}
 
 	if left_mouse_pressed {
 
