@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::ui::{SimTool, UIStateManager};
-use crate::util::polar_to_cartesian;
+use crate::util::{degrees_to_radians, polar_to_cartesian};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 use crate::events::{ResetEvent, UseToolEvent};
@@ -167,8 +167,10 @@ fn handle_events(
             }
             SimTool::AddFaucet => {
 
-                // first we need to convert the direction and pressure into cartesian vector, pressure is scaled
-                let faucet_direciton = polar_to_cartesian(Vec2::new(ui_state.faucet_direction, ui_state.faucet_pressure * 10.0));
+                // convert the direction from degrees to radians
+                let direction = degrees_to_radians(ui_state.faucet_direction);
+                // convert the direction and pressure into cartesian vector, pressure is scaled
+                let faucet_direciton = polar_to_cartesian(Vec2::new(ui_state.faucet_pressure * 10.0, direction));
 
                 add_faucet(commands, grid, tool_use.pos, None, ui_state.faucet_radius, faucet_direciton).ok();
             }
