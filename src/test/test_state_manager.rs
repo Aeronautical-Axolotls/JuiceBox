@@ -176,7 +176,7 @@ fn test_add_faucet_update(
     let faucet_pos = Vec2::new(grid.cell_size as f32, grid.cell_size as f32 * 10.0);
     let surface_direction = None;
 
-    let Err(e) = simulation::sim_state_manager::add_faucet(&mut commands, grid.as_mut(), faucet_pos, surface_direction, 1.0, 1.0) else {
+    let Err(e) = simulation::sim_state_manager::add_faucet(&mut commands, grid.as_mut(), faucet_pos, surface_direction, 1.0, Vec2::ZERO) else {
 
         return;
     };

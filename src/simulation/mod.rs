@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::ui::{SimTool, UIStateManager};
+use crate::util::polar_to_cartesian;
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 use crate::events::{ResetEvent, UseToolEvent};
@@ -165,7 +166,11 @@ fn handle_events(
                 // TODO: Handle Remove Drain usage
             }
             SimTool::AddFaucet => {
-                add_faucet(commands, grid, tool_use.pos, None, ui_state.faucet_radius, ui_state.faucet_pressure).ok();
+
+                // first we need to convert the direction and pressure into cartesian vector, pressure is scaled
+                let faucet_direciton = polar_to_cartesian(Vec2::new(ui_state.faucet_direction, ui_state.faucet_pressure * 10.0));
+
+                add_faucet(commands, grid, tool_use.pos, None, ui_state.faucet_radius, faucet_direciton).ok();
             }
             SimTool::RemoveFaucet => {
                 // TODO: Handle Remove Faucet usage
@@ -850,7 +855,7 @@ pub struct SimFaucet {
     pub position:       Vec2,                           // Faucet Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the faucet is connected with the wall
     pub diameter:       f32,
-    pub pressure:       f32
+    pub velocity:       Vec2,
 }
 
 impl SimFaucet {
@@ -859,14 +864,14 @@ impl SimFaucet {
         position: Vec2,
         direction: Option<SimSurfaceDirection>,
         diameter: f32,
-        pressure: f32,
+        velocity: Vec2,
         ) -> Self {
 
         Self {
             position,
             direction,
             diameter,
-            pressure,
+            velocity,
         }
     }
 
@@ -882,8 +887,7 @@ impl SimFaucet {
 
         // Run fluid
         let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32));
-        let velocity = Vec2::ZERO;
-        add_particles_in_radius(commands, constraints, grid, self.pressure, self.diameter, position, velocity);
+        add_particles_in_radius(commands, constraints, grid, self.diameter, self.diameter, position, self.velocity);
 
         Ok(())
     }
