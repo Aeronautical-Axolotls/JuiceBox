@@ -122,6 +122,12 @@ fn handle_events(
             SimTool::Select => {
                 // TODO: Handle Select usage
             }
+			SimTool::Camera => {
+                // TODO: Handle Camera usage.
+            }
+			SimTool::Zoom => {
+                // TODO: Handle Zoom usage.
+            }
             SimTool::Grab => {
                 // TODO: Handle Grab usage.
             }
@@ -150,9 +156,8 @@ fn handle_events(
                 // TODO: Handle Remove Faucet usage
 
             }
-            SimTool::Camera => {
-                // TODO: Handle Camera usage.
-            }
+			// Should not get here:
+			_ => {}
         }
     }
 }

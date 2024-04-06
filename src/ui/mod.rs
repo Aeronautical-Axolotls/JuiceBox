@@ -27,11 +27,12 @@ impl Plugin for JuiceUI {
 	}
 }
 
-const UI_ICON_COUNT: usize = 11;
+const UI_ICON_COUNT: usize = 12;
 #[derive(Clone, Copy, Debug)]
 pub enum SimTool {
 	Select			= 0,
 	Camera,
+	Zoom,
 	Grab,
 	AddFluid,
 	RemoveFluid,
@@ -48,15 +49,16 @@ impl Into<SimTool> for usize {
 		match self {
 			0	=> { SimTool::Select },
 			1	=> { SimTool::Camera },
-			2	=> { SimTool::Grab },
-			3	=> { SimTool::AddFluid },
-			4	=> { SimTool::RemoveFluid },
-			5	=> { SimTool::AddWall },
-			6	=> { SimTool::RemoveWall },
-			7	=> { SimTool::AddFaucet },
-			8	=> { SimTool::RemoveFaucet },
-			9	=> { SimTool::AddDrain },
-			10	=> { SimTool::RemoveDrain },
+			2	=> { SimTool::Zoom },
+			3	=> { SimTool::Grab },
+			4	=> { SimTool::AddFluid },
+			5	=> { SimTool::RemoveFluid },
+			6	=> { SimTool::AddWall },
+			7	=> { SimTool::RemoveWall },
+			8	=> { SimTool::AddFaucet },
+			9	=> { SimTool::RemoveFaucet },
+			10	=> { SimTool::AddDrain },
+			11	=> { SimTool::RemoveDrain },
 			_	=> { eprintln!("Invalid SimTool; defaulting to Select!"); SimTool::Select },
 		}
 	}
@@ -67,6 +69,7 @@ impl SimTool {
         match self {
 			Self::Select		=> { "Select" },
 			Self::Camera		=> { "Camera" },
+			Self::Zoom			=> { "Zoom" },
 			Self::Grab			=> { "Grab" },
 			Self::AddFluid		=> { "Add Fluid" },
 			Self::RemoveFluid	=> { "Remove Fluid" },

@@ -119,9 +119,9 @@ pub fn control_camera(
 	camera_speed:		f32,
 	zoom_speed:			f32,
 	speed_mod:			f32,
-	horizontal_move:	i8,
-	vertical_move:		i8,
-	zoom_change:		i8,
+	horizontal_move:	f32,
+	vertical_move:		f32,
+	zoom_change:		f32,
 	) {
 
 	// Necessary for framerate-independent camera movement.
@@ -149,8 +149,8 @@ pub fn control_camera(
 	let cos_rot: f32		= f32::cos(z_rot_rads);
 
 	// Handle camera movement, taking camera rotation into account.
-	transform.translation.x += ((horizontal_move as f32 * cos_rot) + (vertical_move as f32 * sin_rot * -1.0)) * camera_speed;
-	transform.translation.y += ((horizontal_move as f32 * sin_rot) + (vertical_move as f32 * cos_rot)) * camera_speed;
+	transform.translation.x += ((horizontal_move * cos_rot) + (vertical_move * sin_rot * -1.0)) * camera_speed;
+	transform.translation.y += ((horizontal_move * sin_rot) + (vertical_move * cos_rot)) * camera_speed;
 
 	// Clamp position values to within some reasonable bounds.
 	transform.translation.x = f32::max(
@@ -163,7 +163,7 @@ pub fn control_camera(
 	);
 
 	// Zoom in/out respectively, clamping to some reasonable bounds.
-	projection.scale += zoom_speed * zoom_change as f32;
+	projection.scale += zoom_speed * zoom_change;
 	projection.scale = f32::max(projection.scale, min_zoom);
 	projection.scale = f32::min(projection.scale, max_zoom);
 
