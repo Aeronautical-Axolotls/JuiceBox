@@ -382,6 +382,11 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 				&mut ui_state.gravity_direction,
 				0.0..=360.0
 			).text("Gravity Direction"));
+
+			ui.add(egui::Slider::new(
+				&mut ui_state.gravity_magnitude,
+				0.0..=360.0
+			).text("Gravity Strength"));
 		});
 	});
 }

@@ -102,6 +102,7 @@ pub struct UIStateManager {
 	show_gravity_vector:		bool,
 	particle_physical_size:		f32,
 	gravity_direction:			f32,
+	gravity_magnitude:			f32,
 	fluid_color_variable:		usize,
 	fluid_colors:				[[f32; 3]; 4],
 
@@ -137,6 +138,7 @@ impl Default for UIStateManager {
 			show_gravity_vector:		false,
 			particle_physical_size:		1.0,
 			gravity_direction:			270.0,
+			gravity_magnitude:			9.81,
 			fluid_color_variable:		0,
 			fluid_colors:				[
 				[util::JUICE_BLUE.r(), util::JUICE_BLUE.g(), util::JUICE_BLUE.b()],
