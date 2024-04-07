@@ -178,9 +178,7 @@ pub fn add_faucet(
 	commands:			&mut Commands,
 	grid:				&mut SimGrid,
     faucet_pos:         Vec2,
-    surface_direction:  Option<SimSurfaceDirection>,
-    faucet_diameter:    f32,
-    faucet_flow:        Vec2,
+    surface_direction:  Option<SimSurfaceDirection>
     ) -> Result<()> {
 
 	if faucet_pos[0] < 0.0 || faucet_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
@@ -195,7 +193,7 @@ pub fn add_faucet(
 	}
 
     commands.spawn(
-        SimFaucet::new(faucet_pos, surface_direction, faucet_diameter, faucet_flow)
+        SimFaucet::new(faucet_pos, surface_direction)
     );
 
 
