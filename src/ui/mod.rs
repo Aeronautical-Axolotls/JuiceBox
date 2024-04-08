@@ -7,7 +7,7 @@ use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMu
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 use bevy::prelude::*;
 use crate::{events::{PlayPauseStepEvent}, util};
-use self::interaction::{change_cursor_icon, handle_input};
+use self::interaction::{change_cursor_icon, handle_input, handle_camera_input};
 use crate::events::{ResetEvent, UseToolEvent};
 
 pub struct JuiceUI;
@@ -19,6 +19,7 @@ impl Plugin for JuiceUI {
 
 		app.add_systems(Update, update_ui);
         app.add_systems(Update, handle_input);
+		app.add_systems(Update, handle_camera_input);
 		app.add_systems(Update, change_cursor_icon);
 
 		app.add_event::<ResetEvent>();
@@ -27,12 +28,13 @@ impl Plugin for JuiceUI {
 	}
 }
 
-const UI_ICON_COUNT: usize = 12;
+const UI_ICON_COUNT: usize = 13;
 #[derive(Clone, Copy, Debug)]
 pub enum SimTool {
 	Select			= 0,
 	Camera,
 	Zoom,
+	Gravity,
 	Grab,
 	AddFluid,
 	RemoveFluid,
@@ -50,15 +52,16 @@ impl Into<SimTool> for usize {
 			0	=> { SimTool::Select },
 			1	=> { SimTool::Camera },
 			2	=> { SimTool::Zoom },
-			3	=> { SimTool::Grab },
-			4	=> { SimTool::AddFluid },
-			5	=> { SimTool::RemoveFluid },
-			6	=> { SimTool::AddWall },
-			7	=> { SimTool::RemoveWall },
-			8	=> { SimTool::AddFaucet },
-			9	=> { SimTool::RemoveFaucet },
-			10	=> { SimTool::AddDrain },
-			11	=> { SimTool::RemoveDrain },
+			3	=> { SimTool::Gravity },
+			4	=> { SimTool::Grab },
+			5	=> { SimTool::AddFluid },
+			6	=> { SimTool::RemoveFluid },
+			7	=> { SimTool::AddWall },
+			8	=> { SimTool::RemoveWall },
+			9	=> { SimTool::AddFaucet },
+			10	=> { SimTool::RemoveFaucet },
+			11	=> { SimTool::AddDrain },
+			12	=> { SimTool::RemoveDrain },
 			_	=> { eprintln!("Invalid SimTool; defaulting to Select!"); SimTool::Select },
 		}
 	}
@@ -70,6 +73,7 @@ impl SimTool {
 			Self::Select		=> { "Select" },
 			Self::Camera		=> { "Camera" },
 			Self::Zoom			=> { "Zoom" },
+			Self::Gravity		=> { "Gravity" },
 			Self::Grab			=> { "Grab" },
 			Self::AddFluid		=> { "Add Fluid" },
 			Self::RemoveFluid	=> { "Remove Fluid" },

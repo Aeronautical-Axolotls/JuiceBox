@@ -11,23 +11,22 @@ use super::SimTool;
 
 /// Debugging state controller.
 pub fn handle_input(
-	mut constraints:	ResMut<SimConstraints>,
-	grid:				Res<SimGrid>,
-	time:				Res<Time>,
 	keys:				Res<Input<KeyCode>>,
 	mouse:				Res<Input<MouseButton>>,
 	windows:			Query<&Window>,
 	cameras:			Query<(&Camera, &GlobalTransform)>,
-	mut mut_cameras:	Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>,
 	mut ui_state:     		ResMut<UIStateManager>,
 
     mut ev_reset:       	EventWriter<ResetEvent>,
     mut ev_tool_use:	    EventWriter<UseToolEvent>,
 	mut ev_mouse_motion:	EventReader<MouseMotion>) {
 
-	// Reset simulation when we press R.
-	if keys.just_pressed(KeyCode::R) {
+	let left_mouse_pressed: bool	= mouse.pressed(MouseButton::Left);
+	let right_mouse_pressed: bool	= mouse.pressed(MouseButton::Right);
+	let r_key_pressed:bool			= keys.just_pressed(KeyCode::R);
 
+	// Reset simulation when we press R.
+	if r_key_pressed {
         ev_reset.send(ResetEvent);
 
 		// crate::simulation::reset_simulation_to_default(
@@ -45,29 +44,59 @@ pub fn handle_input(
 		return;
 	}
 
-	// Mouse input!
-	let left_mouse_pressed: bool = mouse.pressed(MouseButton::Left);
-	let right_mouse_pressed: bool = mouse.pressed(MouseButton::Right);
+	// Handle tool usage for LMB.
+	if left_mouse_pressed {
+		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
+        ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Left)));
+		return;
+	}
+	// Handle tool usage for RMB.
+	if right_mouse_pressed {
+		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
+        ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Right)));
 
-	// Camera controller input.
+	}
+}
+
+/// Handle all user input as it relates to the camera!
+pub fn handle_camera_input(
+	mut constraints:	ResMut<SimConstraints>,
+	grid:				Res<SimGrid>,
+	time:				Res<Time>,
+	keys:				Res<Input<KeyCode>>,
+	mouse:				Res<Input<MouseButton>>,
+	windows:			Query<&Window>,
+	cameras:			Query<(&Camera, &GlobalTransform)>,
+	mut mut_cameras:	Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>,
+	mut ui_state:     		ResMut<UIStateManager>,
+
+    mut ev_reset:       	EventWriter<ResetEvent>,
+    mut ev_tool_use:	    EventWriter<UseToolEvent>,
+	mut ev_mouse_motion:	EventReader<MouseMotion>) {
+
+	// All user input that camera controlling is concerned with.
+	let left_mouse_pressed: bool		= mouse.pressed(MouseButton::Left);
+	let right_mouse_pressed: bool		= mouse.pressed(MouseButton::Right);
 	let mut camera_horizontal_move: f32	= (keys.pressed(KeyCode::D) as i8 - keys.pressed(KeyCode::A) as i8) as f32;
 	let mut camera_vertical_move: f32	= (keys.pressed(KeyCode::W) as i8 - keys.pressed(KeyCode::S) as i8) as f32;
 	let camera_zoom_change: f32			= (keys.pressed(KeyCode::E) as i8 - keys.pressed(KeyCode::Q) as i8) as f32;
+	let camera_speed_mod: f32			= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
+	let left_right: f32					= (keys.pressed(KeyCode::Right) as i8 - keys.pressed(KeyCode::Left) as i8) as f32;
+	let up_down: f32					= (keys.pressed(KeyCode::Up) as i8 - keys.pressed(KeyCode::Down) as i8) as f32;
 
-	let camera_speed_mod: f32	= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
+	/* Define camera_speed here so we can modify their values for dragging the camera (zoom_speed
+		also defined here for consistency and aesthetics). */
 	let mut camera_speed: f32	= 150.0;
-	let zoom_speed: f32			= 0.5;
-
-	// Arrow keys input used for changes to gravity.
-	let left_right: f32	= (keys.pressed(KeyCode::Right) as i8 - keys.pressed(KeyCode::Left) as i8) as f32;
-	let up_down: f32	= (keys.pressed(KeyCode::Up) as i8 - keys.pressed(KeyCode::Down) as i8) as f32;
+	let zoom_speed: f32			= 1.0;
 
 	// Rotate/scale gravity when we press the arrow keys.
 	change_gravity(constraints.as_mut(), up_down, left_right);
 
-	// Extract the camera from our Query<> and control it.
+	// Extract the camera from our Query<> to control it.
 	let camera_query = &mut mut_cameras.single_mut();
 	let mut camera = (camera_query.0.as_mut(), camera_query.1.as_mut());
+
+	// If we have clicked the left mouse button and the camera tool is selected, move the camera!
 	if left_mouse_pressed {
 		match ui_state.selected_tool {
 			SimTool::Camera => {
@@ -80,6 +109,8 @@ pub fn handle_input(
 			_ => {},
 		}
 	}
+
+	// Actually control the camera here!
 	control_camera(
 		&time,
 		&grid,
@@ -95,39 +126,6 @@ pub fn handle_input(
 		0.5,// (grid.cell_size as f32) * 0.0075,
 		5.0// (grid.cell_size as f32) / 2.0
 	);
-
-	// Handle tool usage.
-	if left_mouse_pressed {
-
-		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
-        ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Left)));
-
-		// let _ = grid.set_grid_cell_type(
-		// 	cell_coordinates.x as usize,
-		// 	cell_coordinates.y as usize,
-		// 	SimGridCellType::Solid
-		// );
-
-		// Delete all particles in the cell we are turning into a solid.
-		// let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
-		// grid.delete_all_particles_in_cell(
-		// 	&mut commands,
-		// 	constraints.as_mut(),
-		// 	&particles,
-		// 	lookup_index
-		// );
-
-	} else if right_mouse_pressed {
-
-		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
-        ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Right)))
-
-		// let _ = grid.set_grid_cell_type(
-		// 	cell_coordinates.x as usize,
-		// 	cell_coordinates.y as usize,
-		// 	SimGridCellType::Air
-		// );
-	}
 }
 
 /// Handles incoming events from the UI
@@ -153,6 +151,7 @@ pub fn change_cursor_icon(
 		SimTool::Select			=> window.cursor.icon = CursorIcon::Default,
 		SimTool::Camera			=> window.cursor.icon = CursorIcon::Move,
 		SimTool::Zoom			=> window.cursor.icon = CursorIcon::ZoomIn,
+		SimTool::Gravity		=> window.cursor.icon = CursorIcon::Default,
 		SimTool::Grab			=> window.cursor.icon = CursorIcon::Hand,
 		SimTool::AddFluid		=> window.cursor.icon = CursorIcon::Hand,
 		SimTool::RemoveFluid	=> window.cursor.icon = CursorIcon::Hand,

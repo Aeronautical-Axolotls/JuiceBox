@@ -248,6 +248,19 @@ fn show_current_tool_menu(
 					).text("Zoom!"));
 				},
 
+				// For the Gravity tool, show sliders for the gravity strength and direction.
+				SimTool::Gravity		=> {
+					ui.add(egui::Slider::new(
+						&mut ui_state.gravity_direction,
+						0.0..=360.0
+					).text("Gravity Direction"));
+
+					ui.add(egui::Slider::new(
+						&mut ui_state.gravity_magnitude,
+						0.0..=360.0
+					).text("Gravity Strength"));
+				},
+
 				// For the Grab tool, show a slider for the grabbing radius.
 				SimTool::Grab			=> {
 					ui.add(egui::Slider::new(
@@ -377,16 +390,6 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 				&mut ui_state.particle_physical_size,
 				0.1..=10.0
 			).text("Particle Size"));
-
-			ui.add(egui::Slider::new(
-				&mut ui_state.gravity_direction,
-				0.0..=360.0
-			).text("Gravity Direction"));
-
-			ui.add(egui::Slider::new(
-				&mut ui_state.gravity_magnitude,
-				0.0..=360.0
-			).text("Gravity Strength"));
 		});
 	});
 }
@@ -474,6 +477,7 @@ pub fn load_user_interface_icons(
 		asset_server.load("../assets/ui/icons_og/select_og.png"),
 		asset_server.load("../assets/ui/icons_og/movecamera_og.png"),
 		asset_server.load("../assets/ui/icons_og/magnifyingglass_og.png"),
+		asset_server.load("../assets/ui/icons_og/rotate_og.png"),
 		asset_server.load("../assets/ui/icons_og/grab_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),

@@ -53,13 +53,9 @@ fn update(
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
-	mut gizmos:		Gizmos,
-	windows:		Query<&Window>,
-	cameras:		Query<(&Camera, &GlobalTransform)>,
     ui_state:       Res<UIStateManager>,
-    mut ev_tool_use: EventReader<UseToolEvent>,
-    mut ev_reset:   EventReader<ResetEvent>
-	) {
+    ev_tool_use: 	EventReader<UseToolEvent>,
+    ev_reset:   	EventReader<ResetEvent>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
@@ -93,7 +89,6 @@ fn update(
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
-
 		step_simulation_once(
             commands,
 			constraints.as_mut(),
@@ -130,12 +125,6 @@ fn handle_events(
             SimTool::Select => {
                 // TODO: Handle Select usage
             }
-			SimTool::Camera => {
-                // TODO: Handle Camera usage.
-            }
-			SimTool::Zoom => {
-                // TODO: Handle Zoom usage.
-            }
             SimTool::Grab => {
                 // TODO: Handle Grab usage.
             }
@@ -170,7 +159,7 @@ fn handle_events(
                 // TODO: Handle Remove Faucet usage
 
             }
-			// Should not get here:
+			// We should not never ever wever get here:
 			_ => {}
         }
     }
