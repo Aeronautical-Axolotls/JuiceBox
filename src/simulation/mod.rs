@@ -128,6 +128,12 @@ fn handle_events(
             SimTool::Grab => {
                 // TODO: Handle Grab usage.
             }
+			SimTool::Gravity => {
+				constraints.gravity = polar_to_cartesian(Vec2 {
+					x: (ui_state.gravity_magnitude * ui_state.gravity_magnitude) * 2.0,
+					y: degrees_to_radians(ui_state.gravity_direction)
+				});
+			}
             SimTool::AddFluid => {
                 // TODO: Handle Add Fluid usage
             }
