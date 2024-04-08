@@ -5,12 +5,13 @@ pub mod util;
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::ui::SimTool;
+use crate::ui::{SimTool, UIStateManager};
+use crate::util::{degrees_to_radians, polar_to_cartesian};
 use crate::util::{cartesian_to_polar, polar_to_cartesian};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 use crate::events::{ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_faucet, add_particle, delete_all_particles, delete_particle, select_particles};
+use self::sim_state_manager::{activate_components, add_faucet, add_particles_in_radius, delete_all_particles, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -53,8 +54,13 @@ fn update(
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
-    ev_tool_use: EventReader<UseToolEvent>,
-    ev_reset:   EventReader<ResetEvent>) {
+	mut gizmos:		Gizmos,
+	windows:		Query<&Window>,
+	cameras:		Query<(&Camera, &GlobalTransform)>,
+    ui_state:       Res<UIStateManager>,
+    mut ev_tool_use: EventReader<UseToolEvent>,
+    mut ev_reset:   EventReader<ResetEvent>
+	) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
@@ -62,16 +68,17 @@ fn update(
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	let fixed_timestep: f32 = constraints.timestep;
 
-	handle_events(
-		ev_reset,
-		ev_tool_use,
-		&mut commands,
-		constraints.as_mut(),
-		grid.as_mut(),
-		&mut particles,
-		&faucets,
-		&drains,
-	);
+        handle_events(
+            ev_reset,
+            ev_tool_use,
+            &mut commands,
+            constraints.as_mut(),
+            grid.as_mut(),
+            &mut particles,
+            &faucets,
+            &drains,
+            &ui_state
+        );
 
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
@@ -87,6 +94,18 @@ fn update(
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
+
+        handle_events(
+            ev_reset,
+            ev_tool_use,
+            &mut commands,
+            constraints.as_mut(),
+            grid.as_mut(),
+            &mut particles,
+            &faucets,
+            &drains,
+        );
+
 		step_simulation_once(
             commands,
 			constraints.as_mut(),
@@ -108,7 +127,8 @@ fn handle_events(
 	grid:			    &mut SimGrid,
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
 	faucets:		    &Query<(Entity, &SimFaucet)>,
-	drains:		        &Query<(Entity, &SimDrain)>) {
+	drains:		        &Query<(Entity, &SimDrain)>,
+    ) {
 
     // If there is a reset event sent, we reset the simulation
     for _ in ev_reset.read() {
@@ -150,7 +170,13 @@ fn handle_events(
                 // TODO: Handle Remove Drain usage
             }
             SimTool::AddFaucet => {
-                add_faucet(commands, grid, tool_use.pos, None).ok();
+
+                // convert the direction from degrees to radians
+                let direction = degrees_to_radians(ui_state.faucet_direction);
+                // convert the direction and pressure into cartesian vector, pressure is scaled
+                let faucet_direciton = polar_to_cartesian(Vec2::new(ui_state.faucet_pressure * 10.0, direction));
+
+                add_faucet(commands, grid, tool_use.pos, None, ui_state.faucet_radius, faucet_direciton).ok();
             }
             SimTool::RemoveFaucet => {
                 // TODO: Handle Remove Faucet usage
@@ -847,18 +873,24 @@ pub struct SimParticle {
 pub struct SimFaucet {
     pub position:       Vec2,                           // Faucet Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the faucet is connected with the wall
+    pub diameter:       f32,
+    pub velocity:       Vec2,
 }
 
 impl SimFaucet {
 
     pub fn new(
         position: Vec2,
-        direction: Option<SimSurfaceDirection>
+        direction: Option<SimSurfaceDirection>,
+        diameter: f32,
+        velocity: Vec2,
         ) -> Self {
 
         Self {
             position,
             direction,
+            diameter,
+            velocity,
         }
     }
 
@@ -871,29 +903,10 @@ impl SimFaucet {
         ) -> Result<()> {
 
         let cell_coords = grid.get_cell_coordinates_from_position(&self.position);
-        let surroundings: [(i32, i32); 7] = [
-            (-1, 0),
-            (0, 1),
-            (0, -1),
-            (1, 1),
-            (-1, 1),
-            (1, -1),
-            (-1, -1)
-        ];
-
-        // Enforce boundary of solids, current impl before rendering sprite
-        for pair in surroundings {
-            grid.set_grid_cell_type(
-                (cell_coords.x as i32 + pair.0) as usize,
-                (cell_coords.y as i32 + pair.1) as usize,
-                SimGridCellType::Solid
-            )?;
-        }
 
         // Run fluid
         let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32));
-        let velocity = Vec2::ZERO;
-        add_particle(commands, constraints, grid, position, velocity)?;
+        add_particles_in_radius(commands, constraints, grid, self.diameter, self.diameter, position, self.velocity);
 
         Ok(())
     }
