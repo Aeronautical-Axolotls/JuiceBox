@@ -6,8 +6,7 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::ui::{SimTool, UIStateManager};
-use crate::util::{degrees_to_radians, polar_to_cartesian};
-use crate::util::{cartesian_to_polar, polar_to_cartesian};
+use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 use crate::events::{ResetEvent, UseToolEvent};
@@ -68,17 +67,17 @@ fn update(
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	let fixed_timestep: f32 = constraints.timestep;
 
-        handle_events(
-            ev_reset,
-            ev_tool_use,
-            &mut commands,
-            constraints.as_mut(),
-            grid.as_mut(),
-            &mut particles,
-            &faucets,
-            &drains,
-            &ui_state
-        );
+	handle_events(
+		ev_reset,
+		ev_tool_use,
+		&mut commands,
+		constraints.as_mut(),
+		grid.as_mut(),
+		&mut particles,
+		&faucets,
+		&drains,
+		&ui_state
+	);
 
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
@@ -94,17 +93,6 @@ fn update(
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
-
-        handle_events(
-            ev_reset,
-            ev_tool_use,
-            &mut commands,
-            constraints.as_mut(),
-            grid.as_mut(),
-            &mut particles,
-            &faucets,
-            &drains,
-        );
 
 		step_simulation_once(
             commands,
@@ -128,7 +116,7 @@ fn handle_events(
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
 	faucets:		    &Query<(Entity, &SimFaucet)>,
 	drains:		        &Query<(Entity, &SimDrain)>,
-    ) {
+    ui_state:			&UIStateManager) {
 
     // If there is a reset event sent, we reset the simulation
     for _ in ev_reset.read() {
