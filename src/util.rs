@@ -122,7 +122,9 @@ pub fn control_camera(
 	horizontal_move:	f32,
 	vertical_move:		f32,
 	zoom_change:		f32,
-	absolute_zoom:		&mut f32) {
+	absolute_zoom:		&mut f32,
+	min_zoom:			f32,
+	max_zoom:			f32) {
 
 	// Necessary for framerate-independent camera movement.
 	let delta_time: f32 = time.delta_seconds();
@@ -132,10 +134,7 @@ pub fn control_camera(
 	let max_x_position: f32	= ((grid.dimensions.0 * grid.cell_size) as f32) * 1.5;
 	let max_y_position: f32	= ((grid.dimensions.1 * grid.cell_size) as f32) * 1.5;
 
-	// TODO: Factor in the number of grid cells with this calculation.
-	let min_zoom: f32		= (grid.cell_size as f32) * 0.0075;
-	let max_zoom: f32		= (grid.cell_size as f32) / 2.0;
-
+	// Extract the transform and projection vectors for our camera.
 	let transform = &mut camera.0;
 	let projection = &mut camera.1;
 
@@ -162,11 +161,14 @@ pub fn control_camera(
 		min_y_position
 	);
 
-	// Zoom in/out respectively, clamping to some reasonable bounds.
-	projection.scale = 1.0 / *absolute_zoom;
+	/* Zoom in/out respectively, clamping to some reasonable bounds.  Also ensure that changes made
+		by directly modifying the zoom's value via a change in zoom also affect the UI slider state.
+		This is particularly important for ensuring that both keyboard and UI controls work in
+		tandem. */
 	*absolute_zoom += zoom_speed * zoom_change;
-	projection.scale = f32::max(projection.scale, min_zoom);
-	projection.scale = f32::min(projection.scale, max_zoom);
+	*absolute_zoom = f32::max(*absolute_zoom, min_zoom);
+	*absolute_zoom = f32::min(*absolute_zoom, max_zoom);
+	projection.scale = 1.0 / *absolute_zoom;
 
 	// Rotate the camera depending on the direction of gravity.
 	let gravity_angle: f32	= cartesian_to_polar(constraints.gravity).y;

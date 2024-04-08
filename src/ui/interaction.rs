@@ -91,7 +91,9 @@ pub fn handle_input(
 		camera_horizontal_move,
 		camera_vertical_move,
 		camera_zoom_change,
-		&mut ui_state.zoom_slider
+		&mut ui_state.zoom_slider,
+		0.5,// (grid.cell_size as f32) * 0.0075,
+		5.0// (grid.cell_size as f32) / 2.0
 	);
 
 	// Handle tool usage.
