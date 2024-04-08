@@ -67,31 +67,11 @@ pub fn handle_input(
 
         ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Left)));
 
-		// let _ = grid.set_grid_cell_type(
-		// 	cell_coordinates.x as usize,
-		// 	cell_coordinates.y as usize,
-		// 	SimGridCellType::Solid
-		// );
-
-		// Delete all particles in the cell we are turning into a solid.
-		// let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
-		// grid.delete_all_particles_in_cell(
-		// 	&mut commands,
-		// 	constraints.as_mut(),
-		// 	&particles,
-		// 	lookup_index
-		// );
-
 	} else if right_mouse_pressed {
 
 		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
 
         ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Right)))
-
-		// let _ = grid.set_grid_cell_type(
-		// 	cell_coordinates.x as usize,
-		// 	cell_coordinates.y as usize,
-		// 	SimGridCellType::Air
-		// );
+		
 	}
 }

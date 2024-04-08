@@ -140,6 +140,8 @@ fn handle_events(
     // For every tool usage, we change the state
     for tool_use in ev_tool_use.read() {
 
+		let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
+
         match tool_use.tool {
             SimTool::Select => {
                 // TODO: Handle Select usage
@@ -154,7 +156,6 @@ fn handle_events(
                 // TODO: Handle Remove Fluid usage
             }
             SimTool::AddWall => {
-				let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
 				let _ = grid.set_grid_cell_type(
 					cell_coordinates.x as usize,
 					cell_coordinates.y as usize,
@@ -171,7 +172,11 @@ fn handle_events(
 				);
             }
             SimTool::RemoveWall => {
-                // TODO: Handle Remove Wall usage
+				let _ = grid.set_grid_cell_type(
+					cell_coordinates.x as usize,
+					cell_coordinates.y as usize,
+					SimGridCellType::Air
+				);
             }
             SimTool::AddDrain => {
                 // TODO: Handle Add Drain usage
