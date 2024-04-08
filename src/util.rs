@@ -122,7 +122,7 @@ pub fn control_camera(
 	horizontal_move:	f32,
 	vertical_move:		f32,
 	zoom_change:		f32,
-	) {
+	absolute_zoom:		&mut f32) {
 
 	// Necessary for framerate-independent camera movement.
 	let delta_time: f32 = time.delta_seconds();
@@ -163,7 +163,8 @@ pub fn control_camera(
 	);
 
 	// Zoom in/out respectively, clamping to some reasonable bounds.
-	projection.scale += zoom_speed * zoom_change;
+	projection.scale = 1.0 / *absolute_zoom;
+	*absolute_zoom += zoom_speed * zoom_change;
 	projection.scale = f32::max(projection.scale, min_zoom);
 	projection.scale = f32::min(projection.scale, max_zoom);
 

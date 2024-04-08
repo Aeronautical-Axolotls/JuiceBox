@@ -244,7 +244,7 @@ fn show_current_tool_menu(
 				SimTool::Zoom			=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.zoom_slider,
-						0.1..=50.0
+						0.5..=5.0
 					).text("Zoom!"));
 				},
 

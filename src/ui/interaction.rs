@@ -19,7 +19,7 @@ pub fn handle_input(
 	windows:			Query<&Window>,
 	cameras:			Query<(&Camera, &GlobalTransform)>,
 	mut mut_cameras:	Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>,
-	ui_state:     		ResMut<UIStateManager>,
+	mut ui_state:     		ResMut<UIStateManager>,
 
     mut ev_reset:       	EventWriter<ResetEvent>,
     mut ev_tool_use:	    EventWriter<UseToolEvent>,
@@ -53,8 +53,8 @@ pub fn handle_input(
 	let mut camera_horizontal_move: f32	= (keys.pressed(KeyCode::D) as i8 - keys.pressed(KeyCode::A) as i8) as f32;
 	let mut camera_vertical_move: f32	= (keys.pressed(KeyCode::W) as i8 - keys.pressed(KeyCode::S) as i8) as f32;
 	let camera_zoom_change: f32			= (keys.pressed(KeyCode::E) as i8 - keys.pressed(KeyCode::Q) as i8) as f32;
-	let camera_speed_mod: f32			= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
 
+	let camera_speed_mod: f32	= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
 	let mut camera_speed: f32	= 150.0;
 	let zoom_speed: f32			= 0.5;
 
@@ -90,7 +90,8 @@ pub fn handle_input(
 		camera_speed_mod,
 		camera_horizontal_move,
 		camera_vertical_move,
-		camera_zoom_change
+		camera_zoom_change,
+		&mut ui_state.zoom_slider
 	);
 
 	// Handle tool usage.
