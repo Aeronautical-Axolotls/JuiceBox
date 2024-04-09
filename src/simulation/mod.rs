@@ -105,7 +105,7 @@ fn update(
 fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
-	commands:	        &mut Commands,
+	mut commands:	        &mut Commands,
 	constraints:	    &mut SimConstraints,
 	grid:			    &mut SimGrid,
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
@@ -121,6 +121,8 @@ fn handle_events(
     // For every tool usage, we change the state
     for tool_use in ev_tool_use.read() {
 
+		let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
+
         match tool_use.tool {
             SimTool::Select => {
                 // TODO: Handle Select usage
@@ -135,10 +137,27 @@ fn handle_events(
                 // TODO: Handle Remove Fluid usage
             }
             SimTool::AddWall => {
-                // TODO: Handle Add Wall usage
+				let _ = grid.set_grid_cell_type(
+					cell_coordinates.x as usize,
+					cell_coordinates.y as usize,
+					SimGridCellType::Solid
+				);
+
+				//Delete all particles in the cell we are turning into a solid.
+				let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
+				grid.delete_all_particles_in_cell(
+					&mut commands,
+					constraints,
+					&particles,
+					lookup_index
+				);
             }
             SimTool::RemoveWall => {
-                // TODO: Handle Remove Wall usage
+				let _ = grid.set_grid_cell_type(
+					cell_coordinates.x as usize,
+					cell_coordinates.y as usize,
+					SimGridCellType::Air
+				);
             }
             SimTool::AddDrain => {
                 // TODO: Handle Add Drain usage
