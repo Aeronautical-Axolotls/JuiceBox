@@ -1,5 +1,5 @@
 use bevy::{
-	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Quat, Vec2, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
+	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Quat, Vec2, Vec3Swizzles, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
 };
 use bevy_egui::egui::lerp;
 use winit::window::Icon;
@@ -114,8 +114,8 @@ pub fn debug_state_controller(
 pub fn control_camera(
 	time:				&Time,
 	grid:				&SimGrid,
-	mut constraints:	&mut SimConstraints,
-	mut camera:			&mut (&mut Transform, &mut OrthographicProjection),
+	constraints:		&mut SimConstraints,
+	camera:				&mut (&mut Transform, &mut OrthographicProjection),
 	camera_speed:		f32,
 	zoom_speed:			f32,
 	speed_mod:			f32,
@@ -171,6 +171,7 @@ pub fn control_camera(
 	projection.scale = 1.0 / *absolute_zoom;
 
 	// Rotate the camera depending on the direction of gravity.
+	// TODO: Make the camera rotate "in-place" as opposed to "around" the simulation.
 	let gravity_angle: f32	= cartesian_to_polar(constraints.gravity).y;
 	transform.rotation		= Quat::from_rotation_z(gravity_angle + FRAC_PI_2);
 }

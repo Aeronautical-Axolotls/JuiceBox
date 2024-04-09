@@ -11,19 +11,23 @@ use super::SimTool;
 
 /// Debugging state controller.
 pub fn handle_input(
+	mut constraints:	ResMut<SimConstraints>,
 	keys:				Res<Input<KeyCode>>,
 	mouse:				Res<Input<MouseButton>>,
 	windows:			Query<&Window>,
 	cameras:			Query<(&Camera, &GlobalTransform)>,
-	mut ui_state:     		ResMut<UIStateManager>,
-
-    mut ev_reset:       	EventWriter<ResetEvent>,
-    mut ev_tool_use:	    EventWriter<UseToolEvent>,
-	mut ev_mouse_motion:	EventReader<MouseMotion>) {
+	mut ui_state:     	ResMut<UIStateManager>,
+    mut ev_reset:       EventWriter<ResetEvent>,
+    mut ev_tool_use:	EventWriter<UseToolEvent>) {
 
 	let left_mouse_pressed: bool	= mouse.pressed(MouseButton::Left);
 	let right_mouse_pressed: bool	= mouse.pressed(MouseButton::Right);
+	let left_right: f32				= (keys.pressed(KeyCode::Right) as i8 - keys.pressed(KeyCode::Left) as i8) as f32;
+	let up_down: f32				= (keys.pressed(KeyCode::Up) as i8 - keys.pressed(KeyCode::Down) as i8) as f32;
 	let r_key_pressed:bool			= keys.just_pressed(KeyCode::R);
+
+	// Rotate/scale gravity when we press the arrow keys.
+	change_gravity(constraints.as_mut(), up_down * 6.0, left_right);
 
 	// Reset simulation when we press R.
 	if r_key_pressed {
@@ -60,37 +64,26 @@ pub fn handle_input(
 
 /// Handle all user input as it relates to the camera!
 pub fn handle_camera_input(
-	mut constraints:	ResMut<SimConstraints>,
-	grid:				Res<SimGrid>,
-	time:				Res<Time>,
-	keys:				Res<Input<KeyCode>>,
-	mouse:				Res<Input<MouseButton>>,
-	windows:			Query<&Window>,
-	cameras:			Query<(&Camera, &GlobalTransform)>,
-	mut mut_cameras:	Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>,
+	mut constraints:		ResMut<SimConstraints>,
+	grid:					Res<SimGrid>,
+	time:					Res<Time>,
+	keys:					Res<Input<KeyCode>>,
+	mouse:					Res<Input<MouseButton>>,
+	mut mut_cameras:		Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>,
 	mut ui_state:     		ResMut<UIStateManager>,
-
-    mut ev_reset:       	EventWriter<ResetEvent>,
-    mut ev_tool_use:	    EventWriter<UseToolEvent>,
 	mut ev_mouse_motion:	EventReader<MouseMotion>) {
 
 	// All user input that camera controlling is concerned with.
 	let left_mouse_pressed: bool		= mouse.pressed(MouseButton::Left);
-	let right_mouse_pressed: bool		= mouse.pressed(MouseButton::Right);
 	let mut camera_horizontal_move: f32	= (keys.pressed(KeyCode::D) as i8 - keys.pressed(KeyCode::A) as i8) as f32;
 	let mut camera_vertical_move: f32	= (keys.pressed(KeyCode::W) as i8 - keys.pressed(KeyCode::S) as i8) as f32;
 	let camera_zoom_change: f32			= (keys.pressed(KeyCode::E) as i8 - keys.pressed(KeyCode::Q) as i8) as f32;
 	let camera_speed_mod: f32			= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
-	let left_right: f32					= (keys.pressed(KeyCode::Right) as i8 - keys.pressed(KeyCode::Left) as i8) as f32;
-	let up_down: f32					= (keys.pressed(KeyCode::Up) as i8 - keys.pressed(KeyCode::Down) as i8) as f32;
 
 	/* Define camera_speed here so we can modify their values for dragging the camera (zoom_speed
 		also defined here for consistency and aesthetics). */
 	let mut camera_speed: f32	= 150.0;
 	let zoom_speed: f32			= 1.0;
-
-	// Rotate/scale gravity when we press the arrow keys.
-	change_gravity(constraints.as_mut(), up_down, left_right);
 
 	// Extract the camera from our Query<> to control it.
 	let camera_query = &mut mut_cameras.single_mut();

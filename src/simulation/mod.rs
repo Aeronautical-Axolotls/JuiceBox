@@ -128,12 +128,6 @@ fn handle_events(
             SimTool::Grab => {
                 // TODO: Handle Grab usage.
             }
-			SimTool::Gravity => {
-				constraints.gravity = polar_to_cartesian(Vec2 {
-					x: (ui_state.gravity_magnitude * ui_state.gravity_magnitude) * 2.0,
-					y: degrees_to_radians(ui_state.gravity_direction)
-				});
-			}
             SimTool::AddFluid => {
                 // TODO: Handle Add Fluid usage
             }
@@ -172,15 +166,20 @@ fn handle_events(
 }
 
 /// Change the direction and strength of gravity!
-pub fn change_gravity(constraints: &mut SimConstraints, magnitude_change: f32, direction_change: f32) {
+pub fn change_gravity(
+	constraints:		&mut SimConstraints,
+	magnitude_change:	f32,
+	direction_change:	f32) {
 
 	// Convert existing gravity to polar coordinates.
 	let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
 	polar_gravity.x				+= 200.0 * magnitude_change as f32 * constraints.timestep;
 	polar_gravity.y				+= 4.0 * direction_change as f32 * constraints.timestep;
 
-	// Limit the magnitude of the vector to prevent ugly behavior near 0.0.
-	polar_gravity.x				= f32::max(0.0, polar_gravity.x);
+	/* Limit the magnitude of the vector to prevent ugly behavior near 0.0.  ADDITIONALLY: I (Kade)
+		found a bug where if a polar vector has magnitude 0 the direction will automatically become
+		0.  This is bad and wrong, so cap gravity super close to zero for this special case... */
+	polar_gravity.x				= f32::max(0.00001, polar_gravity.x);
 	constraints.gravity			= polar_to_cartesian(polar_gravity);
 }
 
@@ -280,7 +279,7 @@ impl Default for SimConstraints {
 			incomp_iters_per_frame:		100,
 			collision_iters_per_frame:	2,
 
-			// (9.81^2) * 2 = ~385 (Bevy caps FPS at 60, we run sim at 120).
+			// (9.81^2) * 4 = ~385 (Bevy caps FPS at 60, we run sim at 120).
 			gravity:					Vec2 { x: 0.0, y: -385.0 },
 			particle_radius:			1.0,
 			particle_count:				0,

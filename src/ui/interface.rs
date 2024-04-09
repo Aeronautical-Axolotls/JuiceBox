@@ -257,7 +257,7 @@ fn show_current_tool_menu(
 
 					ui.add(egui::Slider::new(
 						&mut ui_state.gravity_magnitude,
-						20.0..=-20.0
+						0.0001..=20.0
 					).text("Gravity Strength"));
 				},
 

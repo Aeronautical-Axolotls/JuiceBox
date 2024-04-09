@@ -142,7 +142,7 @@ impl Default for UIStateManager {
 			show_gravity_vector:		false,
 			particle_physical_size:		1.0,
 			gravity_direction:			270.0,
-			gravity_magnitude:			-385.0,
+			gravity_magnitude:			9.81,
 			fluid_color_variable:		0,
 			fluid_colors:				[
 				[util::JUICE_BLUE.r(), util::JUICE_BLUE.g(), util::JUICE_BLUE.b()],
