@@ -1,10 +1,10 @@
 use std::mem::transmute;
 
 use super::{UIStateManager, SimTool, UI_ICON_COUNT};
-use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
+use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{event::EventWriter, system::{Query, Res, ResMut, Resource}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Separator, Ui, Vec2},EguiContexts};
 
-use crate::util;
+use crate::{events::ModifyVisualizationEvent, util};
 
 pub fn init_user_interface(
 	mut contexts:	EguiContexts,
@@ -17,7 +17,8 @@ pub fn init_user_interface(
 pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>,
-	windows:		Query<&Window>) {
+	windows:		Query<&Window>,
+	ev_viz:			EventWriter<ModifyVisualizationEvent>) {
 
 	// Make sure the UI is aware of the window size so we can grow/shrink when needed.
 	calculate_window_parameters(&mut ui_state, &mut contexts, windows.single());
@@ -28,7 +29,7 @@ pub fn draw_user_interface(
 
 	// Show hideable UI menus.
 	if ui_state.show_selected_tool { show_current_tool_menu(&mut ui_state, &mut contexts); }
-	if ui_state.show_visualization { show_visualization_menu(&mut ui_state, &mut contexts); }
+	if ui_state.show_visualization { show_visualization_menu(&mut ui_state, &mut contexts, ev_viz); }
 	if ui_state.show_informational { show_informational_menu(&mut ui_state, &mut contexts); }
 }
 
@@ -349,7 +350,10 @@ fn show_current_tool_menu(
 }
 
 /// Grid/fluid visualization settings menu.
-fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiContexts) {
+fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiContexts, mut ev_viz: EventWriter<ModifyVisualizationEvent>) {
+
+	// Whenever our visualization is modified, update this variable and send an event out.
+	let mut viz_mod: bool = false;
 
 	egui::Window::new("Visualization Options")
 		.frame(ui_state.window_frame)
@@ -362,36 +366,51 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 		// Align the buttons in this row horizontally from left to right.
 		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
 
-			ui.checkbox(&mut ui_state.show_grid, "Show Grid");
-			ui.checkbox(&mut ui_state.show_velocity_vectors, "Show Velocities");
-			ui.checkbox(&mut ui_state.show_gravity_vector, "Show Gravity");
+			if ui.checkbox(&mut ui_state.show_grid, "Show Grid").clicked()						{ viz_mod = true; }
+			if ui.checkbox(&mut ui_state.show_velocity_vectors, "Show Velocities").clicked()	{ viz_mod = true; }
+			if ui.checkbox(&mut ui_state.show_gravity_vector, "Show Gravity").clicked()			{ viz_mod = true; }
 
 			ui.separator();
 
 			// Fluid color visualization option dropdown.
-			let color_options = ["Velocity", "Density", "Pressure", "None"];
-			egui::ComboBox::from_id_source(0).show_index(
-				ui,
-				&mut ui_state.fluid_color_variable,
-				color_options.len(),
-				|i| color_options[i].to_owned()
-			);
 			ui.horizontal_wrapped(|ui| {
-				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[0]);
-				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[1]);
-				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[2]);
-				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[3]);
+
+				// Labels for each button.
+				ui.label("Color by:");
+				let color_options = ["Velocity", "Density", "Pressure", "None"];
+
+				// Combobox setup and event polling:
+				if egui::ComboBox::from_id_source(0).show_index(
+					ui,
+					&mut ui_state.fluid_color_variable,
+					color_options.len(),
+					|i| color_options[i].to_owned()).changed() {
+
+					viz_mod = true;
+				}
+			});
+
+			// Fluid color pickers.
+			ui.horizontal_wrapped(|ui| {
+				if ui.color_edit_button_rgb(&mut ui_state.fluid_colors[0]).changed() { viz_mod = true; }
+				if ui.color_edit_button_rgb(&mut ui_state.fluid_colors[1]).changed() { viz_mod = true; }
+				if ui.color_edit_button_rgb(&mut ui_state.fluid_colors[2]).changed() { viz_mod = true; }
+				if ui.color_edit_button_rgb(&mut ui_state.fluid_colors[3]).changed() { viz_mod = true; }
 			});
 
 			ui.separator();
 
 			// Sliders for the particle size and gravity direction.
-			ui.add(egui::Slider::new(
+			if ui.add(egui::Slider::new(
 				&mut ui_state.particle_physical_size,
 				0.1..=10.0
-			).text("Particle Size"));
+			).text("Particle Size")).changed() { viz_mod = true; }
 		});
 	});
+
+	if viz_mod {
+		ev_viz.send(ModifyVisualizationEvent::new(ui_state));
+	}
 }
 
 /// Play/pause menu.

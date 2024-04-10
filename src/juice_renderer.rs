@@ -2,7 +2,7 @@ use bevy::{
 	core_pipeline::prelude::ClearColor, prelude::*, render::{view::PostProcessWrite, Render}, sprite::MaterialMesh2dBundle
 };
 use crate::{
-	simulation::{
+	events::ModifyVisualizationEvent, simulation::{
 		SimConstraints,
 		SimGrid,
 		SimGridCellType,
@@ -22,6 +22,8 @@ impl Plugin for JuiceRenderer {
 
 		app.add_systems(Startup, setup_renderer);
 
+		app.add_systems(Update, handle_events);
+
 		app.add_systems(Update, update_particle_position);
 		app.add_systems(Update, update_particle_color);
 		app.add_systems(Update, update_particle_size);
@@ -34,13 +36,14 @@ impl Plugin for JuiceRenderer {
 	}
 }
 
-enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure, Density, GridCell, Spume }
+#[derive(Clone, Copy)]
+pub enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure, Density, GridCell, Spume }
 enum FluidGridVectorType	{ Velocity, Gravity }
 
 #[derive(Resource)]
 struct FluidRenderData {
 	color_render_type:	FluidColorRenderType,
-	arbitrary_color:	Color,
+	fluid_colors:		[Color; 4],
 	velocity_magnitude_color_scale:	f32,
 	pressure_magnitude_color_scale:	f32,
 	density_magnitude_color_scale:	f32,
@@ -52,7 +55,7 @@ impl Default for FluidRenderData {
 	fn default() -> Self {
 		Self {
 			color_render_type:	FluidColorRenderType::Velocity,
-			arbitrary_color:	util::JUICE_YELLOW,
+			fluid_colors:		[util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
 			velocity_magnitude_color_scale:	200.0,
 			pressure_magnitude_color_scale:	100.0,
 			density_magnitude_color_scale: 	100.0,
@@ -71,6 +74,8 @@ struct GridRenderData {
 	vector_type:			FluidGridVectorType,
 	vector_color:			Color,
 	vector_magnitude_scale:	f32,
+
+	draw_gravity: bool,
 }
 
 impl Default for GridRenderData {
@@ -85,7 +90,28 @@ impl Default for GridRenderData {
 			vector_type:			FluidGridVectorType::Velocity,
 			vector_color:			Color::WHITE,
 			vector_magnitude_scale:	0.05,
+
+			draw_gravity: true,
 		}
+	}
+}
+
+/// Handle events sent to the renderer.
+fn handle_events(
+	mut ev_viz:				EventReader<ModifyVisualizationEvent>,
+	mut grid_render_data:	ResMut<GridRenderData>,
+	mut fluid_render_data:	ResMut<FluidRenderData>) {
+
+	for viz_mod in ev_viz.read() {
+		grid_render_data.draw_grid		= viz_mod.show_grid;
+		grid_render_data.draw_gravity	= viz_mod.show_gravity;
+		grid_render_data.draw_vectors	= viz_mod.show_velocities;
+
+		for i in 0..fluid_render_data.fluid_colors.len() {
+			fluid_render_data.fluid_colors[i] = viz_mod.fluid_colors[i].into();
+		}
+		fluid_render_data.color_render_type		= viz_mod.color_variable;
+		fluid_render_data.particle_render_scale	= viz_mod.particle_size;
 	}
 }
 
@@ -179,19 +205,19 @@ fn update_particle_color(
 		FluidColorRenderType::Velocity	=> color_particles_by_velocity(
 			particles,
 			particle_render_data.velocity_magnitude_color_scale,
-			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
+			&particle_render_data.fluid_colors.to_vec()
 		),
 		FluidColorRenderType::Pressure	=> color_particles_by_pressure(
 			particles,
 			grid.as_ref(),
 			particle_render_data.pressure_magnitude_color_scale,
-			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
+			&particle_render_data.fluid_colors.to_vec()
 		),
 		FluidColorRenderType::Density	=> color_particles_by_density(
 			particles,
 			grid.as_ref(),
 			particle_render_data.density_magnitude_color_scale * constraints.particle_rest_density / constraints.particle_radius,
-			&vec![util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED]
+			&particle_render_data.fluid_colors.to_vec()
 		),
 		FluidColorRenderType::Spume		=> color_particles_by_density(
 			particles,
@@ -201,7 +227,7 @@ fn update_particle_color(
 		),
 		FluidColorRenderType::Arbitrary	=> color_particles(
 			particles,
-			particle_render_data.arbitrary_color
+			particle_render_data.fluid_colors[0]
 		),
 		FluidColorRenderType::GridCell	=> color_particles_by_grid_cell(
 			particles,
@@ -503,9 +529,14 @@ pub fn draw_selection_circle(gizmos: &mut Gizmos, position: Vec2, radius: f32, c
 
 /// Draw the gravity arrow!
 fn draw_gravity_arrow(
-	constraints:	Res<SimConstraints>,
-	grid:			Res<SimGrid>,
-	mut gizmos:		Gizmos) {
+	constraints:		Res<SimConstraints>,
+	grid:				Res<SimGrid>,
+	grid_render_data:	Res<GridRenderData>,
+	mut gizmos:			Gizmos) {
+
+	if !grid_render_data.draw_gravity {
+		return;
+	}
 
 	let polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
 	let arrow_base: Vec2	= Vec2 {
