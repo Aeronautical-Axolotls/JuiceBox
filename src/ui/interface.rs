@@ -58,7 +58,9 @@ fn show_informational_menu(
 
 			ui.label("Keyboard controls:");
 			ui.end_row();
-			ui.label(" • Arrow keys - Move the camera around.");
+			ui.label(" • Arrow keys - Rotate and change the strength of gravity.");
+			ui.end_row();
+			ui.label(" • WASD - Move the camera around.");
 			ui.end_row();
 			ui.label(" • Q & E - Zoom in/out.");
 			ui.end_row();
@@ -233,12 +235,30 @@ fn show_current_tool_menu(
 					ui.label("No options available for the Select tool!");
 				},
 
-				// For the Zoom tool, show a slider for the grabbing radius.
+				// For the Move Camera tool, show a slider for the grabbing radius.
+				SimTool::Camera			=> {
+					ui.label("Click and drag to move the camera around!");
+				},
+
+				// For the Zoom tool, show a slider for the zooming radius.
 				SimTool::Zoom			=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.zoom_slider,
-						0.1..=50.0
+						0.5..=5.0
 					).text("Zoom!"));
+				},
+
+				// For the Gravity tool, show sliders for the gravity strength and direction.
+				SimTool::Gravity		=> {
+					ui.add(egui::Slider::new(
+						&mut ui_state.gravity_direction,
+						0.0..=360.0
+					).text("Gravity Direction"));
+
+					ui.add(egui::Slider::new(
+						&mut ui_state.gravity_magnitude,
+						0.0001..=20.0
+					).text("Gravity Strength"));
 				},
 
 				// For the Grab tool, show a slider for the grabbing radius.
@@ -271,12 +291,12 @@ fn show_current_tool_menu(
 
 				// For the Add Wall tool, show some text as there are no options for Add Wall.
 				SimTool::AddWall		=> {
-					ui.label("No options available for the Add Wall tool!");
+					ui.label("Click anywhere in the simulation to add a wall!");
 				},
 
 				// For the Remove Wall tool, show some text as there are no options for Remove Wall.
 				SimTool::RemoveWall		=> {
-					ui.label("No options available for the Remove Wall tool!");
+					ui.label("Click a wall in the simulation to remove it!");
 				},
 
 				/* For the Add Faucet tool, show sliders for the direction, volume, and speed
@@ -298,7 +318,7 @@ fn show_current_tool_menu(
 
 				// For the Remove Faucet tool, show some text as there are no options for Remove Faucet.
 				SimTool::RemoveFaucet	=> {
-					ui.label("No options available for the Remove Faucet tool!");
+					ui.label("Click a faucet in the simulation to remove it!");
 				},
 
 				/* For the Add Drain tool, show a sucking radius radius slider and a pressure slider
@@ -316,7 +336,7 @@ fn show_current_tool_menu(
 
 				// For the Remove Drain tool, show some text as there are no options for Remove Drain.
 				SimTool::RemoveDrain	=> {
-					ui.label("No options available for the Remove Drain tool!");
+					ui.label("Click a drain in the simulation to remove it!");
 				},
 
 				// It should literally not be possible for this final case to happen.
@@ -370,11 +390,6 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 				&mut ui_state.particle_physical_size,
 				0.1..=10.0
 			).text("Particle Size"));
-
-			ui.add(egui::Slider::new(
-				&mut ui_state.gravity_direction,
-				0.0..=360.0
-			).text("Gravity Direction"));
 		});
 	});
 }
@@ -460,7 +475,9 @@ pub fn load_user_interface_icons(
 	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
 		asset_server.load("../assets/ui/icons_og/select_og.png"),
+		asset_server.load("../assets/ui/icons_og/movecamera_og.png"),
 		asset_server.load("../assets/ui/icons_og/magnifyingglass_og.png"),
+		asset_server.load("../assets/ui/icons_og/rotate_og.png"),
 		asset_server.load("../assets/ui/icons_og/grab_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
 		asset_server.load("../assets/ui/icons_og/droplet_og.png"),

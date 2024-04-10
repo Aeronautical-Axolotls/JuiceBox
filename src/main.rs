@@ -13,6 +13,7 @@ pub mod ui;
 use util::debug_state_controller;
 
 fn main() {
+
     let mut juicebox: App = App::new();
 
 	juicebox.add_plugins((
@@ -28,8 +29,5 @@ fn main() {
 	));
 
 	juicebox.add_systems(Startup, util::set_window_icon);
-	juicebox.add_systems(Update, util::control_camera);
-	// juicebox.add_systems(Update, debug_state_controller);
-
 	juicebox.run();
 }

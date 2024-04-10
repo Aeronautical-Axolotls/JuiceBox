@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::ui::{SimTool, UIStateManager};
-use crate::util::{degrees_to_radians, polar_to_cartesian};
+use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 use crate::events::{ResetEvent, UseToolEvent};
@@ -53,13 +53,9 @@ fn update(
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
-	mut gizmos:		Gizmos,
-	windows:		Query<&Window>,
-	cameras:		Query<(&Camera, &GlobalTransform)>,
     ui_state:       Res<UIStateManager>,
-    mut ev_tool_use: EventReader<UseToolEvent>,
-    mut ev_reset:   EventReader<ResetEvent>
-	) {
+    ev_tool_use: 	EventReader<UseToolEvent>,
+    ev_reset:   	EventReader<ResetEvent>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 	// TODO: Check for and handle simulation pause/timestep change.
@@ -67,21 +63,20 @@ fn update(
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	let fixed_timestep: f32 = constraints.timestep;
 
+	handle_events(
+		ev_reset,
+		ev_tool_use,
+		&mut commands,
+		constraints.as_mut(),
+		grid.as_mut(),
+		&mut particles,
+		&faucets,
+		&drains,
+		&ui_state
+	);
+
 	// If F is not being held, run the simulation.
 	if !keys.pressed(KeyCode::F) {
-
-        handle_events(
-            ev_reset,
-            ev_tool_use,
-            &mut commands,
-            constraints.as_mut(),
-            grid.as_mut(),
-            &mut particles,
-            &faucets,
-            &drains,
-            &ui_state
-        );
-
 		step_simulation_once(
             commands,
 			constraints.as_mut(),
@@ -94,19 +89,6 @@ fn update(
 
 		// If F is being held and G is tapped, step the simulation once.
 	} else if keys.just_pressed(KeyCode::G) {
-
-        handle_events(
-            ev_reset,
-            ev_tool_use,
-            &mut commands,
-            constraints.as_mut(),
-            grid.as_mut(),
-            &mut particles,
-            &faucets,
-            &drains,
-            &ui_state
-        );
-
 		step_simulation_once(
             commands,
 			constraints.as_mut(),
@@ -129,8 +111,7 @@ fn handle_events(
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
 	faucets:		    &Query<(Entity, &SimFaucet)>,
 	drains:		        &Query<(Entity, &SimDrain)>,
-    ui_state:           &UIStateManager,
-    ) {
+    ui_state:			&UIStateManager) {
 
     // If there is a reset event sent, we reset the simulation
     for _ in ev_reset.read() {
@@ -147,7 +128,7 @@ fn handle_events(
                 // TODO: Handle Select usage
             }
             SimTool::Grab => {
-                // TODO: Handle Grab usage
+                // TODO: Handle Grab usage.
             }
             SimTool::AddFluid => {
                 // TODO: Handle Add Fluid usage
@@ -195,12 +176,30 @@ fn handle_events(
             }
             SimTool::RemoveFaucet => {
                 // TODO: Handle Remove Faucet usage
+
             }
-            SimTool::Zoom => {
-                // TODO: Handle Zoom usage
-            }
+			// We should not never ever wever get here:
+			_ => {}
         }
     }
+}
+
+/// Change the direction and strength of gravity!
+pub fn change_gravity(
+	constraints:		&mut SimConstraints,
+	magnitude_change:	f32,
+	direction_change:	f32) {
+
+	// Convert existing gravity to polar coordinates.
+	let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
+	polar_gravity.x				+= 200.0 * magnitude_change as f32 * constraints.timestep;
+	polar_gravity.y				+= 4.0 * direction_change as f32 * constraints.timestep;
+
+	/* Limit the magnitude of the vector to prevent ugly behavior near 0.0.  ADDITIONALLY: I (Kade)
+		found a bug where if a polar vector has magnitude 0 the direction will automatically become
+		0.  This is bad and wrong, so cap gravity super close to zero for this special case... */
+	polar_gravity.x				= f32::max(0.00001, polar_gravity.x);
+	constraints.gravity			= polar_to_cartesian(polar_gravity);
 }
 
 /// Step the fluid simulation one time!
@@ -299,7 +298,7 @@ impl Default for SimConstraints {
 			incomp_iters_per_frame:		100,
 			collision_iters_per_frame:	2,
 
-			// (9.81^2) * 2 = ~385 (Bevy caps FPS at 60, we run sim at 120).
+			// (9.81^2) * 4 = ~385 (Bevy caps FPS at 60, we run sim at 120).
 			gravity:					Vec2 { x: 0.0, y: -385.0 },
 			particle_radius:			1.0,
 			particle_count:				0,

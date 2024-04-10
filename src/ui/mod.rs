@@ -6,8 +6,8 @@ use std::mem::transmute;
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 use bevy::prelude::*;
-use crate::util;
-use self::interaction::handle_input;
+use crate::{events::{PlayPauseStepEvent}, util};
+use self::interaction::{change_cursor_icon, handle_input, handle_camera_input};
 use crate::events::{ResetEvent, UseToolEvent};
 
 pub struct JuiceUI;
@@ -16,18 +16,25 @@ impl Plugin for JuiceUI {
 	fn build(&self, app: &mut App) {
         app.insert_resource(UIStateManager::default());
         app.add_systems(Startup, init_ui);
-        app.add_systems(Update, update_ui);
-        app.add_event::<ResetEvent>();
-        app.add_event::<UseToolEvent>();
+
+		app.add_systems(Update, update_ui);
         app.add_systems(Update, handle_input);
+		app.add_systems(Update, handle_camera_input);
+		app.add_systems(Update, change_cursor_icon);
+
+		app.add_event::<ResetEvent>();
+        app.add_event::<UseToolEvent>();
+		app.add_event::<PlayPauseStepEvent>();
 	}
 }
 
-const UI_ICON_COUNT: usize = 11;
+const UI_ICON_COUNT: usize = 13;
 #[derive(Clone, Copy, Debug)]
 pub enum SimTool {
 	Select			= 0,
+	Camera,
 	Zoom,
+	Gravity,
 	Grab,
 	AddFluid,
 	RemoveFluid,
@@ -43,16 +50,18 @@ impl Into<SimTool> for usize {
 	fn into(self) -> SimTool {
 		match self {
 			0	=> { SimTool::Select },
-			1	=> { SimTool::Zoom },
-			2	=> { SimTool::Grab },
-			3	=> { SimTool::AddFluid },
-			4	=> { SimTool::RemoveFluid },
-			5	=> { SimTool::AddWall },
-			6	=> { SimTool::RemoveWall },
-			7	=> { SimTool::AddFaucet },
-			8	=> { SimTool::RemoveFaucet },
-			9	=> { SimTool::AddDrain },
-			10	=> { SimTool::RemoveDrain },
+			1	=> { SimTool::Camera },
+			2	=> { SimTool::Zoom },
+			3	=> { SimTool::Gravity },
+			4	=> { SimTool::Grab },
+			5	=> { SimTool::AddFluid },
+			6	=> { SimTool::RemoveFluid },
+			7	=> { SimTool::AddWall },
+			8	=> { SimTool::RemoveWall },
+			9	=> { SimTool::AddFaucet },
+			10	=> { SimTool::RemoveFaucet },
+			11	=> { SimTool::AddDrain },
+			12	=> { SimTool::RemoveDrain },
 			_	=> { eprintln!("Invalid SimTool; defaulting to Select!"); SimTool::Select },
 		}
 	}
@@ -62,7 +71,9 @@ impl SimTool {
     fn as_str(&self) -> &'static str {
         match self {
 			Self::Select		=> { "Select" },
+			Self::Camera		=> { "Camera" },
 			Self::Zoom			=> { "Zoom" },
+			Self::Gravity		=> { "Gravity" },
 			Self::Grab			=> { "Grab" },
 			Self::AddFluid		=> { "Add Fluid" },
 			Self::RemoveFluid	=> { "Remove Fluid" },
@@ -95,7 +106,8 @@ pub struct UIStateManager {
 	pub	show_gravity_vector:		bool,
 	pub	particle_physical_size:		f32,
 	pub	gravity_direction:			f32,
-	pub	fluid_color_variable:		usize,
+	pub	gravity_magnitude:			f32,
+	pub fluid_color_variable:		usize,
 	pub	fluid_colors:				[[f32; 3]; 4],
 
 	pub	is_paused:					bool,
@@ -130,6 +142,7 @@ impl Default for UIStateManager {
 			show_gravity_vector:		false,
 			particle_physical_size:		1.0,
 			gravity_direction:			270.0,
+			gravity_magnitude:			9.81,
 			fluid_color_variable:		0,
 			fluid_colors:				[
 				[util::JUICE_BLUE.r(), util::JUICE_BLUE.g(), util::JUICE_BLUE.b()],

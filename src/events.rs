@@ -32,3 +32,13 @@ impl UseToolEvent {
 */
 #[derive(Event)]
 pub struct ResetEvent;
+
+/** Event that controls play/pause/stepping.  Here is how it works:
+	- `is_step_event == true`, `sim_paused == true`: Simulation steps one time.
+	- `is_step_event == true`, `sim_paused == false`: Simulation pauses and steps one time.
+	- `is_step_event == false`, `sim_paused == true`: Simulation unpauses.
+	- `is_step_event == false`, `sim_paused == false`: Simulation pauses. */
+#[derive(Event)]
+pub struct PlayPauseStepEvent {
+	is_step_event: bool,
+}
