@@ -32,19 +32,6 @@ pub fn handle_input(
 	// Reset simulation when we press R.
 	if r_key_pressed {
         ev_reset.send(ResetEvent);
-
-		// crate::simulation::reset_simulation_to_default(
-		// 	&mut commands,
-		// 	constraints.as_mut(),
-		// 	grid.as_mut(),
-		// 	&mut particles
-		// );
-		// test_state_manager::construct_test_simulation_layout(
-		// 	constraints.as_mut(),
-		// 	grid.as_mut(),
-		// 	commands
-		// );
-
 		return;
 	}
 
@@ -54,11 +41,11 @@ pub fn handle_input(
         ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Left)));
 		return;
 	}
+
 	// Handle tool usage for RMB.
 	if right_mouse_pressed {
 		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
         ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Right)));
-
 	}
 }
 

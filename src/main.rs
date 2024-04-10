@@ -10,8 +10,6 @@ pub mod test;
 pub mod events;
 pub mod ui;
 
-use util::debug_state_controller;
-
 fn main() {
 
     let mut juicebox: App = App::new();

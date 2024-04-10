@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::simulation::sim_physics_engine::particles_to_grid;
 use crate::simulation::util::interpolate_velocity;
 use crate::simulation::{self, SimConstraints, SimGrid, SimParticle};
+use crate::test::test_state_manager::{test_setup, test_update};
 
 #[test]
 fn interpolation_test() {
@@ -34,8 +35,8 @@ fn velocity_transfer_test() {
     juicebox_test.insert_resource(SimGrid::default());
     juicebox_test.insert_resource(SimConstraints::default());
 
-	juicebox_test.add_systems(Startup, simulation::test_setup);
-	juicebox_test.add_systems(Update, simulation::test_update);
+	juicebox_test.add_systems(Startup, test_setup);
+	juicebox_test.add_systems(Update, test_update);
 
     // Then we run 1 step through the simulation with update()
     juicebox_test.update();
@@ -97,8 +98,8 @@ fn extrapolate_test() {
     juicebox_test.insert_resource(SimGrid::default());
     juicebox_test.insert_resource(SimConstraints::default());
 
-	juicebox_test.add_systems(Startup, simulation::test_setup);
-	juicebox_test.add_systems(Update, simulation::test_update);
+	juicebox_test.add_systems(Startup, test_setup);
+	juicebox_test.add_systems(Update, test_update);
 
     // Then we run 1 step through the simulation with update()
     juicebox_test.update();
