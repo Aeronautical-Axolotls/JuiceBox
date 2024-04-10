@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::input::mouse::MouseMotion;
@@ -27,7 +28,14 @@ pub fn handle_input(
 	let r_key_pressed:bool			= keys.just_pressed(KeyCode::R);
 
 	// Rotate/scale gravity when we press the arrow keys.
+	constraints.gravity = polar_to_cartesian(Vec2 {
+		x: ui_state.gravity_magnitude * ui_state.gravity_magnitude * 4.0,
+		y: degrees_to_radians(ui_state.gravity_direction) - PI
+	});
 	change_gravity(constraints.as_mut(), up_down * 6.0, left_right);
+	let polar_gravity = cartesian_to_polar(constraints.gravity);
+	ui_state.gravity_magnitude = f32::sqrt(polar_gravity.x / 4.0);
+	ui_state.gravity_direction = radians_to_degrees(polar_gravity.y + PI);
 
 	// Reset simulation when we press R.
 	if r_key_pressed {

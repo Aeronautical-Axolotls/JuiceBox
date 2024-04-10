@@ -251,6 +251,8 @@ fn show_current_tool_menu(
 
 				// For the Gravity tool, show sliders for the gravity strength and direction.
 				SimTool::Gravity		=> {
+					ui.label("Use the arrow keys to rotate and change the strength of gravity!");
+
 					ui.add(egui::Slider::new(
 						&mut ui_state.gravity_direction,
 						0.0..=360.0
