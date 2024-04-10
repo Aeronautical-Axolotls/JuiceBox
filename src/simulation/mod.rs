@@ -10,7 +10,7 @@ use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, test_select_grid_cells};
 use crate::events::{ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_faucet, add_particles_in_radius, delete_all_particles, delete_particle, select_particles};
+use self::sim_state_manager::{activate_components, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -70,7 +70,7 @@ fn update(
 		constraints.as_mut(),
 		grid.as_mut(),
 		&mut particles,
-		&faucets,
+		&mut faucets,
 		&drains,
 		&ui_state
 	);
@@ -109,7 +109,7 @@ fn handle_events(
 	constraints:	    &mut SimConstraints,
 	grid:			    &mut SimGrid,
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
-	faucets:		    &Query<(Entity, &SimFaucet)>,
+	faucets:		    &Query<(Entity, &mut SimFaucet)>,
 	drains:		        &Query<(Entity, &SimDrain)>,
     ui_state:			&UIStateManager) {
 
@@ -175,7 +175,15 @@ fn handle_events(
                 add_faucet(commands, grid, tool_use.pos, None, ui_state.faucet_radius, faucet_direciton).ok();
             }
             SimTool::RemoveFaucet => {
-                // TODO: Handle Remove Faucet usage
+
+                // Get closest faucet id
+                for (faucet_id, faucet_props) in faucets.iter() {
+                    if tool_use.pos.distance(faucet_props.position) <= grid.cell_size as f32 {
+                        // Delete the closest faucet
+                        delete_faucet(commands, faucets, faucet_id);
+                        break;
+                    }
+                }
 
             }
 			// We should not never ever wever get here:
