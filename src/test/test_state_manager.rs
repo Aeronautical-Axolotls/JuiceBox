@@ -204,7 +204,7 @@ pub fn test_update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
-    faucets:		    Query<(Entity, &SimFaucet)>,
+    faucets:			Query<(Entity, &mut SimFaucet)>,
     drains:		        Query<(Entity, &SimDrain)>,
 	commands:	        Commands,
     ) {
