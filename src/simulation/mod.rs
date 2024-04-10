@@ -178,7 +178,7 @@ fn handle_events(
 
                 // Get closest faucet id
                 for (faucet_id, faucet_props) in faucets.iter() {
-                    if tool_use.pos.distance(faucet_props.position) <= grid.cell_size as f32 {
+                    if tool_use.pos.distance(faucet_props.position) <= (grid.cell_size as f32 * 3.0) {
                         // Delete the closest faucet
                         delete_faucet(commands, faucets, faucet_id);
                         break;
