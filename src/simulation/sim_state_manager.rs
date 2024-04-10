@@ -202,6 +202,24 @@ pub fn add_faucet(
     Ok(())
 }
 
+/// Remove a faucet from simulation
+pub fn delete_faucet(
+	commands:		&mut Commands,
+	faucets:		&Query<(Entity, &mut SimFaucet)>,
+	faucet_id:	    Entity) -> Result<()> {
+
+	// Look for the faucet
+	if let Ok(faucet) = faucets.get(faucet_id) {
+
+		commands.entity(faucet_id).despawn();
+
+		return Ok(());
+	}
+
+	Err(Error::InvalidEntityID("Invalid faucet entity ID!"))
+}
+
+
 pub fn add_drain(
 	commands:			&mut Commands,
 	grid:				&mut SimGrid,
@@ -232,7 +250,7 @@ pub fn activate_components(
     commands:		&mut Commands,
     constraints:	&mut SimConstraints,
     particles:      &Query<(Entity, &mut SimParticle)>,
-    faucets:        &Query<(Entity, &SimFaucet)>,
+    faucets:        &Query<(Entity, &mut SimFaucet)>,
     drains:         &Query<(Entity, &SimDrain)>,
     grid:           &mut SimGrid,
     ) -> Result<()> {
