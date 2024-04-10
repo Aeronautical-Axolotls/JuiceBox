@@ -48,7 +48,7 @@ fn update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
-    faucets:		    Query<(Entity, &SimFaucet)>,
+    faucets:		    Query<(Entity, &mut SimFaucet)>,
     drains:		        Query<(Entity, &SimDrain)>,
 	keys:				Res<Input<KeyCode>>,
 
@@ -70,7 +70,7 @@ fn update(
 		constraints.as_mut(),
 		grid.as_mut(),
 		&mut particles,
-		&mut faucets,
+		&faucets,
 		&drains,
 		&ui_state
 	);
@@ -216,7 +216,7 @@ fn step_simulation_once(
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
-	faucets:		&Query<(Entity, &SimFaucet)>,
+	faucets:		&Query<(Entity, &mut SimFaucet)>,
 	drains:		    &Query<(Entity, &SimDrain)>,
 	timestep:		f32) {
 
@@ -983,7 +983,7 @@ pub fn test_update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
-    faucets:		    Query<(Entity, &SimFaucet)>,
+    faucets:		    Query<(Entity, &mut SimFaucet)>,
     drains:		        Query<(Entity, &SimDrain)>,
 	commands:	        Commands,
     ) {

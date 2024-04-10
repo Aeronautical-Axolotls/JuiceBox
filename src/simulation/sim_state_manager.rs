@@ -250,7 +250,7 @@ pub fn activate_components(
     commands:		&mut Commands,
     constraints:	&mut SimConstraints,
     particles:      &Query<(Entity, &mut SimParticle)>,
-    faucets:        &Query<(Entity, &SimFaucet)>,
+    faucets:        &Query<(Entity, &mut SimFaucet)>,
     drains:         &Query<(Entity, &SimDrain)>,
     grid:           &mut SimGrid,
     ) -> Result<()> {
