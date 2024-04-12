@@ -307,7 +307,7 @@ fn test_add_faucet_update(
 /// runs the add_faucet() function for testing
 fn test_add_drain_update(
 	mut commands:		Commands,
-	asset_server:		&AssetServer,
+	asset_server:		Res<AssetServer>,
 	mut grid:			ResMut<SimGrid>
     ) {
 
