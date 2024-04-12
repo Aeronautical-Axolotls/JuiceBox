@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::input::mouse::MouseMotion;
-use crate::events::{ResetEvent, UseToolEvent};
+use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use crate::util::*;
 use crate::ui::UIStateManager;
 use crate::simulation::{change_gravity, SimConstraints, SimGrid};
@@ -19,27 +19,32 @@ pub fn handle_input(
 	cameras:			Query<(&Camera, &GlobalTransform)>,
 	mut ui_state:     	ResMut<UIStateManager>,
     mut ev_reset:       EventWriter<ResetEvent>,
-    mut ev_tool_use:	EventWriter<UseToolEvent>) {
+    mut ev_tool_use:	EventWriter<UseToolEvent>,
+	mut ev_pause:		EventWriter<PlayPauseStepEvent>) {
 
 	let left_mouse_pressed: bool	= mouse.pressed(MouseButton::Left);
 	let right_mouse_pressed: bool	= mouse.pressed(MouseButton::Right);
 	let left_right: f32				= (keys.pressed(KeyCode::Right) as i8 - keys.pressed(KeyCode::Left) as i8) as f32;
 	let up_down: f32				= (keys.pressed(KeyCode::Up) as i8 - keys.pressed(KeyCode::Down) as i8) as f32;
 	let r_key_pressed:bool			= keys.just_pressed(KeyCode::R);
-
-	// Rotate/scale gravity when we press the arrow keys.
-	constraints.gravity = polar_to_cartesian(Vec2 {
-		x: ui_state.gravity_magnitude * ui_state.gravity_magnitude * 4.0,
-		y: degrees_to_radians(ui_state.gravity_direction) - PI
-	});
-	change_gravity(constraints.as_mut(), up_down * 6.0, left_right);
-	let polar_gravity = cartesian_to_polar(constraints.gravity);
-	ui_state.gravity_magnitude = f32::sqrt(polar_gravity.x / 4.0);
-	ui_state.gravity_direction = radians_to_degrees(polar_gravity.y + PI);
+	let f_key_pressed:bool			= keys.just_pressed(KeyCode::F);
+	let space_pressed:bool			= keys.just_pressed(KeyCode::Space);
 
 	// Reset simulation when we press R.
 	if r_key_pressed {
         ev_reset.send(ResetEvent);
+		return;
+	}
+
+	// Pause/unpause the simulation if Space is pressed.
+	if space_pressed {
+		ev_pause.send(PlayPauseStepEvent::new(false));
+		return;
+	}
+
+	// Step once if the F key is pressed.
+	if f_key_pressed {
+		ev_pause.send(PlayPauseStepEvent::new(true));
 		return;
 	}
 
@@ -55,6 +60,20 @@ pub fn handle_input(
 		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
         ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Right)));
 	}
+
+	/* Rotate/scale gravity when we press the arrow keys.  First, set the simulation's gravity to
+		that which is found in the UI.  Then, change the simulation's gravity values based on
+		keyboard input.  Finally, convert the modified gravity value from the simulation back into
+		values that the UI can display.  This allows for keyboard and UI slider control to work
+		in tandem. */
+	constraints.gravity = polar_to_cartesian(Vec2 {
+		x: ui_state.gravity_magnitude * ui_state.gravity_magnitude * 4.0,
+		y: degrees_to_radians(ui_state.gravity_direction) - PI
+	});
+	change_gravity(constraints.as_mut(), up_down * 6.0, left_right);
+	let polar_gravity = cartesian_to_polar(constraints.gravity);
+	ui_state.gravity_magnitude = f32::sqrt(polar_gravity.x / 4.0);
+	ui_state.gravity_direction = radians_to_degrees(polar_gravity.y + PI);
 }
 
 /// Handle all user input as it relates to the camera!

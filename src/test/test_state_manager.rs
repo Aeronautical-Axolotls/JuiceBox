@@ -206,14 +206,14 @@ pub fn test_update(
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:			Query<(Entity, &mut SimFaucet)>,
     drains:		        Query<(Entity, &SimDrain)>,
-	commands:	        Commands,
+	mut commands:       Commands,
     ) {
 
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	let fixed_timestep: f32 = constraints.timestep;
 
     step_simulation_once(
-        commands,
+        &mut commands,
         constraints.as_mut(),
         grid.as_mut(),
         &mut particles,

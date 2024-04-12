@@ -9,7 +9,7 @@ use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, construct_test_simulation_layout};
-use crate::events::{ResetEvent, UseToolEvent};
+use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -50,42 +50,37 @@ fn update(
 	mut commands:	Commands,
     ui_state:       Res<UIStateManager>,
     ev_tool_use: 	EventReader<UseToolEvent>,
-    ev_reset:   	EventReader<ResetEvent>) {
+    ev_reset:   	EventReader<ResetEvent>,
+	ev_paused:		EventReader<PlayPauseStepEvent>) {
 
 	// TODO: Check for and handle simulation saving/loading.
-	// TODO: Check for and handle simulation pause/timestep change.
 
-	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
+	/* A fixed timestep is generally recommended for fluid simulations like ours.  Unfortunately,
+		this does mean that a lower framerate slows everything down, but it does prevent the
+		whole thing from blowing up spectacularly.  For a dynamic timestep using the same scale of
+		milliseconds, you would use the following code:
+		let dynamic_timestep: f32 = time.delta().as_millis() as f32 * 0.001; */
 	let fixed_timestep: f32 = constraints.timestep;
 
+	// Handle all simulation events received through our EventReader<> objects.
 	handle_events(
 		ev_reset,
 		ev_tool_use,
+		ev_paused,
 		&mut commands,
 		constraints.as_mut(),
 		grid.as_mut(),
 		&mut particles,
 		&faucets,
 		&drains,
-		&ui_state
+		&ui_state,
+		fixed_timestep
 	);
 
-	// If F is not being held, run the simulation.
-	if !keys.pressed(KeyCode::F) {
+	// If the simulation is not paused, run the simulation!
+	if !constraints.is_paused {
 		step_simulation_once(
-            commands,
-			constraints.as_mut(),
-			grid.as_mut(),
-			&mut particles,
-            &faucets,
-            &drains,
-			fixed_timestep
-		);
-
-		// If F is being held and G is tapped, step the simulation once.
-	} else if keys.just_pressed(KeyCode::G) {
-		step_simulation_once(
-            commands,
+            &mut commands,
 			constraints.as_mut(),
 			grid.as_mut(),
 			&mut particles,
@@ -100,19 +95,46 @@ fn update(
 fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
+	mut ev_pause:		EventReader<PlayPauseStepEvent>,
 	mut commands:	    &mut Commands,
 	constraints:	    &mut SimConstraints,
 	grid:			    &mut SimGrid,
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
 	faucets:		    &Query<(Entity, &mut SimFaucet)>,
 	drains:		        &Query<(Entity, &SimDrain)>,
-    ui_state:			&UIStateManager) {
+    ui_state:			&UIStateManager,
+	timestep:			f32) {
 
     // If there is a reset event sent, we reset the simulation.
     for _ in ev_reset.read() {
-        reset_simulation_to_default(commands, constraints, grid, particles);
-		construct_test_simulation_layout(constraints, grid, commands);
+        reset_simulation_to_default(&mut commands, constraints, grid, particles);
+		construct_test_simulation_layout(constraints, grid, &mut commands);
     }
+
+	// If we receive a play/pause/step event, process it!
+	for ev in ev_pause.read() {
+
+		// If the event is not a step event, simply pause or unpause the simulation.
+		if !ev.is_step_event {
+			constraints.is_paused = !constraints.is_paused;
+
+			/* If the event IS a step event, we need to either step once, or we need to pause and
+				step once (even though the user is unlikely to notice the difference between a
+				pause vs. a step then a pause.  I would feel guilty not stepping after the pause.
+				it's like someone ordering a bagel with whole milk cream cheese, but then all you
+				have is low-fat cream cheese.  You could just sneak it past them, but would that be
+				the right thing to do?  No!  It would not!  Instead, you go to the store and get the
+				whole milk cream cheese for them because you value their business and you want to
+				do the right thing.  Ladies and gentlemen, I present to you: the cream cheese litmus
+				test.). */
+		} else {
+
+			if !constraints.is_paused {
+				constraints.is_paused = true;
+			}
+			step_simulation_once(commands, constraints, grid, particles, faucets, drains, timestep);
+		}
+	}
 
     // For every tool usage, we change the state
     for tool_use in ev_tool_use.read() {
@@ -156,7 +178,7 @@ fn handle_events(
 				);
             }
             SimTool::AddDrain => {
-                add_drain(commands, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32).ok();
+                add_drain(&mut commands, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32).ok();
             }
             SimTool::RemoveDrain => {
                 // TODO: Handle Remove Drain usage
@@ -168,7 +190,7 @@ fn handle_events(
                 // convert the direction and pressure into cartesian vector, pressure is scaled
                 let faucet_direciton = polar_to_cartesian(Vec2::new(ui_state.faucet_pressure * 10.0, direction));
 
-                add_faucet(commands, grid, tool_use.pos, None, ui_state.faucet_radius, faucet_direciton).ok();
+                add_faucet(&mut commands, grid, tool_use.pos, None, ui_state.faucet_radius, faucet_direciton).ok();
             }
             SimTool::RemoveFaucet => {
 
@@ -176,7 +198,7 @@ fn handle_events(
                 for (faucet_id, faucet_props) in faucets.iter() {
                     if tool_use.pos.distance(faucet_props.position) <= (grid.cell_size as f32 * 3.0) {
                         // Delete the closest faucet
-                        delete_faucet(commands, faucets, faucet_id);
+                        delete_faucet(&mut commands, faucets, faucet_id);
                         break;
                     }
                 }
@@ -208,7 +230,7 @@ pub fn change_gravity(
 
 /// Step the fluid simulation one time!
 pub fn step_simulation_once(
-	mut commands:	Commands,
+	mut commands:	&mut Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
@@ -217,7 +239,7 @@ pub fn step_simulation_once(
 	timestep:		f32) {
 
     // Run drains and faucets, panics if something weird/bad happens
-    activate_components(&mut commands, constraints, particles, faucets, drains, grid).ok();
+    activate_components(commands, constraints, particles, faucets, drains, grid).ok();
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -283,11 +305,14 @@ pub fn reset_simulation_to_default(
 
 #[derive(Resource, Clone)]
 pub struct SimConstraints {
-	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio (0.0 = FLIP, 1.0 = PIC).
+	pub is_paused:					bool,	// Is the simulation currently paused?
 	pub timestep:					f32,	// Timestep for simulation updates.
+	pub gravity:					Vec2,	// Cartesian gravity vector.
+
+	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio (0.0 = FLIP, 1.0 = PIC).
 	pub incomp_iters_per_frame:		u8, 	// Simulation incompressibility iterations per frame.
 	pub collision_iters_per_frame:	u8,		// Collision iterations per frame.
-	pub gravity:					Vec2,	// Cartesian gravity vector.
+
 	pub particle_radius:			f32,	// Particle collision radii.
 	pub particle_count:				usize,	// Number of particles in the simulation.
 	pub particle_rest_density:		f32,	// Rest density of particles in simulation.
@@ -297,13 +322,15 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.3,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
+			is_paused:					false,
 			timestep:					1.0 / 120.0,
+			// (9.81 * 2) ^ 2 = ~385 (Bevy caps FPS at 60, we run sim at 120).
+			gravity:					Vec2 { x: 0.0, y: -385.0 },
+
+			grid_particle_ratio:		0.3,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
 			incomp_iters_per_frame:		100,
 			collision_iters_per_frame:	2,
 
-			// (9.81^2) * 4 = ~385 (Bevy caps FPS at 60, we run sim at 120).
-			gravity:					Vec2 { x: 0.0, y: -385.0 },
 			particle_radius:			1.0,
 			particle_count:				0,
 			particle_rest_density:		0.0,

@@ -1,10 +1,10 @@
 use std::mem::transmute;
 
 use super::{UIStateManager, SimTool, UI_ICON_COUNT};
-use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{event::EventWriter, system::{Query, Res, ResMut, Resource}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
+use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{event::{EventReader, EventWriter}, system::{Query, Res, ResMut, Resource}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Separator, Ui, Vec2},EguiContexts};
 
-use crate::{events::ModifyVisualizationEvent, util};
+use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, util};
 
 pub fn init_user_interface(
 	mut contexts:	EguiContexts,
@@ -18,14 +18,15 @@ pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>,
 	windows:		Query<&Window>,
-	ev_viz:			EventWriter<ModifyVisualizationEvent>) {
+	ev_viz:			EventWriter<ModifyVisualizationEvent>,
+	ev_pause:		EventWriter<PlayPauseStepEvent>) {
 
 	// Make sure the UI is aware of the window size so we can grow/shrink when needed.
 	calculate_window_parameters(&mut ui_state, &mut contexts, windows.single());
 
 	// Show "static" UI menus.
 	show_scene_manager_menu(&mut ui_state, &mut contexts);
-	show_play_pause_menu(&mut ui_state, &mut contexts);
+	show_play_pause_menu(&mut ui_state, &mut contexts, ev_pause);
 
 	// Show hideable UI menus.
 	if ui_state.show_selected_tool { show_current_tool_menu(&mut ui_state, &mut contexts); }
@@ -59,17 +60,17 @@ fn show_informational_menu(
 
 			ui.label("Keyboard controls:");
 			ui.end_row();
-			ui.label(" • Arrow keys - Rotate and change the strength of gravity.");
-			ui.end_row();
 			ui.label(" • WASD - Move the camera around.");
+			ui.end_row();
+			ui.label(" • Arrow keys - Rotate and change the strength of gravity.");
 			ui.end_row();
 			ui.label(" • Q & E - Zoom in/out.");
 			ui.end_row();
 			ui.label(" • R - Reset Simulation.");
 			ui.end_row();
-			ui.label(" • F (Hold) - Pause the simulation.");
+			ui.label(" • Space - Pause/unpause the simulation.");
 			ui.end_row();
-			ui.label(" • G (Tap) - Run one step of the simulation while paused.");
+			ui.label(" • F (Tap) - Step through the simulation one frame at a time!");
 			ui.end_row();
 
 			ui.vertical_centered(|ui| {
@@ -418,7 +419,8 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 /// Play/pause menu.
 fn show_play_pause_menu(
 	ui_state:		&mut UIStateManager,
-	contexts:		&mut EguiContexts) {
+	contexts:		&mut EguiContexts,
+	mut ev_pause:	EventWriter<PlayPauseStepEvent>) {
 
 	// Get the icons we need!
 	let play_pause_icons: Vec<egui::Image> = Vec::new();
@@ -445,7 +447,7 @@ fn show_play_pause_menu(
 		// Simulation play/pause button.
 		ui.vertical_centered(|ui| {
 
-			// Play/pause button!
+			// Play/pause button icon and text.
 			let play_pause_icon;
 			let play_pause_text;
 			if ui_state.is_paused {
@@ -455,9 +457,12 @@ fn show_play_pause_menu(
 				play_pause_icon	= pause_icon;
 				play_pause_text	= "Playing!";
 			}
+
+			// The actual button itself.
 			if ui.add(egui::Button::image_and_text(
 				play_pause_icon, play_pause_text)).clicked() {
 				ui_state.is_paused = !ui_state.is_paused;
+				ev_pause.send(PlayPauseStepEvent::new(false));
 			}
 		});
     });
