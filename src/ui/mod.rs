@@ -100,6 +100,8 @@ pub struct UIStateManager {
 	pub	faucet_direction:			f32,
 	pub	faucet_radius:				f32,
 	pub	faucet_pressure:			f32,
+    pub drain_radius:                f32,
+    pub drain_pressure:              f32,
 
 	pub	show_visualization:			bool,
 	pub	show_grid:					bool,
@@ -135,6 +137,8 @@ impl Default for UIStateManager {
 			faucet_direction:			45.0,
 			faucet_radius:				2.0,
 			faucet_pressure:			10.0,
+            drain_radius:               1.0,
+            drain_pressure:             10.0,
 
 			// Visualization menu.
 			show_visualization:			false,

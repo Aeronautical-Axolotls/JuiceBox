@@ -73,10 +73,10 @@ pub fn construct_test_simulation_layout(
     // add_faucet(&mut commands, grid, faucet_pos, surface_direction).ok();
 
     // Add Drain
-    let drain_pos = Vec2::new(grid.cell_size as f32 * 25.0, 0.0);
-    let surface_direction = None;
+    // let drain_pos = Vec2::new(grid.cell_size as f32 * 25.0, 0.0);
+    // let surface_direction = None;
 
-    add_drain(commands, grid, drain_pos, surface_direction).ok();
+    // add_drain(commands, grid, drain_pos, surface_direction, grid.cell_size as f32).ok();
 
 	// Spawn a small test group of particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {
@@ -312,8 +312,9 @@ fn test_add_drain_update(
 
     let drain_pos = Vec2::new(grid.cell_size as f32 * 25.0, 1.0);
     let surface_direction = Some(SimSurfaceDirection::South);
+    let drain_radius = grid.cell_size as f32;
 
-    let Err(e) = simulation::sim_state_manager::add_drain(&mut commands, grid.as_mut(), drain_pos, surface_direction) else {
+    let Err(e) = simulation::sim_state_manager::add_drain(&mut commands, grid.as_mut(), drain_pos, surface_direction, drain_radius) else {
 
         return;
     };

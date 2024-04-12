@@ -223,8 +223,9 @@ pub fn delete_faucet(
 pub fn add_drain(
 	commands:			&mut Commands,
 	grid:				&mut SimGrid,
-    drain_pos:         Vec2,
-    surface_direction:  Option<SimSurfaceDirection>
+    drain_pos:          Vec2,
+    surface_direction:  Option<SimSurfaceDirection>,
+    drain_radius:       f32,
     ) -> Result<()> {
 
 	if drain_pos[0] < 0.0 || drain_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
@@ -239,7 +240,7 @@ pub fn add_drain(
 	}
 
     commands.spawn(
-        SimDrain::new(drain_pos, surface_direction)
+        SimDrain::new(drain_pos, surface_direction, drain_radius)
     );
 
 
