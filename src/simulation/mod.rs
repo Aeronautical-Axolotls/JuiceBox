@@ -48,6 +48,7 @@ fn update(
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
+	asset_server:	Res<AssetServer>,
     ui_state:       Res<UIStateManager>,
     ev_tool_use: 	EventReader<UseToolEvent>,
     ev_reset:   	EventReader<ResetEvent>,
@@ -68,6 +69,7 @@ fn update(
 		ev_tool_use,
 		ev_paused,
 		&mut commands,
+		&asset_server,
 		constraints.as_mut(),
 		grid.as_mut(),
 		&mut particles,
@@ -97,6 +99,7 @@ fn handle_events(
     mut ev_tool_use:    EventReader<UseToolEvent>,
 	mut ev_pause:		EventReader<PlayPauseStepEvent>,
 	mut commands:	    &mut Commands,
+	asset_server:		&AssetServer,
 	constraints:	    &mut SimConstraints,
 	grid:			    &mut SimGrid,
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
@@ -178,7 +181,7 @@ fn handle_events(
 				);
             }
             SimTool::AddDrain => {
-                add_drain(&mut commands, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32).ok();
+                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32).ok();
             }
             SimTool::RemoveDrain => {
                 // TODO: Handle Remove Drain usage
@@ -190,7 +193,7 @@ fn handle_events(
                 // convert the direction and pressure into cartesian vector, pressure is scaled
                 let faucet_direciton = polar_to_cartesian(Vec2::new(ui_state.faucet_pressure * 10.0, direction));
 
-                add_faucet(&mut commands, grid, tool_use.pos, None, ui_state.faucet_radius, faucet_direciton).ok();
+                add_faucet(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.faucet_radius, faucet_direciton).ok();
             }
             SimTool::RemoveFaucet => {
 
