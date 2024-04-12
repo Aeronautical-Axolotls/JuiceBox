@@ -504,23 +504,23 @@ pub fn load_user_interface_icons(
 
 	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
-		asset_server.load("../assets/ui/icons_og/select_og.png"),
-		asset_server.load("../assets/ui/icons_og/movecamera_og.png"),
-		asset_server.load("../assets/ui/icons_og/magnifyingglass_og.png"),
-		asset_server.load("../assets/ui/icons_og/rotate_og.png"),
-		asset_server.load("../assets/ui/icons_og/grab_og.png"),
-		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
-		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
-		asset_server.load("../assets/ui/icons_og/wall_og.png"),
-		asset_server.load("../assets/ui/icons_og/wall_og.png"),
-		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
-		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
-		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
-		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
+		asset_server.load("../assets/ui/select.png"),
+		asset_server.load("../assets/ui/movecamera.png"),
+		asset_server.load("../assets/ui/zoom.png"),
+		asset_server.load("../assets/ui/rotate.png"),
+		asset_server.load("../assets/ui/grab.png"),
+		asset_server.load("../assets/ui/addfluid.png"),
+		asset_server.load("../assets/ui/removefluid.png"),
+		asset_server.load("../assets/ui/addwall.png"),
+		asset_server.load("../assets/ui/removewall.png"),
+		asset_server.load("../assets/ui/addfaucet.png"),
+		asset_server.load("../assets/ui/removefaucet.png"),
+		asset_server.load("../assets/ui/adddrain.png"),
+		asset_server.load("../assets/ui/removedrain.png"),
 	];
 	let play_pause_icon_handles: [Handle<Image>; 2] = [
-		asset_server.load("../assets/ui/icons_og/play_og.png"),
-		asset_server.load("../assets/ui/icons_og/pause_og.png"),
+		asset_server.load("../assets/ui/play.png"),
+		asset_server.load("../assets/ui/pause.png"),
 	];
 
 	// Store all loaded image handles into our UI state manager.
