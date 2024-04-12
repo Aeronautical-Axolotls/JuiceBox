@@ -328,11 +328,11 @@ fn show_current_tool_menu(
 					for controlling how intensely a drain pulls fluid inwards. */
 				SimTool::AddDrain		=> {
 					ui.add(egui::Slider::new(
-						&mut ui_state.faucet_pressure,
+						&mut ui_state.drain_radius,
 						0.0..=100.0
 					).text("Drain Suck Radius"));
 					ui.add(egui::Slider::new(
-						&mut ui_state.faucet_pressure,
+						&mut ui_state.drain_pressure,
 						0.0..=100.0
 					).text("Drain Pressure"));
 				},

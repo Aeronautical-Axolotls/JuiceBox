@@ -10,7 +10,7 @@ use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, construct_test_simulation_layout};
 use crate::events::{ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_particle, select_particles};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -156,7 +156,7 @@ fn handle_events(
 				);
             }
             SimTool::AddDrain => {
-                // TODO: Handle Add Drain usage
+                add_drain(commands, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32).ok();
             }
             SimTool::RemoveDrain => {
                 // TODO: Handle Remove Drain usage
@@ -922,6 +922,7 @@ impl SimFaucet {
 pub struct SimDrain {
     pub position:       Vec2,                           // Drain Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall
+    pub radius:         f32,
 }
 
 impl SimDrain {
@@ -929,12 +930,14 @@ impl SimDrain {
     /// New Drain
     pub fn new(
         position: Vec2,
-        direction: Option<SimSurfaceDirection>
+        direction: Option<SimSurfaceDirection>,
+        radius: f32,
         ) -> Self {
 
         Self {
             position,
             direction,
+            radius,
         }
     }
 
@@ -947,7 +950,7 @@ impl SimDrain {
         particles: &Query<(Entity, &mut SimParticle)>,
         ) -> Result<()> {
 
-        let nearby_particles = select_particles(particles, grid, self.position, grid.cell_size as f32);
+        let nearby_particles = select_particles(particles, grid, self.position, self.radius);
 
         for id in nearby_particles {
             let Err(e) = delete_particle(commands, constraints, particles, grid, id) else {
