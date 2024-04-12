@@ -31,34 +31,29 @@ pub fn handle_input(
 	let space_pressed:bool			= keys.just_pressed(KeyCode::Space);
 
 	// Reset simulation when we press R.
-	if r_key_pressed {
-        ev_reset.send(ResetEvent);
-		return;
-	}
-
+	if r_key_pressed { ev_reset.send(ResetEvent); return; }
 	// Pause/unpause the simulation if Space is pressed.
-	if space_pressed {
-		ev_pause.send(PlayPauseStepEvent::new(false));
-		return;
-	}
-
+	if space_pressed { ev_pause.send(PlayPauseStepEvent::new(false)); return; }
 	// Step once if the F key is pressed.
-	if f_key_pressed {
-		ev_pause.send(PlayPauseStepEvent::new(true));
-		return;
-	}
+	if f_key_pressed { ev_pause.send(PlayPauseStepEvent::new(true)); return; }
 
-	// Handle tool usage for LMB.
-	if left_mouse_pressed {
-		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
-        ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Left)));
-		return;
-	}
+	// Handle tool usage for both mouse buttons.
+	if left_mouse_pressed || right_mouse_pressed {
 
-	// Handle tool usage for RMB.
-	if right_mouse_pressed {
-		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
-        ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Right)));
+		let mouse_button: MouseButton;
+		if left_mouse_pressed {
+			mouse_button = MouseButton::Left;
+		} else {
+			mouse_button = MouseButton::Right;
+		}
+
+		let cursor_position: Vec2 = get_cursor_position(&windows, &cameras);
+        ev_tool_use.send(UseToolEvent::new(
+			ui_state.selected_tool,
+			cursor_position,
+			Some(mouse_button)
+		));
+		return;
 	}
 
 	/* Rotate/scale gravity when we press the arrow keys.  First, set the simulation's gravity to

@@ -316,7 +316,7 @@ fn show_current_tool_menu(
 					).text("Faucet Pipe Diameter"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.faucet_pressure,
-						0.0..=100.0
+						0.0..=25.0
 					).text("Faucet Pressure"));
 				},
 
