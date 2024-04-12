@@ -8,7 +8,7 @@ use crate::error::Error;
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
-use crate::test::test_state_manager::{self, test_select_grid_cells};
+use crate::test::test_state_manager::{self, construct_test_simulation_layout};
 use crate::events::{ResetEvent, UseToolEvent};
 use self::sim_state_manager::{activate_components, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_particle, select_particles};
 
@@ -28,16 +28,11 @@ impl Plugin for Simulation {
 
 /// Simulation state manager initialization.
 fn setup(
-	commands:			Commands,
+	mut commands:		Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	test_state_manager::construct_test_simulation_layout(
-		constraints.as_mut(),
-		grid.as_mut(),
-		commands
-	);
-
+	construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands);
 
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
@@ -105,7 +100,7 @@ fn update(
 fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
-	mut commands:	        &mut Commands,
+	mut commands:	    &mut Commands,
 	constraints:	    &mut SimConstraints,
 	grid:			    &mut SimGrid,
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
@@ -113,9 +108,10 @@ fn handle_events(
 	drains:		        &Query<(Entity, &SimDrain)>,
     ui_state:			&UIStateManager) {
 
-    // If there is a reset event sent, we reset the simulation
+    // If there is a reset event sent, we reset the simulation.
     for _ in ev_reset.read() {
-        reset_simulation_to_default(commands, constraints, grid, particles)
+        reset_simulation_to_default(commands, constraints, grid, particles);
+		construct_test_simulation_layout(constraints, grid, commands);
     }
 
     // For every tool usage, we change the state
@@ -211,7 +207,7 @@ pub fn change_gravity(
 }
 
 /// Step the fluid simulation one time!
-fn step_simulation_once(
+pub fn step_simulation_once(
 	mut commands:	Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
@@ -963,42 +959,4 @@ impl SimDrain {
 
         Ok(())
     }
-}
-
-/// Simulation state manager initialization.
-pub fn test_setup(
-	commands:			Commands,
-	mut constraints:	ResMut<SimConstraints>,
-	mut grid:			ResMut<SimGrid>) {
-
-	test_state_manager::construct_test_simulation_layout(
-		constraints.as_mut(),
-		grid.as_mut(),
-		commands
-	);
-
-}
-
-pub fn test_update(
-	mut constraints:	ResMut<SimConstraints>,
-	mut grid:			ResMut<SimGrid>,
-	mut particles:		Query<(Entity, &mut SimParticle)>,
-    faucets:		    Query<(Entity, &mut SimFaucet)>,
-    drains:		        Query<(Entity, &SimDrain)>,
-	commands:	        Commands,
-    ) {
-
-	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-	let fixed_timestep: f32 = constraints.timestep;
-
-    step_simulation_once(
-        commands,
-        constraints.as_mut(),
-        grid.as_mut(),
-        &mut particles,
-        &faucets,
-        &drains,
-        fixed_timestep
-    );
-
 }

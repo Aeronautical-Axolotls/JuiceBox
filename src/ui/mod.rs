@@ -6,7 +6,7 @@ use std::mem::transmute;
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 use bevy::prelude::*;
-use crate::{events::{PlayPauseStepEvent}, util};
+use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, util};
 use self::interaction::{change_cursor_icon, handle_input, handle_camera_input};
 use crate::events::{ResetEvent, UseToolEvent};
 
@@ -25,6 +25,7 @@ impl Plugin for JuiceUI {
 		app.add_event::<ResetEvent>();
         app.add_event::<UseToolEvent>();
 		app.add_event::<PlayPauseStepEvent>();
+		app.add_event::<ModifyVisualizationEvent>();
 	}
 }
 
@@ -139,7 +140,7 @@ impl Default for UIStateManager {
 			show_visualization:			false,
 			show_grid:					false,
 			show_velocity_vectors:		false,
-			show_gravity_vector:		false,
+			show_gravity_vector:		true,
 			particle_physical_size:		1.0,
 			gravity_direction:			270.0,
 			gravity_magnitude:			9.81,
@@ -178,8 +179,9 @@ pub fn init_ui(
 pub fn update_ui(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>,
-	windows:		Query<&Window>) {
+	windows:		Query<&Window>,
+	ev_viz: EventWriter<ModifyVisualizationEvent>) {
 
-    interface::draw_user_interface(contexts, ui_state, windows);
+    interface::draw_user_interface(contexts, ui_state, windows, ev_viz);
 
 }

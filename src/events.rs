@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::ecs::event::Event;
-use crate::ui::SimTool;
+use crate::juice_renderer::FluidColorRenderType;
+use crate::ui::{SimTool, UIStateManager};
 
 /**
   Use tool event that sends
@@ -41,4 +42,39 @@ pub struct ResetEvent;
 #[derive(Event)]
 pub struct PlayPauseStepEvent {
 	is_step_event: bool,
+}
+
+#[derive(Event)]
+pub struct ModifyVisualizationEvent {
+	pub show_grid:			bool,
+	pub show_velocities:	bool,
+	pub show_gravity:		bool,
+
+	pub color_variable:		FluidColorRenderType,
+	pub fluid_colors:		[[f32; 3]; 4],
+	pub particle_size:		f32,
+}
+
+/* Create a new visualization modification event, copying the appropriate parameters from the UI
+	state manager.  Is this adaptable to other systems?  No!  But it will look nice when it is
+	called and it will do exactly what we need it to do for this system. */
+impl ModifyVisualizationEvent {
+    pub fn new(ui_state: &UIStateManager) -> Self {
+
+		let fluid_color_variable: FluidColorRenderType = match ui_state.fluid_color_variable {
+			0 => { FluidColorRenderType::Velocity },
+			1 => { FluidColorRenderType::Density },
+			2 => { FluidColorRenderType::Pressure },
+			_ => { FluidColorRenderType::Arbitrary },
+		};
+
+    	Self {
+			show_grid:			ui_state.show_grid,
+			show_velocities:	ui_state.show_velocity_vectors,
+			show_gravity:		ui_state.show_gravity_vector,
+			color_variable:		fluid_color_variable,
+			fluid_colors:		ui_state.fluid_colors,
+			particle_size:		ui_state.particle_physical_size,
+    	}
+    }
 }

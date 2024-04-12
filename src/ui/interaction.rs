@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::input::mouse::MouseMotion;
@@ -27,24 +28,18 @@ pub fn handle_input(
 	let r_key_pressed:bool			= keys.just_pressed(KeyCode::R);
 
 	// Rotate/scale gravity when we press the arrow keys.
+	constraints.gravity = polar_to_cartesian(Vec2 {
+		x: ui_state.gravity_magnitude * ui_state.gravity_magnitude * 4.0,
+		y: degrees_to_radians(ui_state.gravity_direction) - PI
+	});
 	change_gravity(constraints.as_mut(), up_down * 6.0, left_right);
+	let polar_gravity = cartesian_to_polar(constraints.gravity);
+	ui_state.gravity_magnitude = f32::sqrt(polar_gravity.x / 4.0);
+	ui_state.gravity_direction = radians_to_degrees(polar_gravity.y + PI);
 
 	// Reset simulation when we press R.
 	if r_key_pressed {
         ev_reset.send(ResetEvent);
-
-		// crate::simulation::reset_simulation_to_default(
-		// 	&mut commands,
-		// 	constraints.as_mut(),
-		// 	grid.as_mut(),
-		// 	&mut particles
-		// );
-		// test_state_manager::construct_test_simulation_layout(
-		// 	constraints.as_mut(),
-		// 	grid.as_mut(),
-		// 	commands
-		// );
-
 		return;
 	}
 
@@ -54,11 +49,11 @@ pub fn handle_input(
         ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Left)));
 		return;
 	}
+
 	// Handle tool usage for RMB.
 	if right_mouse_pressed {
 		let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
         ev_tool_use.send(UseToolEvent::new(ui_state.selected_tool, cursor_position, Some(MouseButton::Right)));
-
 	}
 }
 

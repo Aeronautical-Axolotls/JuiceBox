@@ -689,7 +689,7 @@ fn separate_particle_pair(
 		y: particle_combo[0].1.position[1] - particle_combo[1].1.position[1]
 	};
 	let distance_squared: f32	= (delta_position.x * delta_position.x) + (delta_position.y * delta_position.y);
-	if distance_squared > collision_radius_squared || distance_squared <= 0.01 {
+	if distance_squared > collision_radius_squared || distance_squared <= 0.00001 {
 		return;
 	}
 
