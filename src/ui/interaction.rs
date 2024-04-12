@@ -36,6 +36,7 @@ pub fn handle_input(
 	if space_pressed { ev_pause.send(PlayPauseStepEvent::new(false)); return; }
 	// Step once if the F key is pressed.
 	if f_key_pressed { ev_pause.send(PlayPauseStepEvent::new(true)); return; }
+	ui_state.is_paused = constraints.is_paused;
 
 	// Handle tool usage for both mouse buttons.
 	if left_mouse_pressed || right_mouse_pressed {

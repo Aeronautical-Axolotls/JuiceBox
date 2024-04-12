@@ -182,6 +182,10 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
 			3 => { ui_state.show_informational = !ui_state.show_informational },
 			_ => {},
 		}
+
+		if ui.button("Help!").clicked() {
+			ui_state.show_informational = !ui_state.show_informational;
+		}
 	});
 }
 
