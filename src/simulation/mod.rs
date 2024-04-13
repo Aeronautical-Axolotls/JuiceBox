@@ -923,6 +923,7 @@ pub struct SimDrain {
     pub position:       Vec2,                           // Drain Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall
     pub radius:         f32,
+    pub pressure:       f32,
 }
 
 impl SimDrain {
@@ -932,12 +933,14 @@ impl SimDrain {
         position: Vec2,
         direction: Option<SimSurfaceDirection>,
         radius: f32,
+        pressure: f32,
         ) -> Self {
 
         Self {
             position,
             direction,
             radius,
+            pressure,
         }
     }
 
@@ -951,6 +954,7 @@ impl SimDrain {
         ) -> Result<()> {
 
         let nearby_particles = select_particles(particles, grid, self.position, self.radius);
+
 
         for id in nearby_particles {
             let Err(e) = delete_particle(commands, constraints, particles, grid, id) else {
