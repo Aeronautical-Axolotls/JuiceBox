@@ -206,14 +206,14 @@ pub fn test_update(
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:			Query<(Entity, &mut SimFaucet)>,
     drains:		        Query<(Entity, &SimDrain)>,
-	commands:	        Commands,
+	mut commands:       Commands,
     ) {
 
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
 	let fixed_timestep: f32 = constraints.timestep;
 
     step_simulation_once(
-        commands,
+        &mut commands,
         constraints.as_mut(),
         grid.as_mut(),
         &mut particles,
@@ -288,14 +288,14 @@ pub fn test_select_grid_cells(
 
 /// runs the add_faucet() function for testing
 fn test_add_faucet_update(
-	mut commands:		Commands,
-	mut grid:			ResMut<SimGrid>
-    ) {
+	mut commands:	Commands,
+	asset_server:	Res<AssetServer>,
+	mut grid:		ResMut<SimGrid>) {
 
     let faucet_pos = Vec2::new(grid.cell_size as f32, grid.cell_size as f32 * 10.0);
     let surface_direction = None;
 
-    let Err(e) = simulation::sim_state_manager::add_faucet(&mut commands, grid.as_mut(), faucet_pos, surface_direction, 1.0, Vec2::ZERO) else {
+    let Err(e) = simulation::sim_state_manager::add_faucet(&mut commands, &asset_server, grid.as_mut(), faucet_pos, surface_direction, 1.0, Vec2::ZERO) else {
 
         return;
     };
@@ -307,6 +307,7 @@ fn test_add_faucet_update(
 /// runs the add_faucet() function for testing
 fn test_add_drain_update(
 	mut commands:		Commands,
+	asset_server:		Res<AssetServer>,
 	mut grid:			ResMut<SimGrid>
     ) {
 
@@ -314,7 +315,7 @@ fn test_add_drain_update(
     let surface_direction = Some(SimSurfaceDirection::South);
     let drain_radius = grid.cell_size as f32;
 
-    let Err(e) = simulation::sim_state_manager::add_drain(&mut commands, grid.as_mut(), drain_pos, surface_direction, drain_radius) else {
+    let Err(e) = simulation::sim_state_manager::add_drain(&mut commands, &asset_server, grid.as_mut(), drain_pos, surface_direction, drain_radius) else {
 
         return;
     };

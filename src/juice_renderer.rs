@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::{
 	core_pipeline::prelude::ClearColor, prelude::*, render::{view::PostProcessWrite, Render}, sprite::MaterialMesh2dBundle
 };
@@ -159,14 +161,44 @@ fn setup_renderer(
 
 /** Creates and links a new sprite to the specified particle; **Must be called each time a new
 	particle is added to the simulation!** */
-pub fn link_particle_sprite(mut commands: &mut Commands, particle: Entity) {
+pub fn link_particle_sprite(commands: &mut Commands, particle: Entity) {
 	commands.entity(particle).insert(SpriteBundle::default());
 }
 
+/** Creates and links a new sprite for the specified faucet. */
+pub fn link_faucet_sprite(commands: &mut Commands, asset_server: &AssetServer, faucet: Entity, position: Vec2) {
+
+	let faucet_image = asset_server.load("../assets/faucet.png");
+	let mut faucet_sprite_bundle = SpriteBundle {
+		texture: faucet_image,
+		..default()
+	};
+
+	faucet_sprite_bundle.transform.translation	= Vec3 { x: position.x, y: position.y, z: 0.0 };
+	faucet_sprite_bundle.transform.rotation		= Quat::from_rotation_x(PI);
+	faucet_sprite_bundle.transform.scale		= Vec3 { x: 0.01, y: 0.01, z: 1.0 };
+
+	commands.entity(faucet).insert(faucet_sprite_bundle);
+}
+
+/** Creates and links a new sprite for the specified faucet. */
+pub fn link_drain_sprite(commands: &mut Commands, asset_server: &AssetServer, drain: Entity, position: Vec2) {
+
+	let drain_image = asset_server.load("../assets/drain.png");
+	let mut drain_sprite_bundle = SpriteBundle {
+		texture: drain_image,
+		..default()
+	};
+
+	drain_sprite_bundle.transform.translation	= Vec3 { x: position.x, y: position.y, z: 0.0 };
+	drain_sprite_bundle.transform.rotation		= Quat::from_rotation_x(PI);
+	drain_sprite_bundle.transform.scale			= Vec3 { x: 0.01, y: 0.01, z: 1.0 };
+
+	commands.entity(drain).insert(drain_sprite_bundle);
+}
+
 /// Update the visual transform of all particles to be rendered.
-fn update_particle_position(
-	constraints: Res<SimConstraints>,
-	mut particles: Query<(&SimParticle, &mut Transform)>) {
+fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>) {
 
 	for (particle, mut transform) in particles.iter_mut() {
 		transform.translation = Vec3 {

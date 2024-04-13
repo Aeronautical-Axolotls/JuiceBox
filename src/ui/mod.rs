@@ -184,8 +184,9 @@ pub fn update_ui(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>,
 	windows:		Query<&Window>,
-	ev_viz: EventWriter<ModifyVisualizationEvent>) {
+	ev_viz:			EventWriter<ModifyVisualizationEvent>,
+	ev_pause:		EventWriter<PlayPauseStepEvent>) {
 
-    interface::draw_user_interface(contexts, ui_state, windows, ev_viz);
+    interface::draw_user_interface(contexts, ui_state, windows, ev_viz, ev_pause);
 
 }
