@@ -41,7 +41,16 @@ pub struct ResetEvent;
 	- `is_step_event == false`, `sim_paused == false`: Simulation pauses. */
 #[derive(Event)]
 pub struct PlayPauseStepEvent {
-	is_step_event: bool,
+	pub is_step_event: bool,
+}
+
+// Create a new play/pause/step event.
+impl PlayPauseStepEvent {
+	pub fn new(is_step_event: bool) -> Self {
+		Self {
+			is_step_event: is_step_event,
+		}
+	}
 }
 
 #[derive(Event)]

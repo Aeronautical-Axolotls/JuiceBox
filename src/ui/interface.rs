@@ -1,10 +1,10 @@
 use std::mem::transmute;
 
 use super::{UIStateManager, SimTool, UI_ICON_COUNT};
-use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{event::EventWriter, system::{Query, Res, ResMut, Resource}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
+use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{event::{EventReader, EventWriter}, system::{Query, Res, ResMut, Resource}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Separator, Ui, Vec2},EguiContexts};
 
-use crate::{events::ModifyVisualizationEvent, util};
+use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, util};
 
 pub fn init_user_interface(
 	mut contexts:	EguiContexts,
@@ -18,14 +18,15 @@ pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>,
 	windows:		Query<&Window>,
-	ev_viz:			EventWriter<ModifyVisualizationEvent>) {
+	ev_viz:			EventWriter<ModifyVisualizationEvent>,
+	ev_pause:		EventWriter<PlayPauseStepEvent>) {
 
 	// Make sure the UI is aware of the window size so we can grow/shrink when needed.
 	calculate_window_parameters(&mut ui_state, &mut contexts, windows.single());
 
 	// Show "static" UI menus.
 	show_scene_manager_menu(&mut ui_state, &mut contexts);
-	show_play_pause_menu(&mut ui_state, &mut contexts);
+	show_play_pause_menu(&mut ui_state, &mut contexts, ev_pause);
 
 	// Show hideable UI menus.
 	if ui_state.show_selected_tool { show_current_tool_menu(&mut ui_state, &mut contexts); }
@@ -59,17 +60,17 @@ fn show_informational_menu(
 
 			ui.label("Keyboard controls:");
 			ui.end_row();
-			ui.label(" • Arrow keys - Rotate and change the strength of gravity.");
-			ui.end_row();
 			ui.label(" • WASD - Move the camera around.");
+			ui.end_row();
+			ui.label(" • Arrow keys - Rotate and change the strength of gravity.");
 			ui.end_row();
 			ui.label(" • Q & E - Zoom in/out.");
 			ui.end_row();
 			ui.label(" • R - Reset Simulation.");
 			ui.end_row();
-			ui.label(" • F (Hold) - Pause the simulation.");
+			ui.label(" • Space - Pause/unpause the simulation.");
 			ui.end_row();
-			ui.label(" • G (Tap) - Run one step of the simulation while paused.");
+			ui.label(" • F (Tap) - Step through the simulation one frame at a time!");
 			ui.end_row();
 
 			ui.vertical_centered(|ui| {
@@ -180,6 +181,10 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
 			2 => { ui_state.show_visualization = !ui_state.show_visualization },
 			3 => { ui_state.show_informational = !ui_state.show_informational },
 			_ => {},
+		}
+
+		if ui.button("Help!").clicked() {
+			ui_state.show_informational = !ui_state.show_informational;
 		}
 	});
 }
@@ -315,7 +320,7 @@ fn show_current_tool_menu(
 					).text("Faucet Pipe Diameter"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.faucet_pressure,
-						0.0..=100.0
+						0.0..=25.0
 					).text("Faucet Pressure"));
 				},
 
@@ -418,7 +423,8 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 /// Play/pause menu.
 fn show_play_pause_menu(
 	ui_state:		&mut UIStateManager,
-	contexts:		&mut EguiContexts) {
+	contexts:		&mut EguiContexts,
+	mut ev_pause:	EventWriter<PlayPauseStepEvent>) {
 
 	// Get the icons we need!
 	let play_pause_icons: Vec<egui::Image> = Vec::new();
@@ -445,7 +451,7 @@ fn show_play_pause_menu(
 		// Simulation play/pause button.
 		ui.vertical_centered(|ui| {
 
-			// Play/pause button!
+			// Play/pause button icon and text.
 			let play_pause_icon;
 			let play_pause_text;
 			if ui_state.is_paused {
@@ -455,9 +461,12 @@ fn show_play_pause_menu(
 				play_pause_icon	= pause_icon;
 				play_pause_text	= "Playing!";
 			}
+
+			// The actual button itself.
 			if ui.add(egui::Button::image_and_text(
 				play_pause_icon, play_pause_text)).clicked() {
 				ui_state.is_paused = !ui_state.is_paused;
+				ev_pause.send(PlayPauseStepEvent::new(false));
 			}
 		});
     });
@@ -495,23 +504,23 @@ pub fn load_user_interface_icons(
 
 	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
-		asset_server.load("../assets/ui/icons_og/select_og.png"),
-		asset_server.load("../assets/ui/icons_og/movecamera_og.png"),
-		asset_server.load("../assets/ui/icons_og/magnifyingglass_og.png"),
-		asset_server.load("../assets/ui/icons_og/rotate_og.png"),
-		asset_server.load("../assets/ui/icons_og/grab_og.png"),
-		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
-		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
-		asset_server.load("../assets/ui/icons_og/wall_og.png"),
-		asset_server.load("../assets/ui/icons_og/wall_og.png"),
-		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
-		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
-		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
-		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
+		asset_server.load("../assets/ui/select.png"),
+		asset_server.load("../assets/ui/movecamera.png"),
+		asset_server.load("../assets/ui/zoom.png"),
+		asset_server.load("../assets/ui/rotate.png"),
+		asset_server.load("../assets/ui/grab.png"),
+		asset_server.load("../assets/ui/addfluid.png"),
+		asset_server.load("../assets/ui/removefluid.png"),
+		asset_server.load("../assets/ui/addwall.png"),
+		asset_server.load("../assets/ui/removewall.png"),
+		asset_server.load("../assets/ui/addfaucet.png"),
+		asset_server.load("../assets/ui/removefaucet.png"),
+		asset_server.load("../assets/ui/adddrain.png"),
+		asset_server.load("../assets/ui/removedrain.png"),
 	];
 	let play_pause_icon_handles: [Handle<Image>; 2] = [
-		asset_server.load("../assets/ui/icons_og/play_og.png"),
-		asset_server.load("../assets/ui/icons_og/pause_og.png"),
+		asset_server.load("../assets/ui/play.png"),
+		asset_server.load("../assets/ui/pause.png"),
 	];
 
 	// Store all loaded image handles into our UI state manager.

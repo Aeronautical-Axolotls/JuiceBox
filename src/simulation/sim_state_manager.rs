@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::juice_renderer;
+use crate::juice_renderer::{self, link_drain_sprite, link_faucet_sprite, link_particle_sprite};
 
 use super::*;
 
@@ -176,6 +176,7 @@ pub fn select_particles<'a>(
 
 pub fn add_faucet(
 	commands:			&mut Commands,
+	asset_server:		&AssetServer,
 	grid:				&mut SimGrid,
     faucet_pos:         Vec2,
     surface_direction:  Option<SimSurfaceDirection>,
@@ -194,9 +195,10 @@ pub fn add_faucet(
 		));
 	}
 
-    commands.spawn(
+    let faucet = commands.spawn(
         SimFaucet::new(faucet_pos, surface_direction, faucet_diameter, faucet_flow)
-    );
+    ).id();
+	link_faucet_sprite(commands, &asset_server, faucet, faucet_pos);
 
 
     Ok(())
@@ -222,6 +224,7 @@ pub fn delete_faucet(
 
 pub fn add_drain(
 	commands:			&mut Commands,
+	asset_server:		&AssetServer,
 	grid:				&mut SimGrid,
     drain_pos:          Vec2,
     surface_direction:  Option<SimSurfaceDirection>,
@@ -239,9 +242,10 @@ pub fn add_drain(
 		));
 	}
 
-    commands.spawn(
+    let drain = commands.spawn(
         SimDrain::new(drain_pos, surface_direction, drain_radius)
-    );
+    ).id();
+	link_drain_sprite(commands, &asset_server, drain, drain_pos);
 
 
     Ok(())
