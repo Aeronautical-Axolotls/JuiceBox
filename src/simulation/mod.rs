@@ -181,7 +181,7 @@ fn handle_events(
 				);
             }
             SimTool::AddDrain => {
-                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32).ok();
+                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32, ui_state.drain_pressure).ok();
             }
             SimTool::RemoveDrain => {
                 // TODO: Handle Remove Drain usage
@@ -952,8 +952,8 @@ impl SimFaucet {
 pub struct SimDrain {
     pub position:       Vec2,                           // Drain Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall
-    pub radius:         f32,
-    pub pressure:       f32,
+    pub radius:         f32,                            // Radius of the darin's pull
+    pub pressure:       f32,                            // Magnitude of the drain's pull
 }
 
 impl SimDrain {
@@ -983,15 +983,26 @@ impl SimDrain {
         particles: &Query<(Entity, &mut SimParticle)>,
         ) -> Result<()> {
 
-        let nearby_particles = select_particles(particles, grid, self.position, self.radius);
+        let nearby_particle_ids = select_particles(particles, grid, self.position, self.radius);
 
+        for particle_id in nearby_particle_ids.iter() {
 
-        for id in nearby_particles {
-            let Err(e) = delete_particle(commands, constraints, particles, grid, id) else {
+            let Ok((id, particle)) = particles.get(*particle_id) else {
                 continue;
             };
-            println!("{}", e);
-            continue;
+
+            let distance = self.position.distance(particle.position);
+            let distance_vector = self.position - particle.position;
+            let polar_vector = cartesian_to_polar(distance_vector); // (magnituve, direction)
+            let pull_strength = self.pressure * -polar_vector.x;
+            let pull_velocity = polar_to_cartesian(Vec2::new(1.0 / pull_strength, polar_vector.y));
+
+            if distance < grid.cell_size as f32 {
+                if let Err(e) = delete_particle(commands, constraints, particles, grid, *particle_id) {
+                    continue;
+                };
+            }
+
         }
 
         Ok(())

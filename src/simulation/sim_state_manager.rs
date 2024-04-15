@@ -229,6 +229,7 @@ pub fn add_drain(
     drain_pos:          Vec2,
     surface_direction:  Option<SimSurfaceDirection>,
     drain_radius:       f32,
+    drain_pressure:     f32,
     ) -> Result<()> {
 
 	if drain_pos[0] < 0.0 || drain_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
@@ -243,7 +244,7 @@ pub fn add_drain(
 	}
 
     let drain = commands.spawn(
-        SimDrain::new(drain_pos, surface_direction, drain_radius)
+        SimDrain::new(drain_pos, surface_direction, drain_radius, drain_pressure)
     ).id();
 	link_drain_sprite(commands, &asset_server, drain, drain_pos);
 
