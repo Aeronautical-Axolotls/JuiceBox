@@ -530,7 +530,11 @@ impl SimGrid {
 
 	/** Convert the Vec2 position (x, y) to coordinates (row, column).  **will return the
 		closest valid cell to any invalid position input.** */
-	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
+	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Option<Vec2> {
+
+		// If this is not a valid grid cell, don't return one!
+		if !self.is_position_within_grid(position) { return None; }
+
 		let cell_size: f32			= self.cell_size as f32;
 		let grid_upper_bound: f32	= self.dimensions.1 as f32 * cell_size;
 
@@ -539,13 +543,7 @@ impl SimGrid {
 			y: f32::floor(position[0] / cell_size),							// Column
 		};
 
-		// Clamp our coordinates to our grid's bounds.
-		coordinates[0] = f32::max(0.0, coordinates[0]);
-		coordinates[1] = f32::max(0.0, coordinates[1]);
-		coordinates[0] = f32::min((self.dimensions.0 - 1) as f32, coordinates[0]);
-		coordinates[1] = f32::min((self.dimensions.1 - 1) as f32, coordinates[1]);
-
-		coordinates
+		Some(coordinates)
 	}
 
 	/** Convert the Vec2 coordinates (row, column) to a position (x, y).  **will return the
@@ -639,13 +637,28 @@ impl SimGrid {
 				y: selection_min_bound.y + cell_y_index as f32 * self.cell_size as f32
 			};
 
-			let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
+			if self.is_position_within_grid(&cell_position) {
 
-			// Add our selected cell's coordinates to our list of cell coordinates!
-			cells_in_selection[cell_index] = cell_coordinates;
+				// Add our selected cell's coordinates to our list of selected cell coordinates!
+				let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
+				cells_in_selection[cell_index] = cell_coordinates;
+			}
 		}
 
 		cells_in_selection
+	}
+
+	/// Check if a position Vector is within a cell.
+	pub fn is_position_within_grid(&self, position: &Vec2) -> bool {
+
+		let max_x: f32 = (self.cell_size * self.dimensions.1) as f32;
+		let max_y: f32 = (self.cell_size * self.dimensions.0) as f32;
+
+		// Check position with grid bounds.
+		if position.x < 0.0 || position.x > max_x { return false; }
+		if position.y < 0.0 || position.y > max_y { return false; }
+
+		true
 	}
 
 	/// Set all density values within the grid to 0.0.
