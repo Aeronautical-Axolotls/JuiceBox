@@ -1026,14 +1026,14 @@ impl SimDrain {
         commands: &mut Commands,
         constraints: &mut SimConstraints,
         grid: &mut SimGrid,
-        particles: &Query<(Entity, &mut SimParticle)>,
+        particles: &mut Query<(Entity, &mut SimParticle)>,
         ) -> Result<()> {
 
         let nearby_particle_ids = select_particles(particles, grid, self.position, self.radius);
 
         for particle_id in nearby_particle_ids.iter() {
 
-            let Ok((id, particle)) = particles.get(*particle_id) else {
+            let Ok((id, mut particle)) = particles.get_mut(*particle_id) else {
                 continue;
             };
 
@@ -1042,6 +1042,8 @@ impl SimDrain {
             let polar_vector = cartesian_to_polar(distance_vector); // (magnituve, direction)
             let pull_strength = self.pressure * -polar_vector.x;
             let pull_velocity = polar_to_cartesian(Vec2::new(1.0 / pull_strength, polar_vector.y));
+
+            particle.velocity += pull_velocity;
 
             if distance < grid.cell_size as f32 {
                 if let Err(e) = delete_particle(commands, constraints, particles, grid, *particle_id) {

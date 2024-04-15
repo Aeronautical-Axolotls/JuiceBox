@@ -277,7 +277,7 @@ pub fn add_drain(
 pub fn activate_components(
     commands:		&mut Commands,
     constraints:	&mut SimConstraints,
-    particles:      &Query<(Entity, &mut SimParticle)>,
+    particles:      &mut Query<(Entity, &mut SimParticle)>,
     faucets:        &Query<(Entity, &mut SimFaucet)>,
     drains:         &Query<(Entity, &mut SimDrain)>,
     grid:           &mut SimGrid,
