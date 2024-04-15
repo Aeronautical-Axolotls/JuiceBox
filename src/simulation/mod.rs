@@ -149,6 +149,7 @@ fn handle_events(
     // For every tool usage, we change the state
     for tool_use in ev_tool_use.read() {
 
+		if !grid.is_position_within_grid(&tool_use.pos) { continue; }
 		let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
 
         match tool_use.tool {
@@ -530,11 +531,7 @@ impl SimGrid {
 
 	/** Convert the Vec2 position (x, y) to coordinates (row, column).  **will return the
 		closest valid cell to any invalid position input.** */
-	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Option<Vec2> {
-
-		// If this is not a valid grid cell, don't return one!
-		if !self.is_position_within_grid(position) { return None; }
-
+	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
 		let cell_size: f32			= self.cell_size as f32;
 		let grid_upper_bound: f32	= self.dimensions.1 as f32 * cell_size;
 
@@ -543,8 +540,16 @@ impl SimGrid {
 			y: f32::floor(position[0] / cell_size),							// Column
 		};
 
-		Some(coordinates)
+		// Clamp our coordinates to our grid's bounds.
+		coordinates[0] = f32::max(0.0, coordinates[0]);
+		coordinates[1] = f32::max(0.0, coordinates[1]);
+		coordinates[0] = f32::min((self.dimensions.0 - 1) as f32, coordinates[0]);
+		coordinates[1] = f32::min((self.dimensions.1 - 1) as f32, coordinates[1]);
+
+		coordinates
 	}
+
+
 
 	/** Convert the Vec2 coordinates (row, column) to a position (x, y).  **will return the
 		closest valid position to any invalid coordinate input.** */
@@ -648,7 +653,7 @@ impl SimGrid {
 		cells_in_selection
 	}
 
-	/// Check if a position Vector is within a cell.
+	/// Check if a position Vector is within the grid.
 	pub fn is_position_within_grid(&self, position: &Vec2) -> bool {
 
 		let max_x: f32 = (self.cell_size * self.dimensions.1) as f32;
@@ -657,6 +662,15 @@ impl SimGrid {
 		// Check position with grid bounds.
 		if position.x < 0.0 || position.x > max_x { return false; }
 		if position.y < 0.0 || position.y > max_y { return false; }
+
+		true
+	}
+
+	/// Check if a coordinate Vector is within the grid.
+	pub fn are_coordinates_within_grid(&self, coordinates: &Vec2) -> bool {
+
+		if coordinates.x < 0.0 || coordinates.y >= self.dimensions.1 as f32 { return false; }
+		if coordinates.y < 0.0 || coordinates.y >= self.dimensions.0 as f32 { return false; }
 
 		true
 	}
