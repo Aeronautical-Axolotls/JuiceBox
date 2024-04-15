@@ -6,42 +6,74 @@ use bevy::ecs::query::*;
 use bevy::prelude::*;
 use bevy_save::*;
 use std;
+use std::path::PathBuf;
 
-use crate::simulation::{SimConstraints, SimGrid, SimGridCellType, SimParticle};
-
-use std::io::{
-    Read,
-    Write,
+use crate::error::Error;
+use crate::simulation::{
+    SimConstraints, SimDrain, SimFaucet, SimGrid, SimGridCellType, SimParticle, SimSurfaceDirection,
 };
 
-use serde::{
-    de::DeserializeSeed,
-    Serialize,
-};
+use std::io::{Read, Write};
+
+use serde::{de::DeserializeSeed, Serialize};
 
 pub struct FileSystem;
 impl Plugin for FileSystem {
     fn build(&self, app: &mut App) {
-        app.add_state::<JuiceStates>();
+        app.insert_resource(CurrentFile::default());
 
         // Setting up the type registry so the data can be accessed
-        app.register_type::<SimParticle>();
-        app.register_type::<Option<Vec2>>();
-        app.register_type::<Option<Rect>>();
-        app.register_type::<SimConstraints>();
-        app.register_type::<SimGrid>();
-        app.register_type::<SimGridCellType>();
-        app.register_type::<(u16, u16)>();
-        app.register_type::<Vec<Vec<SimGridCellType>>>();
-        app.register_type::<Vec<SimGridCellType>>();
-        app.register_type::<Vec<Vec<f32>>>();
-        app.register_type::<Vec<f32>>();
-        app.register_type::<Vec<Vec<Entity>>>();
-        app.register_type::<Vec<Entity>>();
 
+        // Registering SimParticle and it's associated types
+        app.register_type::<SimParticle>();
+        app.register_type::<Option<Vec2>>(); // Needed for loading position, velocity, and any other Vec2 types
+
+        // Registering SimConstraints
+        // All associated types are f32, usize, u8, and Vec2. All already registered
+        app.register_type::<SimConstraints>();
+
+        // Registering SimGrid and it's associated types
+        app.register_type::<SimGrid>();
+        app.register_type::<(u16, u16)>(); // Needed for loading dimensions
+        app.register_type::<SimGridCellType>();
+        app.register_type::<Vec<SimGridCellType>>();
+        app.register_type::<Vec<Vec<SimGridCellType>>>(); // Needed for loading the cell_type
+        app.register_type::<Vec<f32>>();
+        app.register_type::<Vec<Vec<f32>>>(); // Needed for loading cell_center, velocity_u, velocity_v, and density
+        app.register_type::<Vec<Entity>>();
+        app.register_type::<Vec<Vec<Entity>>>(); // Needed for loading spatial_lookup
+        app.register_type::<Option<Rect>>(); // Pretty sure needed for loading any <Vec<Vec<T>>>()
+
+        // Registering SimFaucet, SimDrain, and their associated types
+        app.register_type::<SimFaucet>();
+        app.register_type::<SimDrain>();
+        app.register_type::<SimSurfaceDirection>();
+
+        // Loading and saving funcitonality is called using Bevy's state transitions
+        // Since they have direct world and file access, they freeze all other processes. This is to prevent them being scheduled in Update.
+        app.add_state::<JuiceStates>();
         app.add_systems(OnEnter(JuiceStates::Loading), load_scene);
         app.add_systems(OnEnter(JuiceStates::Saving), save_scene);
-        app.add_systems(OnExit(JuiceStates::Running), reset_state);
+        app.add_systems(OnExit(JuiceStates::Running), reset_state); // Scheduled after load_scene or save_scene since it can't run in parellel.
+    }
+}
+
+#[derive(Resource)]
+pub struct CurrentFile {
+    filepath: String,
+}
+
+impl Default for CurrentFile {
+    fn default() -> CurrentFile {
+        Self {
+            filepath: String::from("my file"),
+        }
+    }
+}
+
+impl CurrentFile {
+    fn new(filepath: String) -> Self {
+        Self { filepath: filepath }
     }
 }
 
@@ -63,24 +95,28 @@ impl Default for JuiceStates {
 pub struct JUICEFormat;
 
 impl Format for JUICEFormat {
+    /// Returns name of file extension added to file.
     fn extension() -> &'static str {
         ".juice"
     }
 
-    fn serialize<W: Write, T: Serialize>(writer: W, value: &T) -> Result<(), Error> {
+    /// Setting bevy_save's JSON serializer to JUICEFormat's serializer. This creates the file from the resources/entities.
+    fn serialize<W: Write, T: Serialize>(writer: W, value: &T) -> Result<(), bevy_save::Error> {
         JSONFormat::serialize(writer, value)
     }
 
+    // Setting bevy_save's JSON deserializer to JUICEFormat's deserializer. This creates the resources/entities from the file.
     fn deserialize<R: Read, S: for<'de> DeserializeSeed<'de, Value = T>, T>(
         reader: R,
         seed: S,
-    ) -> Result<T, Error> {
+    ) -> Result<T, bevy_save::Error> {
         JSONFormat::deserialize(reader, seed)
     }
 }
 
+/// Pipeline for saving and loading files. Contains current key (filepath) and an implementation of bevy_save's Pipeline
 struct JuicePipeline {
-    key: String,
+    key: String, // The full filepath for the location of the file.
 }
 
 impl JuicePipeline {
@@ -90,8 +126,8 @@ impl JuicePipeline {
 }
 
 impl Pipeline for JuicePipeline {
-    type Backend = DefaultDebugBackend;
-    type Format = JUICEFormat;
+    type Backend = DefaultDebugBackend; // Interface between file system, custome file format, and our Rust code, bevy_save handles this.
+    type Format = JUICEFormat; // Connecting to the .juice custom file format, really JSON.
 
     type Key<'a> = &'a str;
 
@@ -99,6 +135,10 @@ impl Pipeline for JuicePipeline {
         return &self.key;
     }
 
+    /// Generates a snapshot of bevy's world, the current SimGrid, SimConstraints, all SimParticles,
+    /// all SimDrains, and all SimFaucets.
+    ///
+    /// This is the Pipeline's way to save files. Most of the implementation is in bevy_save.
     fn capture(builder: SnapshotBuilder) -> Snapshot {
         builder
             .extract_resource::<SimGrid>()
@@ -107,25 +147,39 @@ impl Pipeline for JuicePipeline {
             .build()
     }
 
+    /// Despawns all SimParticles, SimDrains, and SimFaucets in the current world,
+    /// then loads a snapshot generated from a file.
+    ///
+    /// This is the Pipeline's way to load files. Most of the implementation is in bevy_save.
     fn apply(world: &mut World, snapshot: &Snapshot) -> Result<(), bevy_save::Error> {
         snapshot
             .applier(world)
-            .despawn::<With<SimParticle>>()
+            .despawn::<Or<(With<SimParticle>, With<SimFaucet>, With<SimDrain>)>>() // Despawning all entities.
             .apply()
     }
 }
 
 /// Sets file_system.rs state to Saving, which triggers save_scene() to run.
-/// UNFINISHED FUNCTIONALITY - If a String is passed in the key argument, save into that function. Otherwise run a file dialog asking the user.
-pub fn init_saving(key: Option<String>, mut file_state: ResMut<NextState<JuiceStates>>) {
-    if (key.is_some()) {
-        println!("Key was provided: {}", key.unwrap());
-        // TODO: Test to see if key is valid
-        // TODO: Set key as argument
-    } else {
-        println!("No key was provided");
-        // TODO: Run create_new_file() to create file dialog for user
-        // TODO: Set key as string returned
+/// If ask_user_for_file is true, run save-as and ask user for file.
+pub fn init_saving(
+    ask_user_for_file: bool,
+    current_file: &mut CurrentFile,
+    mut file_state: ResMut<NextState<JuiceStates>>,
+) {
+    // Run Save-As functionality instead of Save functionality
+    if ask_user_for_file {
+        let key = create_new_file();
+
+        match key {
+            Ok(key) => {
+                // TODO: validate the key as a real filepath
+                current_file.filepath = key;
+            }
+            Err(e) => { // No file selected, cancel saving.
+                println!("{}", Error::FileExplorer("User did not select file."));
+                return ()
+            },
+        }
     }
 
     file_state.set(JuiceStates::Saving); // Triggers save_scene()
@@ -134,26 +188,42 @@ pub fn init_saving(key: Option<String>, mut file_state: ResMut<NextState<JuiceSt
 /// Triggers a file dialog asking user for filepath, saves the data into the file. Function runs when state = JuiceStates::Saving.
 /// Does nothing if user doesn't select a file.
 fn save_scene(world: &mut World) {
-    let key = create_new_file(); // TODO: Run this in init_saving() and find a way to pass it into here.
+    let key: String = match world.get_resource::<CurrentFile>() {
+        Some(current_file) => current_file.filepath.clone(),
+        None => return (), /*world.get_resource::<CurrentFile>().unwrap().filepath.clone()*/ // TODO run save as here
+    };
 
-    if (key.is_some()) {
-        world
-            .save(JuicePipeline::new(key.unwrap()))
-            .expect("Did not save correctly, perhaps filepath was incorrect?");
-    }
+    world
+        .save(JuicePipeline::new(key))
+        .expect("Did not save correctly, perhaps filepath was incorrect?");
 }
 
 /// Sets file_system.rs state to Loading, which triggers load_scene() to run.
 /// UNFINISHED FUNCTIONALITY - If a String is passed in the key argument, load that function. Otherwise run a file dialog asking the user.
-pub fn init_loading(key: Option<String>, mut file_state: ResMut<NextState<JuiceStates>>) {
-    if (key.is_some()) {
-        println!("Key was provided: {}", key.unwrap());
-        // TODO: Test to see if key is valid
-        // TODO: Set key as argument
-    } else {
-        println!("No key was provided");
-        // TODO: Run get_file() to create file dialog for user
-        // TODO: Set key as string returned
+pub fn init_loading(
+    key: Option<String>,
+    current_file: &mut CurrentFile,
+    mut file_state: ResMut<NextState<JuiceStates>>,
+) {
+    // If key was set as a parameter, load from there. Otherwise call Pick File file dialog, get_file().
+    match key {
+        Some(key) => {
+            // TODO: Test to see if key is valid
+            current_file.filepath = key;
+        }
+        None => {
+            let key = get_file();
+            match key {
+                Ok(key) => {
+                    current_file.filepath = key;
+                }
+                Err(e) => { // No file selected, cancel loading.
+                    println!("{}", Error::FileExplorer("User did not select file."));
+                    return ()
+                },
+            }
+            // TODO: Set key as string returned
+        }
     }
 
     file_state.set(JuiceStates::Loading); // Triggers load_scene()
@@ -161,13 +231,14 @@ pub fn init_loading(key: Option<String>, mut file_state: ResMut<NextState<JuiceS
 
 /// Runs file dialog asking user for filepath, loads the file into the world. Function runs when state = JuiceStates::Loading.
 fn load_scene(world: &mut World) {
-    let key = get_file(); // TODO: Run this in init_loading() and find a way to pass it into here.
+    let key: String = match world.get_resource::<CurrentFile>() {
+        Some(current_file) => current_file.filepath.clone(),
+        None => return (), /*world.get_resource::<CurrentFile>().unwrap().filepath.clone()*/
+    };
 
-    if (key.is_some()) {
-        world
-            .load(JuicePipeline::new(key.unwrap()))
-            .expect("Did not save correctly, perhaps filepath was incorrect?");
-    }
+    world
+        .load(JuicePipeline::new(key))
+        .expect("Did not load correctly, perhaps filepath was incorrect?");
 }
 
 /// Sets state back to JuiceStates::Running.
@@ -176,52 +247,75 @@ fn reset_state(mut file_state: ResMut<NextState<JuiceStates>>) {
 }
 
 /// Triggers a file dialog asking user to select an existing .juice file. Returns the path to it as an Option<String>.
-fn get_file() -> Option<String> {
-    let start_path = std::env::current_dir().unwrap();
+fn get_file() -> Result<String, Error> {
+    let start_path = match std::env::current_dir() {
+        Ok(path) => path,
+        Err(e) => {
+            return Err(Error::FileExplorer(
+                "Invalid starting directory or could not connect to file explorer",
+            ))
+        }
+    };
 
-    let selected_path = rfd::FileDialog::new()
-        .add_filter("text", &["juice"]) // Only allowing to select .json
-        .set_directory(&start_path) // Setting the initial folder of the file dialog to the assets folder
-        .pick_files();
+    let selected_path: PathBuf = match rfd::FileDialog::new()
+        .add_filter("text", &["juice"])
+        .set_directory(&start_path)
+        .pick_file()
+    {
+        Some(path) => path,
+        None => return Err(Error::FileExplorer("Invalid file selection")),
+    };
 
-    if (selected_path.is_some()) {
-        let key: &mut String = &mut selected_path
-            .unwrap()[0]
-            .clone() // Allows us to move PathBuf since it can't be copied on it's own
-            .into_os_string()
-            .into_string()
-            .expect("Wasn't able to parse filepath");
+    let full_key: String = match selected_path.into_os_string().into_string() {
+        Ok(path) => path,
+        Err(e) => {
+            return Err(Error::FileExplorer(
+                "Format of path is invalid, cannot convert to String",
+            ))
+        }
+    };
 
-        key.truncate(key.len() - 6); // Removing the .juice file extension, bevy_save breaks otherwise.
+    let key: &mut String = &mut full_key.clone(); // Adding mutability to allow for truncation.
 
-        return Some(key.to_string()); // Removing mutability
-    } else {
-        return None;
-    }
+    key.truncate(key.len() - 6); // Removing the .juice file extension, bevy_save breaks otherwise.
+
+    Ok(key.to_string()) // Removing mutability
 }
 
 /// Runs a file dialog asking user to create a new .juice file. Returns the path to it as an Option<String>.
 ///
 /// Does not actually create a file, just passes a String to where one should be created.
-fn create_new_file() -> Option<String> {
-    let start_path = std::env::current_dir().unwrap();
+fn create_new_file() -> Result<String, Error> {
+    let start_path = match std::env::current_dir() {
+        Ok(path) => path,
+        Err(e) => {
+            return Err(Error::FileExplorer(
+                "Invalid starting directory or could not connect to file explorer",
+            ))
+        }
+    };
 
-    let selected_path = rfd::FileDialog::new()
+    let selected_path: PathBuf = match rfd::FileDialog::new()
         .add_filter("text", &["juice"])
         .set_directory(&start_path)
-        .save_file();
+        .save_file()
+    {
+        Some(path) => path,
+        None => return Err(Error::FileExplorer("Invalid file selection")),
+    };
 
-    if (selected_path.is_some()) {
-        let key: &mut String = &mut selected_path
-            .unwrap()
-            .into_os_string()
-            .into_string()
-            .expect("Wasn't able to parse filepath");
+    let full_key: String = match selected_path.into_os_string().into_string() {
+        Ok(path) => path,
+        Err(e) => {
+            return Err(Error::FileExplorer(
+                "Format of path is invalid, cannot convert to String",
+            ))
+        }
+    };
 
-        key.truncate(key.len() - 6); // Removing the .juice file extension, bevy_save breaks otherwise.
+    let key: &mut String = &mut full_key.clone(); // Adding mutability to allow for truncation.
 
-        return Some(key.to_string()); // Removing mutability
-    } else {
-        return None;
-    }
+    key.truncate(key.len() - 6); // Removing the .juice file extension, bevy_save breaks otherwise.
+
+    Ok(key.to_string()) // Removing mutability
 }

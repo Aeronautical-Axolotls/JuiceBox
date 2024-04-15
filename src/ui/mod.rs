@@ -153,8 +153,9 @@ pub fn init_ui(
 pub fn update_ui(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>,
+	mut current_file: ResMut<file_system::CurrentFile>,
 	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
-    interface::draw_user_interface(contexts, ui_state, file_state);
+    interface::draw_user_interface(contexts, ui_state, current_file.as_mut(), file_state);
 
 }

@@ -20,10 +20,11 @@ pub fn init_user_interface(
 pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>,
+	current_file: &mut file_system::CurrentFile,
 	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
 	// Show "static" UI menus.
-	show_scene_manager_menu(&mut ui_state, &mut contexts, file_state);
+	show_scene_manager_menu(&mut ui_state, &mut contexts, current_file, file_state);
 	show_play_pause_menu(&mut ui_state, &mut contexts);
 
 	// Show hideable UI menus.
@@ -35,6 +36,7 @@ pub fn draw_user_interface(
 fn show_scene_manager_menu(
 	ui_state:	&mut UIStateManager,
 	contexts:	&mut EguiContexts,
+	current_file: &mut file_system::CurrentFile,
 	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
 	/* For each UI icon that we need to load, get their handle from our UI State Manager.  Then,
@@ -68,7 +70,7 @@ fn show_scene_manager_menu(
 		ui.set_width(ui_state.window_size.y);
 
 		// Show the file manager panel, a horizontal separator, and the tool manager panel.
-		show_file_manager_panel(ui_state, ui, file_state);
+		show_file_manager_panel(ui_state, ui, current_file, file_state);
 		ui.separator();
 		show_tool_manager_panel(ui_state, ui, &tool_icons);
 	});
@@ -78,6 +80,7 @@ fn show_scene_manager_menu(
 fn show_file_manager_panel(
 	ui_state: &mut UIStateManager,
 	ui: &mut Ui,
+	current_file: &mut file_system::CurrentFile,
 	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
 	ui.horizontal_wrapped(|ui| {
@@ -94,9 +97,9 @@ fn show_file_manager_panel(
 		// Do stuff when selection changes.
 		match file_selection {
 			1 => {  },
-			2 => { file_system::init_loading(None, file_state) },
-			3 => {  },
-			4 => { file_system::init_saving(None, file_state) },
+			2 => { file_system::init_loading(None, current_file, file_state) },
+			3 => { file_system::init_saving(false, current_file, file_state) },
+			4 => { file_system::init_saving(true, current_file, file_state) },
 			_ => {},
 		}
 

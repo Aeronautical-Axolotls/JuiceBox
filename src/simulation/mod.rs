@@ -237,7 +237,7 @@ pub enum SimGridCellType {
 	Air,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Reflect)]
 pub enum SimSurfaceDirection {
     North,
     South,
@@ -766,7 +766,8 @@ pub struct SimParticle {
 }
 
 /// Faucet Object for simulation
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
 pub struct SimFaucet {
     pub position:       Vec2,                           // Faucet Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the faucet is connected with the wall
@@ -823,7 +824,8 @@ impl SimFaucet {
 }
 
 /// Drain Object for simulation
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
 pub struct SimDrain {
     pub position:       Vec2,                           // Drain Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall
