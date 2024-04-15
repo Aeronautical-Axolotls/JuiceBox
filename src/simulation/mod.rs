@@ -7,13 +7,12 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
 use crate::juice_renderer;
-use crate::test;
-use crate::ui;
-use sim_state_manager::*;
+use crate::ui::{SimTool, UIStateManager};
+use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
-use crate::test::test_state_manager::{self, test_select_grid_cells};
-
-use self::sim_state_manager::{activate_components, add_particle, delete_all_particles, delete_particle, select_particles};
+use crate::test::test_state_manager::{self, construct_test_simulation_layout};
+use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -31,16 +30,11 @@ impl Plugin for Simulation {
 
 /// Simulation state manager initialization.
 fn setup(
-	commands:			Commands,
+	mut commands:		Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	test_state_manager::construct_test_simulation_layout(
-		constraints.as_mut(),
-		grid.as_mut(),
-		commands
-	);
-
+	construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands);
 
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
@@ -51,38 +45,46 @@ fn update(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
-    faucets:		    Query<(Entity, &SimFaucet)>,
+    faucets:		    Query<(Entity, &mut SimFaucet)>,
     drains:		        Query<(Entity, &SimDrain)>,
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
-	mut gizmos:		Gizmos,
-	windows:		Query<&Window>,
-	cameras:		Query<(&Camera, &GlobalTransform)>
-	) {
+	asset_server:	Res<AssetServer>,
+    ui_state:       Res<UIStateManager>,
+    ev_tool_use: 	EventReader<UseToolEvent>,
+    ev_reset:   	EventReader<ResetEvent>,
+	ev_paused:		EventReader<PlayPauseStepEvent>) {
 
 	// TODO: Check for and handle simulation saving/loading.
-	// TODO: Check for and handle simulation pause/timestep change.
 
-	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
+	/* A fixed timestep is generally recommended for fluid simulations like ours.  Unfortunately,
+		this does mean that a lower framerate slows everything down, but it does prevent the
+		whole thing from blowing up spectacularly.  For a dynamic timestep using the same scale of
+		milliseconds, you would use the following code:
+		let dynamic_timestep: f32 = time.delta().as_millis() as f32 * 0.001; */
 	let fixed_timestep: f32 = constraints.timestep;
 
-	// If F is not being held, run the simulation.
-	if !keys.pressed(KeyCode::F) {
-		step_simulation_once(
-            commands,
-			constraints.as_mut(),
-			grid.as_mut(),
-			&mut particles,
-            &faucets,
-            &drains,
-			fixed_timestep
-		);
+	// Handle all simulation events received through our EventReader<> objects.
+	handle_events(
+		ev_reset,
+		ev_tool_use,
+		ev_paused,
+		&mut commands,
+		&asset_server,
+		constraints.as_mut(),
+		grid.as_mut(),
+		&mut particles,
+		&faucets,
+		&drains,
+		&ui_state,
+		fixed_timestep
+	);
 
-		// If F is being held and G is tapped, step the simulation once.
-	} else if keys.just_pressed(KeyCode::G) {
+	// If the simulation is not paused, run the simulation!
+	if !constraints.is_paused {
 		step_simulation_once(
-            commands,
+            &mut commands,
 			constraints.as_mut(),
 			grid.as_mut(),
 			&mut particles,
@@ -91,23 +93,158 @@ fn update(
 			fixed_timestep
 		);
 	}
+}
 
-	// TODO: Check for and handle changes to gravity.
-	// TODO: Check for and handle tool usage.
+/// Handles incoming events from the UI
+fn handle_events(
+    mut ev_reset:       EventReader<ResetEvent>,
+    mut ev_tool_use:    EventReader<UseToolEvent>,
+	mut ev_pause:		EventReader<PlayPauseStepEvent>,
+	mut commands:	    &mut Commands,
+	asset_server:		&AssetServer,
+	constraints:	    &mut SimConstraints,
+	grid:			    &mut SimGrid,
+	particles:		    &mut Query<(Entity, &mut SimParticle)>,
+	faucets:		    &Query<(Entity, &mut SimFaucet)>,
+	drains:		        &Query<(Entity, &SimDrain)>,
+    ui_state:			&UIStateManager,
+	timestep:			f32) {
+
+    // If there is a reset event sent, we reset the simulation.
+    for _ in ev_reset.read() {
+        reset_simulation_to_default(&mut commands, constraints, grid, particles);
+		construct_test_simulation_layout(constraints, grid, &mut commands);
+    }
+
+	// If we receive a play/pause/step event, process it!
+	for ev in ev_pause.read() {
+
+		// If the event is not a step event, simply pause or unpause the simulation.
+		if !ev.is_step_event {
+			constraints.is_paused = !constraints.is_paused;
+
+			/* If the event IS a step event, we need to either step once, or we need to pause and
+				step once (even though the user is unlikely to notice the difference between a
+				pause vs. a step then a pause.  I would feel guilty not stepping after the pause.
+				it's like someone ordering a bagel with whole milk cream cheese, but then all you
+				have is low-fat cream cheese.  You could just sneak it past them, but would that be
+				the right thing to do?  No!  It would not!  Instead, you go to the store and get the
+				whole milk cream cheese for them because you value their business and you want to
+				do the right thing.  Ladies and gentlemen, I present to you: the cream cheese litmus
+				test.). */
+		} else {
+
+			if !constraints.is_paused {
+				constraints.is_paused = true;
+			}
+			step_simulation_once(commands, constraints, grid, particles, faucets, drains, timestep);
+		}
+	}
+
+    // For every tool usage, we change the state
+    for tool_use in ev_tool_use.read() {
+
+		let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
+
+        match tool_use.tool {
+            SimTool::Select => {
+                // TODO: Handle Select usage
+            }
+            SimTool::Grab => {
+                // TODO: Handle Grab usage.
+            }
+            SimTool::AddFluid => {
+                // TODO: Handle Add Fluid usage
+            }
+            SimTool::RemoveFluid => {
+                // TODO: Handle Remove Fluid usage
+            }
+            SimTool::AddWall => {
+				let _ = grid.set_grid_cell_type(
+					cell_coordinates.x as usize,
+					cell_coordinates.y as usize,
+					SimGridCellType::Solid
+				);
+
+				//Delete all particles in the cell we are turning into a solid.
+				let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
+				grid.delete_all_particles_in_cell(
+					&mut commands,
+					constraints,
+					&particles,
+					lookup_index
+				);
+            }
+            SimTool::RemoveWall => {
+				let _ = grid.set_grid_cell_type(
+					cell_coordinates.x as usize,
+					cell_coordinates.y as usize,
+					SimGridCellType::Air
+				);
+            }
+            SimTool::AddDrain => {
+                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32).ok();
+            }
+            SimTool::RemoveDrain => {
+                // TODO: Handle Remove Drain usage
+            }
+            SimTool::AddFaucet => {
+
+                // convert the direction from degrees to radians
+                let direction = degrees_to_radians(ui_state.faucet_direction);
+                // convert the direction and pressure into cartesian vector, pressure is scaled
+                let faucet_direciton = polar_to_cartesian(Vec2::new(ui_state.faucet_pressure * 10.0, direction));
+
+                add_faucet(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.faucet_radius, faucet_direciton).ok();
+            }
+            SimTool::RemoveFaucet => {
+
+                // Get closest faucet id
+                for (faucet_id, faucet_props) in faucets.iter() {
+                    if tool_use.pos.distance(faucet_props.position) <= (grid.cell_size as f32 * 3.0) {
+                        // Delete the closest faucet
+                        delete_faucet(&mut commands, faucets, faucet_id);
+                        break;
+                    }
+                }
+
+            }
+			// We should not never ever wever get here:
+			_ => {}
+        }
+    }
+}
+
+/// Change the direction and strength of gravity!
+pub fn change_gravity(
+	constraints:		&mut SimConstraints,
+	magnitude_change:	f32,
+	direction_change:	f32) {
+
+	// Convert existing gravity to polar coordinates.
+	let mut polar_gravity: Vec2	= cartesian_to_polar(constraints.gravity);
+	polar_gravity.x				+= 200.0 * magnitude_change as f32 * constraints.timestep;
+	polar_gravity.y				+= 4.0 * direction_change as f32 * constraints.timestep;
+
+	/* Limit the magnitude of the vector to prevent ugly behavior near 0.0.  ADDITIONALLY: I (Kade)
+		found a bug where if a polar vector has magnitude 0 the direction will automatically become
+		0.  This is bad and wrong, so cap gravity super close to zero for this special case... */
+	polar_gravity.x				= f32::max(0.00001, polar_gravity.x);
+	constraints.gravity			= polar_to_cartesian(polar_gravity);
 }
 
 /// Step the fluid simulation one time!
-fn step_simulation_once(
-	mut commands:	Commands,
+pub fn step_simulation_once(
+	mut commands:	&mut Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
-	faucets:		&Query<(Entity, &SimFaucet)>,
+	faucets:		&Query<(Entity, &mut SimFaucet)>,
 	drains:		    &Query<(Entity, &SimDrain)>,
 	timestep:		f32) {
 
     // Run drains and faucets, panics if something weird/bad happens
-    activate_components(&mut commands, constraints, particles, faucets, drains, grid).ok();
+    activate_components(commands, constraints, particles, faucets, drains, grid).ok();
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -174,11 +311,14 @@ pub fn reset_simulation_to_default(
 #[derive(Resource, Reflect, Clone)]
 #[reflect(Resource)]
 pub struct SimConstraints {
-	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio (0.0 = FLIP, 1.0 = PIC).
+	pub is_paused:					bool,	// Is the simulation currently paused?
 	pub timestep:					f32,	// Timestep for simulation updates.
+	pub gravity:					Vec2,	// Cartesian gravity vector.
+
+	pub grid_particle_ratio:		f32, 	// PIC/FLIP simulation ratio (0.0 = FLIP, 1.0 = PIC).
 	pub incomp_iters_per_frame:		u8, 	// Simulation incompressibility iterations per frame.
 	pub collision_iters_per_frame:	u8,		// Collision iterations per frame.
-	pub gravity:					Vec2,	// Cartesian gravity vector.
+
 	pub particle_radius:			f32,	// Particle collision radii.
 	pub particle_count:				usize,	// Number of particles in the simulation.
 	pub particle_rest_density:		f32,	// Rest density of particles in simulation.
@@ -188,13 +328,15 @@ impl Default for SimConstraints {
 
 	fn default() -> SimConstraints {
 		SimConstraints {
-			grid_particle_ratio:		0.3,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
+			is_paused:					false,
 			timestep:					1.0 / 120.0,
+			// (9.81 * 2) ^ 2 = ~385 (Bevy caps FPS at 60, we run sim at 120).
+			gravity:					Vec2 { x: 0.0, y: -385.0 },
+
+			grid_particle_ratio:		0.3,	// 0.0 = inviscid (FLIP), 1.0 = viscous (PIC).
 			incomp_iters_per_frame:		100,
 			collision_iters_per_frame:	2,
 
-			// (9.81^2) * 2 = ~385 (Bevy caps FPS at 60, we run sim at 120).
-			gravity:					Vec2 { x: 0.0, y: -385.0 },
 			particle_radius:			1.0,
 			particle_count:				0,
 			particle_rest_density:		0.0,
@@ -771,18 +913,24 @@ pub struct SimParticle {
 pub struct SimFaucet {
     pub position:       Vec2,                           // Faucet Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the faucet is connected with the wall
+    pub diameter:       f32,
+    pub velocity:       Vec2,
 }
 
 impl SimFaucet {
 
     pub fn new(
         position: Vec2,
-        direction: Option<SimSurfaceDirection>
+        direction: Option<SimSurfaceDirection>,
+        diameter: f32,
+        velocity: Vec2,
         ) -> Self {
 
         Self {
             position,
             direction,
+            diameter,
+            velocity,
         }
     }
 
@@ -795,29 +943,10 @@ impl SimFaucet {
         ) -> Result<()> {
 
         let cell_coords = grid.get_cell_coordinates_from_position(&self.position);
-        let surroundings: [(i32, i32); 7] = [
-            (-1, 0),
-            (0, 1),
-            (0, -1),
-            (1, 1),
-            (-1, 1),
-            (1, -1),
-            (-1, -1)
-        ];
-
-        // Enforce boundary of solids, current impl before rendering sprite
-        for pair in surroundings {
-            grid.set_grid_cell_type(
-                (cell_coords.x as i32 + pair.0) as usize,
-                (cell_coords.y as i32 + pair.1) as usize,
-                SimGridCellType::Solid
-            )?;
-        }
 
         // Run fluid
         let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32));
-        let velocity = Vec2::ZERO;
-        add_particle(commands, constraints, grid, position, velocity)?;
+        add_particles_in_radius(commands, constraints, grid, self.diameter, self.diameter, position, self.velocity);
 
         Ok(())
     }
@@ -829,6 +958,7 @@ impl SimFaucet {
 pub struct SimDrain {
     pub position:       Vec2,                           // Drain Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall
+    pub radius:         f32,
 }
 
 impl SimDrain {
@@ -836,12 +966,14 @@ impl SimDrain {
     /// New Drain
     pub fn new(
         position: Vec2,
-        direction: Option<SimSurfaceDirection>
+        direction: Option<SimSurfaceDirection>,
+        radius: f32,
         ) -> Self {
 
         Self {
             position,
             direction,
+            radius,
         }
     }
 
@@ -854,7 +986,7 @@ impl SimDrain {
         particles: &Query<(Entity, &mut SimParticle)>,
         ) -> Result<()> {
 
-        let nearby_particles = select_particles(particles, grid, self.position, grid.cell_size as f32);
+        let nearby_particles = select_particles(particles, grid, self.position, self.radius);
 
         for id in nearby_particles {
             let Err(e) = delete_particle(commands, constraints, particles, grid, id) else {
@@ -866,42 +998,4 @@ impl SimDrain {
 
         Ok(())
     }
-}
-
-/// Simulation state manager initialization.
-pub fn test_setup(
-	commands:			Commands,
-	mut constraints:	ResMut<SimConstraints>,
-	mut grid:			ResMut<SimGrid>) {
-
-	test_state_manager::construct_test_simulation_layout(
-		constraints.as_mut(),
-		grid.as_mut(),
-		commands
-	);
-
-}
-
-pub fn test_update(
-	mut constraints:	ResMut<SimConstraints>,
-	mut grid:			ResMut<SimGrid>,
-	mut particles:		Query<(Entity, &mut SimParticle)>,
-    faucets:		    Query<(Entity, &SimFaucet)>,
-    drains:		        Query<(Entity, &SimDrain)>,
-	commands:	        Commands,
-    ) {
-
-	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
-	let fixed_timestep: f32 = constraints.timestep;
-
-    step_simulation_once(
-        commands,
-        constraints.as_mut(),
-        grid.as_mut(),
-        &mut particles,
-        &faucets,
-        &drains,
-        fixed_timestep
-    );
-
 }

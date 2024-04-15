@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::juice_renderer;
+use crate::juice_renderer::{self, link_drain_sprite, link_faucet_sprite, link_particle_sprite};
 
 use super::*;
 
@@ -176,9 +176,12 @@ pub fn select_particles<'a>(
 
 pub fn add_faucet(
 	commands:			&mut Commands,
+	asset_server:		&AssetServer,
 	grid:				&mut SimGrid,
     faucet_pos:         Vec2,
-    surface_direction:  Option<SimSurfaceDirection>
+    surface_direction:  Option<SimSurfaceDirection>,
+    faucet_diameter:    f32,
+    faucet_flow:        Vec2,
     ) -> Result<()> {
 
 	if faucet_pos[0] < 0.0 || faucet_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
@@ -192,19 +195,40 @@ pub fn add_faucet(
 		));
 	}
 
-    commands.spawn(
-        SimFaucet::new(faucet_pos, surface_direction)
-    );
+    let faucet = commands.spawn(
+        SimFaucet::new(faucet_pos, surface_direction, faucet_diameter, faucet_flow)
+    ).id();
+	link_faucet_sprite(commands, &asset_server, faucet, faucet_pos);
 
 
     Ok(())
 }
 
+/// Remove a faucet from simulation
+pub fn delete_faucet(
+	commands:		&mut Commands,
+	faucets:		&Query<(Entity, &mut SimFaucet)>,
+	faucet_id:	    Entity) -> Result<()> {
+
+	// Look for the faucet
+	if let Ok(faucet) = faucets.get(faucet_id) {
+
+		commands.entity(faucet_id).despawn();
+
+		return Ok(());
+	}
+
+	Err(Error::InvalidEntityID("Invalid faucet entity ID!"))
+}
+
+
 pub fn add_drain(
 	commands:			&mut Commands,
+	asset_server:		&AssetServer,
 	grid:				&mut SimGrid,
-    drain_pos:         Vec2,
-    surface_direction:  Option<SimSurfaceDirection>
+    drain_pos:          Vec2,
+    surface_direction:  Option<SimSurfaceDirection>,
+    drain_radius:       f32,
     ) -> Result<()> {
 
 	if drain_pos[0] < 0.0 || drain_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
@@ -218,9 +242,10 @@ pub fn add_drain(
 		));
 	}
 
-    commands.spawn(
-        SimDrain::new(drain_pos, surface_direction)
-    );
+    let drain = commands.spawn(
+        SimDrain::new(drain_pos, surface_direction, drain_radius)
+    ).id();
+	link_drain_sprite(commands, &asset_server, drain, drain_pos);
 
 
     Ok(())
@@ -230,7 +255,7 @@ pub fn activate_components(
     commands:		&mut Commands,
     constraints:	&mut SimConstraints,
     particles:      &Query<(Entity, &mut SimParticle)>,
-    faucets:        &Query<(Entity, &SimFaucet)>,
+    faucets:        &Query<(Entity, &mut SimFaucet)>,
     drains:         &Query<(Entity, &SimDrain)>,
     grid:           &mut SimGrid,
     ) -> Result<()> {

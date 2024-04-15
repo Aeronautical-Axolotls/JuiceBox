@@ -1,35 +1,91 @@
 use std::mem::transmute;
 
 use super::{UIStateManager, SimTool, UI_ICON_COUNT};
-use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{schedule::NextState, system::{Query, Res, ResMut, Resource}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
-use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
+use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{schedule::NextState, {event::{EventReader, EventWriter}, system::{Query, Res, ResMut, Resource}}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
+use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Separator, Ui, Vec2},EguiContexts};
 
-use crate::file_system;
-use crate::util;
+use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, util};
 
 pub fn init_user_interface(
 	mut contexts:	EguiContexts,
 	asset_server:	Res<AssetServer>,
-	mut ui_state:	ResMut<UIStateManager>,
-	windows:		Query<&Window>) {
+	mut ui_state:	ResMut<UIStateManager>) {
 
-	calculate_window_parameters(&mut ui_state, &mut contexts, windows.single());
 	load_user_interface_icons(&mut ui_state, &asset_server);
 }
 
 pub fn draw_user_interface(
 	mut contexts:	EguiContexts,
 	mut ui_state:	ResMut<UIStateManager>,
+	windows:		Query<&Window>,
+	ev_viz:			EventWriter<ModifyVisualizationEvent>,
+	ev_pause:		EventWriter<PlayPauseStepEvent>,
 	current_file: &mut file_system::CurrentFile,
 	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
+	// Make sure the UI is aware of the window size so we can grow/shrink when needed.
+	calculate_window_parameters(&mut ui_state, &mut contexts, windows.single());
+
 	// Show "static" UI menus.
 	show_scene_manager_menu(&mut ui_state, &mut contexts, current_file, file_state);
-	show_play_pause_menu(&mut ui_state, &mut contexts);
+	show_play_pause_menu(&mut ui_state, &mut contexts, ev_pause);
 
 	// Show hideable UI menus.
 	if ui_state.show_selected_tool { show_current_tool_menu(&mut ui_state, &mut contexts); }
-	if ui_state.show_visualization { show_visualization_menu(&mut ui_state, &mut contexts); }
+	if ui_state.show_visualization { show_visualization_menu(&mut ui_state, &mut contexts, ev_viz); }
+	if ui_state.show_informational { show_informational_menu(&mut ui_state, &mut contexts); }
+}
+
+/// Create the "splash" menu that appears once when the program is started.
+fn show_informational_menu(
+	ui_state:	&mut UIStateManager,
+	contexts:	&mut EguiContexts) {
+
+	// Create an eGUI window.
+	egui::Window::new("Welcome to JuiceBox!")
+		.frame(ui_state.window_frame)
+		.default_pos(Pos2 { x: ui_state.window_size.x / 2.0, y: ui_state.window_size.y / 2.0 })
+		.pivot(Align2::CENTER_CENTER)
+		.resizable(false)
+		.title_bar(false)
+		.show(contexts.ctx_mut(), |ui| {
+
+		ui.horizontal_wrapped(|ui| {
+
+			ui.vertical_centered(|ui| {
+				ui.heading("Welcome to JuiceBox!");
+				ui.end_row();
+				ui.label("(Spilling encouraged)");
+				ui.separator();
+				ui.add_visible(false, egui::Separator::default());
+			});
+
+			ui.label("Keyboard controls:");
+			ui.end_row();
+			ui.label(" • WASD - Move the camera around.");
+			ui.end_row();
+			ui.label(" • Arrow keys - Rotate and change the strength of gravity.");
+			ui.end_row();
+			ui.label(" • Q & E - Zoom in/out.");
+			ui.end_row();
+			ui.label(" • R - Reset Simulation.");
+			ui.end_row();
+			ui.label(" • Space - Pause/unpause the simulation.");
+			ui.end_row();
+			ui.label(" • F (Tap) - Step through the simulation one frame at a time!");
+			ui.end_row();
+
+			ui.vertical_centered(|ui| {
+				ui.add_visible(false, egui::Separator::default());
+				ui.separator();
+
+
+				if ui.button("Get Spilling!").clicked() {
+					ui_state.show_informational = false;
+				}
+			});
+		});
+	});
 }
 
 /// Create menu for file saving/loading and tool selection.
@@ -119,7 +175,7 @@ fn show_file_manager_panel(
 		}
 
 		// "View" scene dropdown.
-		let view_options		= ["View", "Current Tool", "Visualization"];
+		let view_options		= ["View", "Current Tool", "Visualization", "Controls/Info"];
 		let mut view_selection	= 0;
 		egui::ComboBox::from_id_source(2).show_index(
 			ui,
@@ -130,8 +186,13 @@ fn show_file_manager_panel(
 		// Do stuff when selection changes.
 		match view_selection {
 			1 => { ui_state.show_selected_tool = !ui_state.show_selected_tool },
-			2 => { ui_state.show_visualization = !ui_state.show_visualization }
+			2 => { ui_state.show_visualization = !ui_state.show_visualization },
+			3 => { ui_state.show_informational = !ui_state.show_informational },
 			_ => {},
+		}
+
+		if ui.button("Help!").clicked() {
+			ui_state.show_informational = !ui_state.show_informational;
 		}
 	});
 }
@@ -188,6 +249,34 @@ fn show_current_tool_menu(
 					ui.label("No options available for the Select tool!");
 				},
 
+				// For the Move Camera tool, show a slider for the grabbing radius.
+				SimTool::Camera			=> {
+					ui.label("Click and drag to move the camera around!");
+				},
+
+				// For the Zoom tool, show a slider for the zooming radius.
+				SimTool::Zoom			=> {
+					ui.add(egui::Slider::new(
+						&mut ui_state.zoom_slider,
+						0.5..=5.0
+					).text("Zoom!"));
+				},
+
+				// For the Gravity tool, show sliders for the gravity strength and direction.
+				SimTool::Gravity		=> {
+					ui.label("Use the arrow keys to rotate and change the strength of gravity!");
+
+					ui.add(egui::Slider::new(
+						&mut ui_state.gravity_direction,
+						0.0..=360.0
+					).text("Gravity Direction"));
+
+					ui.add(egui::Slider::new(
+						&mut ui_state.gravity_magnitude,
+						0.0001..=20.0
+					).text("Gravity Strength"));
+				},
+
 				// For the Grab tool, show a slider for the grabbing radius.
 				SimTool::Grab			=> {
 					ui.add(egui::Slider::new(
@@ -218,12 +307,12 @@ fn show_current_tool_menu(
 
 				// For the Add Wall tool, show some text as there are no options for Add Wall.
 				SimTool::AddWall		=> {
-					ui.label("No options available for the Add Wall tool!");
+					ui.label("Click anywhere in the simulation to add a wall!");
 				},
 
 				// For the Remove Wall tool, show some text as there are no options for Remove Wall.
 				SimTool::RemoveWall		=> {
-					ui.label("No options available for the Remove Wall tool!");
+					ui.label("Click a wall in the simulation to remove it!");
 				},
 
 				/* For the Add Faucet tool, show sliders for the direction, volume, and speed
@@ -239,31 +328,31 @@ fn show_current_tool_menu(
 					).text("Faucet Pipe Diameter"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.faucet_pressure,
-						0.0..=100.0
+						0.0..=25.0
 					).text("Faucet Pressure"));
 				},
 
 				// For the Remove Faucet tool, show some text as there are no options for Remove Faucet.
 				SimTool::RemoveFaucet	=> {
-					ui.label("No options available for the Remove Faucet tool!");
+					ui.label("Click a faucet in the simulation to remove it!");
 				},
 
 				/* For the Add Drain tool, show a sucking radius radius slider and a pressure slider
 					for controlling how intensely a drain pulls fluid inwards. */
 				SimTool::AddDrain		=> {
 					ui.add(egui::Slider::new(
-						&mut ui_state.faucet_pressure,
+						&mut ui_state.drain_radius,
 						0.0..=100.0
 					).text("Drain Suck Radius"));
 					ui.add(egui::Slider::new(
-						&mut ui_state.faucet_pressure,
+						&mut ui_state.drain_pressure,
 						0.0..=100.0
 					).text("Drain Pressure"));
 				},
 
 				// For the Remove Drain tool, show some text as there are no options for Remove Drain.
 				SimTool::RemoveDrain	=> {
-					ui.label("No options available for the Remove Drain tool!");
+					ui.label("Click a drain in the simulation to remove it!");
 				},
 
 				// It should literally not be possible for this final case to happen.
@@ -276,7 +365,10 @@ fn show_current_tool_menu(
 }
 
 /// Grid/fluid visualization settings menu.
-fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiContexts) {
+fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiContexts, mut ev_viz: EventWriter<ModifyVisualizationEvent>) {
+
+	// Whenever our visualization is modified, update this variable and send an event out.
+	let mut viz_mod: bool = false;
 
 	egui::Window::new("Visualization Options")
 		.frame(ui_state.window_frame)
@@ -289,47 +381,58 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 		// Align the buttons in this row horizontally from left to right.
 		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
 
-			ui.checkbox(&mut ui_state.show_grid, "Show Grid");
-			ui.checkbox(&mut ui_state.show_velocity_vectors, "Show Velocities");
-			ui.checkbox(&mut ui_state.show_gravity_vector, "Show Gravity");
+			if ui.checkbox(&mut ui_state.show_grid, "Show Grid").clicked()						{ viz_mod = true; }
+			if ui.checkbox(&mut ui_state.show_velocity_vectors, "Show Velocities").clicked()	{ viz_mod = true; }
+			if ui.checkbox(&mut ui_state.show_gravity_vector, "Show Gravity").clicked()			{ viz_mod = true; }
 
 			ui.separator();
 
 			// Fluid color visualization option dropdown.
-			let color_options = ["Velocity", "Density", "Pressure", "None"];
-			egui::ComboBox::from_id_source(0).show_index(
-				ui,
-				&mut ui_state.fluid_color_variable,
-				color_options.len(),
-				|i| color_options[i].to_owned()
-			);
 			ui.horizontal_wrapped(|ui| {
-				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[0]);
-				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[1]);
-				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[2]);
-				ui.color_edit_button_rgb(&mut ui_state.fluid_colors[3]);
+
+				// Labels for each button.
+				ui.label("Color by:");
+				let color_options = ["Velocity", "Density", "Pressure", "None"];
+
+				// Combobox setup and event polling:
+				if egui::ComboBox::from_id_source(0).show_index(
+					ui,
+					&mut ui_state.fluid_color_variable,
+					color_options.len(),
+					|i| color_options[i].to_owned()).changed() {
+
+					viz_mod = true;
+				}
+			});
+
+			// Fluid color pickers.
+			ui.horizontal_wrapped(|ui| {
+				if ui.color_edit_button_rgb(&mut ui_state.fluid_colors[0]).changed() { viz_mod = true; }
+				if ui.color_edit_button_rgb(&mut ui_state.fluid_colors[1]).changed() { viz_mod = true; }
+				if ui.color_edit_button_rgb(&mut ui_state.fluid_colors[2]).changed() { viz_mod = true; }
+				if ui.color_edit_button_rgb(&mut ui_state.fluid_colors[3]).changed() { viz_mod = true; }
 			});
 
 			ui.separator();
 
 			// Sliders for the particle size and gravity direction.
-			ui.add(egui::Slider::new(
+			if ui.add(egui::Slider::new(
 				&mut ui_state.particle_physical_size,
 				0.1..=10.0
-			).text("Particle Size"));
-
-			ui.add(egui::Slider::new(
-				&mut ui_state.gravity_direction,
-				0.0..=360.0
-			).text("Gravity Direction"));
+			).text("Particle Size")).changed() { viz_mod = true; }
 		});
 	});
+
+	if viz_mod {
+		ev_viz.send(ModifyVisualizationEvent::new(ui_state));
+	}
 }
 
 /// Play/pause menu.
 fn show_play_pause_menu(
 	ui_state:		&mut UIStateManager,
-	contexts:		&mut EguiContexts) {
+	contexts:		&mut EguiContexts,
+	mut ev_pause:	EventWriter<PlayPauseStepEvent>) {
 
 	// Get the icons we need!
 	let play_pause_icons: Vec<egui::Image> = Vec::new();
@@ -356,7 +459,7 @@ fn show_play_pause_menu(
 		// Simulation play/pause button.
 		ui.vertical_centered(|ui| {
 
-			// Play/pause button!
+			// Play/pause button icon and text.
 			let play_pause_icon;
 			let play_pause_text;
 			if ui_state.is_paused {
@@ -366,9 +469,12 @@ fn show_play_pause_menu(
 				play_pause_icon	= pause_icon;
 				play_pause_text	= "Playing!";
 			}
+
+			// The actual button itself.
 			if ui.add(egui::Button::image_and_text(
 				play_pause_icon, play_pause_text)).clicked() {
 				ui_state.is_paused = !ui_state.is_paused;
+				ev_pause.send(PlayPauseStepEvent::new(false));
 			}
 		});
     });
@@ -406,20 +512,23 @@ pub fn load_user_interface_icons(
 
 	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
-		asset_server.load("../assets/ui/icons_og/select_og.png"),
-		asset_server.load("../assets/ui/icons_og/grab_og.png"),
-		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
-		asset_server.load("../assets/ui/icons_og/droplet_og.png"),
-		asset_server.load("../assets/ui/icons_og/wall_og.png"),
-		asset_server.load("../assets/ui/icons_og/wall_og.png"),
-		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
-		asset_server.load("../assets/ui/icons_og/faucet_og.png"),
-		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
-		asset_server.load("../assets/ui/icons_og/swirl_og.png"),
+		asset_server.load("../assets/ui/select.png"),
+		asset_server.load("../assets/ui/movecamera.png"),
+		asset_server.load("../assets/ui/zoom.png"),
+		asset_server.load("../assets/ui/rotate.png"),
+		asset_server.load("../assets/ui/grab.png"),
+		asset_server.load("../assets/ui/addfluid.png"),
+		asset_server.load("../assets/ui/removefluid.png"),
+		asset_server.load("../assets/ui/addwall.png"),
+		asset_server.load("../assets/ui/removewall.png"),
+		asset_server.load("../assets/ui/addfaucet.png"),
+		asset_server.load("../assets/ui/removefaucet.png"),
+		asset_server.load("../assets/ui/adddrain.png"),
+		asset_server.load("../assets/ui/removedrain.png"),
 	];
 	let play_pause_icon_handles: [Handle<Image>; 2] = [
-		asset_server.load("../assets/ui/icons_og/play_og.png"),
-		asset_server.load("../assets/ui/icons_og/pause_og.png"),
+		asset_server.load("../assets/ui/play.png"),
+		asset_server.load("../assets/ui/pause.png"),
 	];
 
 	// Store all loaded image handles into our UI state manager.
