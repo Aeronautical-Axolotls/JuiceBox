@@ -319,7 +319,7 @@ fn test_add_drain_update(
     let surface_direction = Some(SimSurfaceDirection::South);
     let drain_radius = grid.cell_size as f32;
 
-    let Err(e) = simulation::sim_state_manager::add_drain(&mut commands, &asset_server, grid.as_mut(), drain_pos, surface_direction, drain_radius) else {
+    let Err(e) = simulation::sim_state_manager::add_drain(&mut commands, &asset_server, grid.as_mut(), drain_pos, surface_direction, drain_radius, 1.0) else {
 
         return;
     };
