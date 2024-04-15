@@ -5,6 +5,7 @@ pub mod util;
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
+use crate::simulation::sim_state_manager::delete_all_faucets;
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
@@ -44,7 +45,7 @@ fn update(
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:		    Query<(Entity, &mut SimFaucet)>,
-    drains:		        Query<(Entity, &SimDrain)>,
+    drains:		        Query<(Entity, &mut SimDrain)>,
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
@@ -110,13 +111,13 @@ fn handle_events(
 	grid:			    &mut SimGrid,
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
 	faucets:		    &Query<(Entity, &mut SimFaucet)>,
-	drains:		        &Query<(Entity, &SimDrain)>,
+	drains:		        &Query<(Entity, &mut SimDrain)>,
     ui_state:			&UIStateManager,
 	timestep:			f32) {
 
     // If there is a reset event sent, we reset the simulation.
     for _ in ev_reset.read() {
-        reset_simulation_to_default(&mut commands, constraints, grid, particles);
+        reset_simulation_to_default(&mut commands, constraints, grid, particles, faucets, drains);
 		construct_test_simulation_layout(constraints, grid, &mut commands);
 		return;
     }
@@ -246,7 +247,7 @@ pub fn step_simulation_once(
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	faucets:		&Query<(Entity, &mut SimFaucet)>,
-	drains:		    &Query<(Entity, &SimDrain)>,
+	drains:		    &Query<(Entity, &mut SimDrain)>,
 	timestep:		f32) {
 
     // Run drains and faucets, panics if something weird/bad happens
@@ -282,12 +283,16 @@ pub fn reset_simulation_to_default(
 	commands:			&mut Commands,
 	constraints:		&mut SimConstraints,
 	grid:				&mut SimGrid,
-	particles:			&Query<(Entity, &mut SimParticle)>) {
+	particles:			&Query<(Entity, &mut SimParticle)>,
+	faucets:			&Query<(Entity, &mut SimFaucet)>,
+	drains:				&Query<(Entity, &mut SimDrain)>) {
 
 	println!("Resetting simulation to default...");
 
-	// Reset all particles.
+	// Reset all particles, faucets, and drains!
 	delete_all_particles(commands, constraints, grid, particles);
+	delete_all_faucets(commands, faucets);
+	// delete_all_drains(commands, drains);
 
 	// Reset the grid by creating a new default grid and copying its values.
 	let reset_grid: SimGrid	= SimGrid::default();
@@ -591,7 +596,8 @@ impl SimGrid {
 		static size.  If any cells in the selection are outside of the grid, then the closest valid
 		cells will be added into the result.  **This can result in duplicated cell values, which is
 		necessary to ensure accurate density calculations (corner cells would otherwise be
-		considered much less dense than cells with selections entirely contained within the grid).** */
+		considered much less dense than cells with selections entirely contained within the grid).**
+		*/
 	pub fn select_grid_cells(&self, position: Vec2, radius: f32) -> Vec<Vec2> {
 
 		/* If we are less than a cell in radius, the function will only search 1 cell.  That is
