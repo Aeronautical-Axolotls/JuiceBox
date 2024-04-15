@@ -2,6 +2,8 @@ pub mod sim_physics_engine;
 pub mod sim_state_manager;
 pub mod util;
 
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use bevy::math::Vec2;
@@ -1033,20 +1035,21 @@ impl SimDrain {
 
         for particle_id in nearby_particle_ids.iter() {
 
-            let Ok((id, mut particle)) = particles.get_mut(*particle_id) else {
+            let Ok((_, mut particle)) = particles.get_mut(*particle_id) else {
                 continue;
             };
 
             let distance = self.position.distance(particle.position);
-            let distance_vector = self.position - particle.position;
-            let polar_vector = cartesian_to_polar(distance_vector); // (magnituve, direction)
-            let pull_strength = self.pressure * -polar_vector.x;
-            let pull_velocity = polar_to_cartesian(Vec2::new(1.0 / pull_strength, polar_vector.y));
+            let distance_vector = particle.position - self.position;
+            let polar_vector = cartesian_to_polar(distance_vector); // (magnitude, direction)
+            let pull_strength = self.pressure * (1.0 / polar_vector.x);
+            let pull_direction = polar_vector.y + degrees_to_radians(180.0);
+            let pull_velocity = polar_to_cartesian(Vec2::new(pull_strength, pull_direction));
 
             particle.velocity += pull_velocity;
 
-            if distance < grid.cell_size as f32 {
-                if let Err(e) = delete_particle(commands, constraints, particles, grid, *particle_id) {
+            if distance < grid.cell_size as f32 * 1.5 {
+                if let Err(_) = delete_particle(commands, constraints, particles, grid, *particle_id) {
                     continue;
                 };
             }
