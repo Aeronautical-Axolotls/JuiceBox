@@ -76,7 +76,13 @@ fn update(
 		);
 	}
 
-	// Handle all simulation events received through our EventReader<> objects.
+	/* Handle all simulation events received through our EventReader<> objects.  IMPORTANT: This
+		*must* happen after we step through the simulation.  If we handle events first, then in the
+		case of a reset event, Bevy will not go through its despawn() schedule in time.  The
+		simulation will then incorrectly label cells as fluid BEFORE the command to despawn the
+		particles has executed.  Because the particles will be despawned before the next update
+		schedule runs, there will never be a change in lookup index for these "ghost" particles, so
+		they will not be removed from the simulation until the next reset event. */
 	handle_events(
 		ev_reset,
 		ev_tool_use,
