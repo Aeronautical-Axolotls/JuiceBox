@@ -63,6 +63,19 @@ fn update(
 		let dynamic_timestep: f32 = time.delta().as_millis() as f32 * 0.001; */
 	let fixed_timestep: f32 = constraints.timestep;
 
+	// If the simulation is not paused, run the simulation!
+	if !constraints.is_paused {
+		step_simulation_once(
+            &mut commands,
+			constraints.as_mut(),
+			grid.as_mut(),
+			&mut particles,
+            &faucets,
+            &drains,
+			fixed_timestep
+		);
+	}
+
 	// Handle all simulation events received through our EventReader<> objects.
 	handle_events(
 		ev_reset,
@@ -78,19 +91,6 @@ fn update(
 		&ui_state,
 		fixed_timestep
 	);
-
-	// If the simulation is not paused, run the simulation!
-	if !constraints.is_paused {
-		step_simulation_once(
-            &mut commands,
-			constraints.as_mut(),
-			grid.as_mut(),
-			&mut particles,
-            &faucets,
-            &drains,
-			fixed_timestep
-		);
-	}
 }
 
 /// Handles incoming events from the UI
@@ -112,6 +112,7 @@ fn handle_events(
     for _ in ev_reset.read() {
         reset_simulation_to_default(&mut commands, constraints, grid, particles);
 		construct_test_simulation_layout(constraints, grid, &mut commands);
+		return;
     }
 
 	// If we receive a play/pause/step event, process it!
@@ -129,7 +130,7 @@ fn handle_events(
 				the right thing to do?  No!  It would not!  Instead, you go to the store and get the
 				whole milk cream cheese for them because you value their business and you want to
 				do the right thing.  Ladies and gentlemen, I present to you: the cream cheese litmus
-				test.). */
+				test in the form of a physics engine UX design decision). */
 		} else {
 
 			if !constraints.is_paused {
@@ -233,7 +234,7 @@ pub fn change_gravity(
 
 /// Step the fluid simulation one time!
 pub fn step_simulation_once(
-	mut commands:	&mut Commands,
+	commands:		&mut Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
@@ -272,8 +273,8 @@ pub fn step_simulation_once(
 /// Reset simulation components to their default state and delete all particles.
 pub fn reset_simulation_to_default(
 	commands:			&mut Commands,
-	mut constraints:	&mut SimConstraints,
-	mut grid:			&mut SimGrid,
+	constraints:		&mut SimConstraints,
+	grid:				&mut SimGrid,
 	particles:			&Query<(Entity, &mut SimParticle)>) {
 
 	println!("Resetting simulation to default...");
@@ -281,7 +282,7 @@ pub fn reset_simulation_to_default(
 	// Reset all particles.
 	delete_all_particles(commands, constraints, grid, particles);
 
-	// Reset the grid.
+	// Reset the grid by creating a new default grid and copying its values.
 	let reset_grid: SimGrid	= SimGrid::default();
 	let row_count: usize	= reset_grid.dimensions.0 as usize;
 	let col_count: usize	= reset_grid.dimensions.1 as usize;
@@ -293,8 +294,9 @@ pub fn reset_simulation_to_default(
 	grid.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
 	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
 	grid.density			= vec![0.0; row_count * col_count];
+	println!("{:?}", grid.spatial_lookup);
 
-	// Reset constraints.
+	// Reset constraints by creating a default constraints and copying its values.
 	let reset_constraints: SimConstraints	= SimConstraints::default();
 	constraints.grid_particle_ratio			= reset_constraints.grid_particle_ratio;
 	constraints.timestep					= reset_constraints.timestep;
