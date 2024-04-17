@@ -6,6 +6,8 @@ use std::mem::transmute;
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMut, Resource}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 use bevy::prelude::*;
+
+use crate::file_system;
 use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, util};
 use self::interaction::{change_cursor_icon, handle_input, handle_camera_input};
 use crate::events::{ResetEvent, UseToolEvent};
@@ -185,8 +187,10 @@ pub fn update_ui(
 	mut ui_state:	ResMut<UIStateManager>,
 	windows:		Query<&Window>,
 	ev_viz:			EventWriter<ModifyVisualizationEvent>,
-	ev_pause:		EventWriter<PlayPauseStepEvent>) {
+	ev_pause:		EventWriter<PlayPauseStepEvent>,
+	mut current_file: ResMut<file_system::CurrentFile>,
+	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
 
-    interface::draw_user_interface(contexts, ui_state, windows, ev_viz, ev_pause);
+    interface::draw_user_interface(contexts, ui_state, windows, ev_viz, ev_pause, current_file.as_mut(), file_state);
 
 }

@@ -3,8 +3,9 @@ pub mod sim_state_manager;
 pub mod util;
 
 use bevy::prelude::*;
+//use bevy::prelude::init_state;
 use bevy::math::Vec2;
-use crate::error::Error;
+// use crate::error::Error;
 use crate::simulation::sim_state_manager::delete_all_faucets;
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
@@ -320,7 +321,8 @@ pub fn reset_simulation_to_default(
 	constraints.particle_rest_density		= reset_constraints.particle_rest_density;
 }
 
-#[derive(Resource, Clone)]
+#[derive(Resource, Reflect, Clone)]
+#[reflect(Resource)]
 pub struct SimConstraints {
 	pub is_paused:					bool,	// Is the simulation currently paused?
 	pub timestep:					f32,	// Timestep for simulation updates.
@@ -383,14 +385,14 @@ impl SimConstraints {
 	}
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Reflect)]
 pub enum SimGridCellType {
 	Solid,
     Fluid,
 	Air,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Reflect)]
 pub enum SimSurfaceDirection {
     North,
     South,
@@ -398,7 +400,8 @@ pub enum SimSurfaceDirection {
     West,
 }
 
-#[derive(Resource, Clone)]
+#[derive(Resource, Clone, Reflect)]
+#[reflect(Resource)]
 pub struct SimGrid {
 	pub	dimensions:	    (u16, u16),				// # of Hor. and Vert. cells in the simulation.
 	pub	cell_size:		u16,
@@ -936,8 +939,8 @@ impl SimGrid {
 
 }
 
-/// Particle Object for simulation
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
 pub struct SimParticle {
 	pub position:		Vec2, 	// This particle's [x, y] position.
 	pub velocity:		Vec2, 	// This particle's [x, y] velocity.
@@ -945,7 +948,8 @@ pub struct SimParticle {
 }
 
 /// Faucet Object for simulation
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
 pub struct SimFaucet {
     pub position:       Vec2,                           // Faucet Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the faucet is connected with the wall
@@ -989,7 +993,8 @@ impl SimFaucet {
 }
 
 /// Drain Object for simulation
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
 pub struct SimDrain {
     pub position:       Vec2,                           // Drain Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall

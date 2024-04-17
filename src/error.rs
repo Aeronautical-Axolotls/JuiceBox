@@ -21,4 +21,7 @@ pub enum Error {
 
 	#[error("Issue computing interpolated value: `{0}`")]
 	Interpolation(&'static str),
+
+	#[error("Cannot connect to file explorer: `{0}`")]
+	FileExplorer(&'static str),
 }
