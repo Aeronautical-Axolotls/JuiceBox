@@ -115,7 +115,9 @@ pub fn debug_state_controller(
 	cameras:			Query<(&Camera, &GlobalTransform)>,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
-	mut particles:		Query<(Entity, &mut SimParticle)>) {
+	mut particles:		Query<(Entity, &mut SimParticle)>,
+	mut faucets:		Query<(Entity, &mut SimFaucet)>,
+	mut drains:			Query<(Entity, &mut SimDrain)>) {
 
 	// Reset simulation when we press R.
 	if keys.just_pressed(KeyCode::R) {
@@ -123,7 +125,9 @@ pub fn debug_state_controller(
 			&mut commands,
 			constraints.as_mut(),
 			grid.as_mut(),
-			&mut particles
+			&mut particles,
+			&mut faucets,
+			&mut drains
 		);
 		construct_test_simulation_layout(
 			constraints.as_mut(),
@@ -205,7 +209,7 @@ pub fn test_update(
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:			Query<(Entity, &mut SimFaucet)>,
-    drains:		        Query<(Entity, &SimDrain)>,
+    drains:		        Query<(Entity, &mut SimDrain)>,
 	mut commands:       Commands,
     ) {
 

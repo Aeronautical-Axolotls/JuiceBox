@@ -252,11 +252,13 @@ fn show_current_tool_menu(
 
 				// For the Move Camera tool, show a slider for the grabbing radius.
 				SimTool::Camera			=> {
-					ui.label("Click and drag to move the camera around!");
+					ui.label("Click and drag (or use WASD) to move the camera around!");
 				},
 
 				// For the Zoom tool, show a slider for the zooming radius.
 				SimTool::Zoom			=> {
+					ui.label("Use the Q and E keys to zoom in and out!");
+
 					ui.add(egui::Slider::new(
 						&mut ui_state.zoom_slider,
 						0.5..=5.0

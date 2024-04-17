@@ -42,19 +42,14 @@ pub fn handle_input(
 	if left_mouse_pressed || right_mouse_pressed {
 
 		let mouse_button: MouseButton;
-		if left_mouse_pressed {
-			mouse_button = MouseButton::Left;
-		} else {
-			mouse_button = MouseButton::Right;
-		}
+		if left_mouse_pressed	{ mouse_button = MouseButton::Left; }
+		else					{ mouse_button = MouseButton::Right; }
 
-		let cursor_position: Vec2 = get_cursor_position(&windows, &cameras);
         ev_tool_use.send(UseToolEvent::new(
 			ui_state.selected_tool,
-			cursor_position,
+			get_cursor_position(&windows, &cameras),
 			Some(mouse_button)
 		));
-		return;
 	}
 
 	/* Rotate/scale gravity when we press the arrow keys.  First, set the simulation's gravity to
@@ -67,9 +62,9 @@ pub fn handle_input(
 		y: degrees_to_radians(ui_state.gravity_direction) - PI
 	});
 	change_gravity(constraints.as_mut(), up_down * 6.0, left_right);
-	let polar_gravity = cartesian_to_polar(constraints.gravity);
-	ui_state.gravity_magnitude = f32::sqrt(polar_gravity.x / 4.0);
-	ui_state.gravity_direction = radians_to_degrees(polar_gravity.y + PI);
+	let polar_gravity			= cartesian_to_polar(constraints.gravity);
+	ui_state.gravity_magnitude	= f32::sqrt(polar_gravity.x / 4.0);
+	ui_state.gravity_direction	= radians_to_degrees(polar_gravity.y + PI);
 }
 
 /// Handle all user input as it relates to the camera!
@@ -90,7 +85,7 @@ pub fn handle_camera_input(
 	let camera_zoom_change: f32			= (keys.pressed(KeyCode::E) as i8 - keys.pressed(KeyCode::Q) as i8) as f32;
 	let camera_speed_mod: f32			= (keys.pressed(KeyCode::ShiftLeft) as u8) as f32;
 
-	/* Define camera_speed here so we can modify their values for dragging the camera (zoom_speed
+	/* Define camera_speed here so we can modify its values for dragging the camera (zoom_speed
 		also defined here for consistency and aesthetics). */
 	let mut camera_speed: f32	= 150.0;
 	let zoom_speed: f32			= 1.0;
@@ -113,7 +108,7 @@ pub fn handle_camera_input(
 		}
 	}
 
-	// Actually control the camera here!
+	// Control the camera based on user input arguments.
 	control_camera(
 		&time,
 		&grid,

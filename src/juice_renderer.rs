@@ -362,6 +362,16 @@ fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, m
 	for row in 0..grid.dimensions.0 {
 		for col in 0..grid.dimensions.1 {
 
+			// Uncomment to visualize all non-air cells within the simulation!
+			// if grid.cell_type[row as usize][col as usize] != SimGridCellType::Air {
+			// 	draw_solid_cell(		// Draw something if solid.
+			// 		grid.as_ref(),
+			// 		Vec2 { x: row as f32, y: col as f32 },
+			// 		Color::BLUE,
+			// 		&mut gizmos
+			// 	);
+			// }
+
 			match grid.cell_type[row as usize][col as usize] {
 				SimGridCellType::Fluid	=> continue,			// Do nothing if fluid.
 				SimGridCellType::Air	=> continue,			// Do nothing if air.

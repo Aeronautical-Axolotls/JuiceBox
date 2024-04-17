@@ -5,8 +5,8 @@ pub mod util;
 use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use bevy::math::Vec2;
-use crate::error::Error;
-use crate::juice_renderer;
+// use crate::error::Error;
+use crate::simulation::sim_state_manager::delete_all_faucets;
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
@@ -46,7 +46,7 @@ fn update(
 	mut grid:			ResMut<SimGrid>,
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:		    Query<(Entity, &mut SimFaucet)>,
-    drains:		        Query<(Entity, &SimDrain)>,
+    drains:		        Query<(Entity, &mut SimDrain)>,
 	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
@@ -65,7 +65,26 @@ fn update(
 		let dynamic_timestep: f32 = time.delta().as_millis() as f32 * 0.001; */
 	let fixed_timestep: f32 = constraints.timestep;
 
-	// Handle all simulation events received through our EventReader<> objects.
+	// If the simulation is not paused, run the simulation!
+	if !constraints.is_paused {
+		step_simulation_once(
+            &mut commands,
+			constraints.as_mut(),
+			grid.as_mut(),
+			&mut particles,
+            &faucets,
+            &drains,
+			fixed_timestep
+		);
+	}
+
+	/* Handle all simulation events received through our EventReader<> objects.  IMPORTANT: This
+		*must* happen after we step through the simulation.  If we handle events first, then in the
+		case of a reset event, Bevy will not go through its despawn() schedule in time.  The
+		simulation will then incorrectly label cells as fluid BEFORE the command to despawn the
+		particles has executed.  Because the particles will be despawned before the next update
+		schedule runs, there will never be a change in lookup index for these "ghost" particles, so
+		they will not be removed from the simulation until the next reset event. */
 	handle_events(
 		ev_reset,
 		ev_tool_use,
@@ -80,19 +99,6 @@ fn update(
 		&ui_state,
 		fixed_timestep
 	);
-
-	// If the simulation is not paused, run the simulation!
-	if !constraints.is_paused {
-		step_simulation_once(
-            &mut commands,
-			constraints.as_mut(),
-			grid.as_mut(),
-			&mut particles,
-            &faucets,
-            &drains,
-			fixed_timestep
-		);
-	}
 }
 
 /// Handles incoming events from the UI
@@ -106,14 +112,15 @@ fn handle_events(
 	grid:			    &mut SimGrid,
 	particles:		    &mut Query<(Entity, &mut SimParticle)>,
 	faucets:		    &Query<(Entity, &mut SimFaucet)>,
-	drains:		        &Query<(Entity, &SimDrain)>,
+	drains:		        &Query<(Entity, &mut SimDrain)>,
     ui_state:			&UIStateManager,
 	timestep:			f32) {
 
     // If there is a reset event sent, we reset the simulation.
     for _ in ev_reset.read() {
-        reset_simulation_to_default(&mut commands, constraints, grid, particles);
+        reset_simulation_to_default(&mut commands, constraints, grid, particles, faucets, drains);
 		construct_test_simulation_layout(constraints, grid, &mut commands);
+		return;
     }
 
 	// If we receive a play/pause/step event, process it!
@@ -131,7 +138,7 @@ fn handle_events(
 				the right thing to do?  No!  It would not!  Instead, you go to the store and get the
 				whole milk cream cheese for them because you value their business and you want to
 				do the right thing.  Ladies and gentlemen, I present to you: the cream cheese litmus
-				test.). */
+				test in the form of a physics engine UX design decision). */
 		} else {
 
 			if !constraints.is_paused {
@@ -144,6 +151,7 @@ fn handle_events(
     // For every tool usage, we change the state
     for tool_use in ev_tool_use.read() {
 
+		if !grid.is_position_within_grid(&tool_use.pos) { continue; }
 		let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
 
         match tool_use.tool {
@@ -235,12 +243,12 @@ pub fn change_gravity(
 
 /// Step the fluid simulation one time!
 pub fn step_simulation_once(
-	mut commands:	&mut Commands,
+	commands:		&mut Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
 	faucets:		&Query<(Entity, &mut SimFaucet)>,
-	drains:		    &Query<(Entity, &SimDrain)>,
+	drains:		    &Query<(Entity, &mut SimDrain)>,
 	timestep:		f32) {
 
     // Run drains and faucets, panics if something weird/bad happens
@@ -274,16 +282,20 @@ pub fn step_simulation_once(
 /// Reset simulation components to their default state and delete all particles.
 pub fn reset_simulation_to_default(
 	commands:			&mut Commands,
-	mut constraints:	&mut SimConstraints,
-	mut grid:			&mut SimGrid,
-	particles:			&Query<(Entity, &mut SimParticle)>) {
+	constraints:		&mut SimConstraints,
+	grid:				&mut SimGrid,
+	particles:			&Query<(Entity, &mut SimParticle)>,
+	faucets:			&Query<(Entity, &mut SimFaucet)>,
+	drains:				&Query<(Entity, &mut SimDrain)>) {
 
 	println!("Resetting simulation to default...");
 
-	// Reset all particles.
+	// Reset all particles, faucets, and drains!
 	delete_all_particles(commands, constraints, grid, particles);
+	delete_all_faucets(commands, faucets);
+	// delete_all_drains(commands, drains);
 
-	// Reset the grid.
+	// Reset the grid by creating a new default grid and copying its values.
 	let reset_grid: SimGrid	= SimGrid::default();
 	let row_count: usize	= reset_grid.dimensions.0 as usize;
 	let col_count: usize	= reset_grid.dimensions.1 as usize;
@@ -295,8 +307,9 @@ pub fn reset_simulation_to_default(
 	grid.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
 	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
 	grid.density			= vec![0.0; row_count * col_count];
+	println!("{:?}", grid.spatial_lookup);
 
-	// Reset constraints.
+	// Reset constraints by creating a default constraints and copying its values.
 	let reset_constraints: SimConstraints	= SimConstraints::default();
 	constraints.grid_particle_ratio			= reset_constraints.grid_particle_ratio;
 	constraints.timestep					= reset_constraints.timestep;
@@ -544,6 +557,8 @@ impl SimGrid {
 		coordinates
 	}
 
+
+
 	/** Convert the Vec2 coordinates (row, column) to a position (x, y).  **will return the
 		closest valid position to any invalid coordinate input.** */
 	pub fn get_cell_position_from_coordinates(&self, coordinates: Vec2) -> Vec2 {
@@ -584,7 +599,8 @@ impl SimGrid {
 		static size.  If any cells in the selection are outside of the grid, then the closest valid
 		cells will be added into the result.  **This can result in duplicated cell values, which is
 		necessary to ensure accurate density calculations (corner cells would otherwise be
-		considered much less dense than cells with selections entirely contained within the grid).** */
+		considered much less dense than cells with selections entirely contained within the grid).**
+		*/
 	pub fn select_grid_cells(&self, position: Vec2, radius: f32) -> Vec<Vec2> {
 
 		/* If we are less than a cell in radius, the function will only search 1 cell.  That is
@@ -635,13 +651,37 @@ impl SimGrid {
 				y: selection_min_bound.y + cell_y_index as f32 * self.cell_size as f32
 			};
 
-			let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
+			if self.is_position_within_grid(&cell_position) {
 
-			// Add our selected cell's coordinates to our list of cell coordinates!
-			cells_in_selection[cell_index] = cell_coordinates;
+				// Add our selected cell's coordinates to our list of selected cell coordinates!
+				let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
+				cells_in_selection[cell_index] = cell_coordinates;
+			}
 		}
 
 		cells_in_selection
+	}
+
+	/// Check if a position Vector is within the grid.
+	pub fn is_position_within_grid(&self, position: &Vec2) -> bool {
+
+		let max_x: f32 = (self.cell_size * self.dimensions.1) as f32;
+		let max_y: f32 = (self.cell_size * self.dimensions.0) as f32;
+
+		// Check position with grid bounds.
+		if position.x < 0.0 || position.x > max_x { return false; }
+		if position.y < 0.0 || position.y > max_y { return false; }
+
+		true
+	}
+
+	/// Check if a coordinate Vector is within the grid.
+	pub fn are_coordinates_within_grid(&self, coordinates: &Vec2) -> bool {
+
+		if coordinates.x < 0.0 || coordinates.y >= self.dimensions.1 as f32 { return false; }
+		if coordinates.y < 0.0 || coordinates.y >= self.dimensions.0 as f32 { return false; }
+
+		true
 	}
 
 	/// Set all density values within the grid to 0.0.
