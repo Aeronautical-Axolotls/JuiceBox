@@ -66,7 +66,7 @@ pub struct CurrentFile {
 impl Default for CurrentFile {
     fn default() -> CurrentFile {
         Self {
-            filepath: String::from("my file"),
+            filepath: String::from("assets/scenes/my file"),
         }
     }
 }
