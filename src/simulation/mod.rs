@@ -1043,10 +1043,17 @@ impl SimDrain {
             let distance_vector = particle.position - self.position;
             let polar_vector = cartesian_to_polar(distance_vector); // (magnitude, direction)
             let pull_strength = self.pressure * (1.0 / polar_vector.x);
+
+            // prevent particle from being pulled past the drain
+            if distance < pull_strength {
+                let _ = delete_particle(commands, constraints, particles, grid, *particle_id);
+                continue;
+            }
+
             let pull_direction = polar_vector.y + degrees_to_radians(180.0);
             let pull_velocity = polar_to_cartesian(Vec2::new(pull_strength, pull_direction));
 
-            particle.velocity += pull_velocity;
+            particle.position += pull_velocity;
 
             if distance < grid.cell_size as f32 * 1.5 {
                 if let Err(_) = delete_particle(commands, constraints, particles, grid, *particle_id) {
