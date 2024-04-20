@@ -2,6 +2,8 @@ pub mod sim_physics_engine;
 pub mod sim_state_manager;
 pub mod util;
 
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use bevy::math::Vec2;
@@ -191,7 +193,7 @@ fn handle_events(
 				);
             }
             SimTool::AddDrain => {
-                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32).ok();
+                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32, ui_state.drain_pressure).ok();
             }
             SimTool::RemoveDrain => {
                 // TODO: Handle Remove Drain usage
@@ -998,7 +1000,8 @@ impl SimFaucet {
 pub struct SimDrain {
     pub position:       Vec2,                           // Drain Postion in the simulation
     pub direction:      Option<SimSurfaceDirection>,    // Direction to which the drain is connected with the wall
-    pub radius:         f32,
+    pub radius:         f32,                            // Radius of the darin's pull
+    pub pressure:       f32,                            // Magnitude of the drain's pull
 }
 
 impl SimDrain {
@@ -1008,12 +1011,14 @@ impl SimDrain {
         position: Vec2,
         direction: Option<SimSurfaceDirection>,
         radius: f32,
+        pressure: f32,
         ) -> Self {
 
         Self {
             position,
             direction,
             radius,
+            pressure,
         }
     }
 
@@ -1023,17 +1028,39 @@ impl SimDrain {
         commands: &mut Commands,
         constraints: &mut SimConstraints,
         grid: &mut SimGrid,
-        particles: &Query<(Entity, &mut SimParticle)>,
+        particles: &mut Query<(Entity, &mut SimParticle)>,
         ) -> Result<()> {
 
-        let nearby_particles = select_particles(particles, grid, self.position, self.radius);
+        let nearby_particle_ids = select_particles(particles, grid, self.position, self.radius);
 
-        for id in nearby_particles {
-            let Err(e) = delete_particle(commands, constraints, particles, grid, id) else {
+        for particle_id in nearby_particle_ids.iter() {
+
+            let Ok((_, mut particle)) = particles.get_mut(*particle_id) else {
                 continue;
             };
-            println!("{}", e);
-            continue;
+
+            let distance = self.position.distance(particle.position);
+            let distance_vector = particle.position - self.position;
+            let polar_vector = cartesian_to_polar(distance_vector); // (magnitude, direction)
+            let pull_strength = self.pressure * (1.0 / polar_vector.x);
+
+            // prevent particle from being pulled past the drain
+            if distance < pull_strength {
+                let _ = delete_particle(commands, constraints, particles, grid, *particle_id);
+                continue;
+            }
+
+            let pull_direction = polar_vector.y + degrees_to_radians(180.0);
+            let pull_velocity = polar_to_cartesian(Vec2::new(pull_strength, pull_direction));
+
+            particle.position += pull_velocity;
+
+            if distance < grid.cell_size as f32 * 1.5 {
+                if let Err(_) = delete_particle(commands, constraints, particles, grid, *particle_id) {
+                    continue;
+                };
+            }
+
         }
 
         Ok(())
