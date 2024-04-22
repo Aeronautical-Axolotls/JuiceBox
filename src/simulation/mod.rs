@@ -302,7 +302,7 @@ pub fn reset_simulation_to_default(
 	// Reset all particles, faucets, and drains!
 	delete_all_particles(commands, constraints, grid, particles);
 	delete_all_faucets(commands, faucets);
-	// delete_all_drains(commands, drains);
+	delete_all_drains(commands, drains);
 
 	// Reset the grid by creating a new default grid and copying its values.
 	let reset_grid: SimGrid	= SimGrid::default();
