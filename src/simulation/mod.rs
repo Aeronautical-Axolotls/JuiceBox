@@ -170,29 +170,31 @@ fn handle_events(
             SimTool::Grab => {
                 // TODO: Handle Grab usage
 				//select particles in radius, use mouse motion
-				// Necessary data to make that camera move!
-				// Extract the camera from our Query<> to control it.
+				let selected_paticles_id = select_particles(particles, grid, tool_use.pos, ui_state.grab_slider_radius);
+				
+				// Extract the camera from our Query<>.
 				let camera_query = &mut mut_cameras.single_mut();
 				let mut camera = (camera_query.0.as_mut(), camera_query.1.as_mut());
 				
-				// Extract the transform and projection vectors for our camera.
+				// Extract the transform vector
 				let transform = &mut camera.0;
 
 				let z_rot_rads: f32		= transform.rotation.to_euler(bevy::math::EulerRot::XYZ).2;
 				let sin_rot: f32		= f32::sin(z_rot_rads);
 				let cos_rot: f32		= f32::cos(z_rot_rads);
 
-				let selected_paticles = select_particles(particles, grid, tool_use.pos, ui_state.grab_slider_radius);
 				for motion in ev_mouse_motion.read() {
 					let horizontal_move	= -1.0 * motion.delta.x;
 					let vertical_move	= motion.delta.y;
-					for particle_id in selected_paticles.iter() {
-						let Ok((_, mut particle)) = particles.get_mut(*particle_id) else {
+					for particle_id in selected_paticles_id.iter() {
+						let Ok((_, mut particle)) = particles.get_mut(*particle_id)
+						else {
 							continue;
 						};
-						
-						particle.position.x += ((horizontal_move * cos_rot) + (vertical_move * sin_rot * -1.0));
-						particle.position.y += ((horizontal_move * sin_rot) + (vertical_move * cos_rot));
+						//particle.position.x += ((horizontal_move * cos_rot) + (vertical_move * sin_rot * -1.0));
+						//particle.position.y += ((horizontal_move * sin_rot) + (vertical_move * cos_rot));
+						particle.position.x += horizontal_move;
+						particle.position.y += vertical_move;
 					}
 				}
             }
