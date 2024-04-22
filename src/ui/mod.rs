@@ -169,6 +169,8 @@ impl Default for UIStateManager {
 
 			// Show the informational window at the start of the program?
 			show_informational:			true,
+
+			
 		}
 	}
 }
