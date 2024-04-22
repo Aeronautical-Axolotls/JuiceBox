@@ -211,14 +211,14 @@ pub fn delete_faucet(
 	faucet_id:	    Entity) -> Result<()> {
 
 	// Look for the faucet
-	if let Ok(faucet) = faucets.get(faucet_id) {
+    if let Err(_) = faucets.get(faucet_id) {
+	    return Err(Error::InvalidEntityID("Invalid faucet entity ID!"));
+    }
 
-		commands.entity(faucet_id).despawn();
+    commands.entity(faucet_id).despawn();
 
-		return Ok(());
-	}
+    return Ok(());
 
-	Err(Error::InvalidEntityID("Invalid faucet entity ID!"))
 }
 
 /// Remove all faucets from the simulation.
@@ -263,16 +263,33 @@ pub fn add_drain(
     Ok(())
 }
 
-/// Remove all drains from the simulation.
-// pub fn delete_all_drains(
-// 	commands:		&mut Commands,
-// 	faucets:		&Query<(Entity, &mut SimDrain)>) {
+// Delete drain from simulation
+pub fn delete_drain(
+	commands:		&mut Commands,
+	drains:		&Query<(Entity, &mut SimDrain)>,
+	drain_id:	    Entity) -> Result<()> {
 
-// 	// KILL THEM ALL!!!
-// 	for (drain_id, _) in drains.iter() {
-// 		let _ = delete_drain(commands, drains, drain_id);
-// 	}
-// }
+	// Look for the drain
+	if let Err(_) = drains.get(drain_id) {
+        return Err(Error::InvalidEntityID("Invalid drain entity ID!"));
+	}
+
+    commands.entity(drain_id).despawn();
+
+    return Ok(());
+
+}
+
+/// Remove all drains from the simulation.
+pub fn delete_all_drains(
+	commands:		&mut Commands,
+	drains:		&Query<(Entity, &mut SimDrain)>) {
+
+	// KILL THEM ALL!!!
+	for (drain_id, _) in drains.iter() {
+		let _ = delete_drain(commands, drains, drain_id);
+	}
+}
 
 pub fn activate_components(
     commands:		&mut Commands,
