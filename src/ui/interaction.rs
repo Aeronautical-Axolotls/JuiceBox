@@ -30,8 +30,9 @@ pub fn handle_input(
 	let f_key_pressed:bool			= keys.just_pressed(KeyCode::F);
 	let space_pressed:bool			= keys.just_pressed(KeyCode::Space);
 
-	// Reset simulation when we press R.
+	// Reset simulation when we press R or when UI button is pressed.
 	if r_key_pressed { ev_reset.send(ResetEvent); return; }
+	if ui_state.reset { ui_state.reset = false; ev_reset.send(ResetEvent); return; }
 	// Pause/unpause the simulation if Space is pressed.
 	if space_pressed { ev_pause.send(PlayPauseStepEvent::new(false)); return; }
 	// Step once if the F key is pressed.

@@ -171,7 +171,9 @@ fn show_file_manager_panel(
 		);
 		// Do stuff when selection changes.
 		match edit_selection {
-			1 => {  },
+			1 => { ui_state.reset = true },
+			2 => {  },
+			3 => {  },
 			_ => {},
 		}
 
