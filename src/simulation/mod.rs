@@ -168,7 +168,6 @@ fn handle_events(
                 // TODO: Handle Select usage
             }
             SimTool::Grab => {
-                // TODO: Handle Grab usage
 				//select particles in radius, use mouse motion
 				let selected_paticles_id = select_particles(particles, grid, tool_use.pos, ui_state.grab_slider_radius);
 				
@@ -191,10 +190,8 @@ fn handle_events(
 						else {
 							continue;
 						};
-						//particle.position.x += ((horizontal_move * cos_rot) + (vertical_move * sin_rot * -1.0));
-						//particle.position.y += ((horizontal_move * sin_rot) + (vertical_move * cos_rot));
-						particle.position.x += horizontal_move;
-						particle.position.y += vertical_move;
+						particle.position.x += ((horizontal_move * cos_rot*-1.0) + (vertical_move * sin_rot * 1.0));
+						particle.position.y += ((horizontal_move * sin_rot*-1.0) + (vertical_move * cos_rot * -1.0));
 					}
 				}
             }
