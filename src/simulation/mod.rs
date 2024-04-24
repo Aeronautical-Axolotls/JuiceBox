@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use bevy::input::mouse::MouseMotion;
 use crate::error::Error;
-use crate::simulation::sim_state_manager::delete_all_faucets;
+use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
@@ -183,13 +183,19 @@ fn handle_events(
 				let cos_rot: f32		= f32::cos(z_rot_rads);
 
 				for motion in ev_mouse_motion.read() {
-					let horizontal_move	= -1.0 * motion.delta.x;
-					let vertical_move	= motion.delta.y;
+					// calculates movement for particles
+					let horizontal_move	= -1.0 * motion.delta.x*0.35;
+					let vertical_move	= motion.delta.y*0.35;
+
+					// queries for particles
 					for particle_id in selected_paticles_id.iter() {
 						let Ok((_, mut particle)) = particles.get_mut(*particle_id)
 						else {
 							continue;
 						};
+
+						// moves particles using mouse movement and sets velocity to zero
+						particle.velocity = Vec2::ZERO;
 						particle.position.x += ((horizontal_move * cos_rot*-1.0) + (vertical_move * sin_rot * 1.0));
 						particle.position.y += ((horizontal_move * sin_rot*-1.0) + (vertical_move * cos_rot * -1.0));
 					}
