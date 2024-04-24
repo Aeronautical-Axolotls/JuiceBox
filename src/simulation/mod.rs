@@ -8,7 +8,7 @@ use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::simulation::sim_state_manager::delete_all_faucets;
+use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
