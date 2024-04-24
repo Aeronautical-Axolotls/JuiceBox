@@ -102,8 +102,8 @@ pub struct UIStateManager {
 	pub	faucet_direction:			f32,
 	pub	faucet_radius:				f32,
 	pub	faucet_pressure:			f32,
-    pub drain_radius:                f32,
-    pub drain_pressure:              f32,
+    pub drain_radius:               f32,
+    pub drain_pressure:             f32,
 
 	pub	show_visualization:			bool,
 	pub	show_grid:					bool,
@@ -123,6 +123,8 @@ pub struct UIStateManager {
 	pub	icon_size:					Vec2,
 
 	pub	show_informational:			bool,
+
+	pub reset:						bool,
 }
 
 impl Default for UIStateManager {
@@ -170,7 +172,8 @@ impl Default for UIStateManager {
 			// Show the informational window at the start of the program?
 			show_informational:			true,
 
-			
+			// File and scene stuff.
+			reset:						false,
 		}
 	}
 }

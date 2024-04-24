@@ -15,7 +15,7 @@ use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_particle, select_particles};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_drain, delete_particle, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -228,7 +228,14 @@ fn handle_events(
                 add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32, ui_state.drain_pressure).ok();
             }
             SimTool::RemoveDrain => {
-                // TODO: Handle Remove Drain usage
+                // Get closest drain id
+                for (drain_id, drain_props) in drains.iter() {
+                    if tool_use.pos.distance(drain_props.position) <= (grid.cell_size as f32 * 3.0) {
+                        // Delete the closest drain
+                        delete_drain(&mut commands, drains, drain_id);
+                        break;
+                    }
+                }
             }
             SimTool::AddFaucet => {
 
@@ -327,7 +334,7 @@ pub fn reset_simulation_to_default(
 	// Reset all particles, faucets, and drains!
 	delete_all_particles(commands, constraints, grid, particles);
 	delete_all_faucets(commands, faucets);
-	// delete_all_drains(commands, drains);
+	delete_all_drains(commands, drains);
 
 	// Reset the grid by creating a new default grid and copying its values.
 	let reset_grid: SimGrid	= SimGrid::default();
