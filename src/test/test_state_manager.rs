@@ -105,6 +105,41 @@ pub fn construct_test_simulation_layout(
 	println!("Creating a test simulation with {} particles...", constraints.particle_count);
 }
 
+/// Create a simulation layout for testing.
+pub fn construct_simulation_bias_test(
+	constraints:	&mut SimConstraints,
+	grid:			&mut SimGrid,
+	mut commands:	&mut Commands) {
+
+	// Spawn a small test group of particles at the center of the screen.
+	let grid_center: Vec2 = Vec2 {
+		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
+		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
+	};
+
+	let test_particle_sphere = add_particles_in_radius(
+		commands,
+        constraints,
+		grid,
+		1.75,
+		100.0,
+		Vec2 { x: grid_center[0], y: grid_center[1] * 0.85 },
+		Vec2::ZERO
+	);
+
+	for x in 0..(grid.dimensions.1 * grid.cell_size) as usize {
+		for y in 0..50 {
+			if x % 5 as usize == 0 && y % 5 as usize == 0 {
+				let grid_top: f32 = (grid.dimensions.0 * grid.cell_size) as f32;
+				let pos: Vec2 = Vec2 { x: x as f32, y: grid_top - y as f32 };
+				let _ = add_particle(commands, constraints, grid, pos, Vec2::ZERO);
+			}
+		}
+	}
+
+	println!("Creating a bias test simulation with {} particles...", constraints.particle_count);
+}
+
 /// Debugging state controller.
 pub fn debug_state_controller(
 	mut commands:		Commands,

@@ -64,7 +64,7 @@ pub fn add_particle(
 			"X-coordinate for particle creation is out of grid bounds!"
 		));
 	}
-if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
 		return Err(Error::OutOfGridBounds(
 			"Y-coordinate for particle creation is out of grid bounds!"
 		));

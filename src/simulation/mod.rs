@@ -12,7 +12,7 @@ use crate::simulation::sim_state_manager::delete_all_faucets;
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
-use crate::test::test_state_manager::{self, construct_test_simulation_layout};
+use crate::test::test_state_manager::{self, construct_simulation_bias_test, construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_drain, delete_particle, select_particles};
 
@@ -36,7 +36,8 @@ fn setup(
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
-	construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands);
+	// construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands);
+	construct_simulation_bias_test(constraints.as_mut(), grid.as_mut(), &mut commands);
 
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
