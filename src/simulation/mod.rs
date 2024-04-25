@@ -14,7 +14,7 @@ use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_drain, delete_particle, select_particles, delete_all_drains, delete_all_faucets};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_drains, delete_all_faucets, delete_all_particles, delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -169,11 +169,11 @@ fn handle_events(
             SimTool::Grab => {
 				//select particles in radius, use mouse motion
 				let selected_paticles_id = select_particles(particles, grid, tool_use.pos, ui_state.grab_slider_radius);
-				
+
 				// Extract the camera from our Query<>.
 				let camera_query = &mut mut_cameras.single_mut();
 				let mut camera = (camera_query.0.as_mut(), camera_query.1.as_mut());
-				
+
 				// Extract the transform vector
 				let transform = &mut camera.0;
 
@@ -213,7 +213,14 @@ fn handle_events(
                 );
             }
             SimTool::RemoveFluid => {
-                // TODO: Handle Remove Fluid usage
+                // Remove particles with the given slider info from the UI
+                delete_particles_in_radius(
+                    &mut commands,
+                    grid,
+                    particles,
+                    tool_use.pos,
+                    ui_state.add_remove_fluid_radius,
+                );
             }
             SimTool::AddWall => {
 				let _ = grid.set_grid_cell_type(
