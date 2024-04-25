@@ -9,13 +9,12 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use bevy::input::mouse::MouseMotion;
 use crate::error::Error;
-use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_drain, delete_particle, select_particles};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_drain, delete_particle, select_particles, delete_all_drains, delete_all_faucets};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -202,7 +201,16 @@ fn handle_events(
 				}
             }
             SimTool::AddFluid => {
-                // TODO: Handle Add Fluid usage
+                // Add particles with the given slider info from the UI
+                add_particles_in_radius(
+                    &mut commands,
+                    constraints,
+                    grid,
+                    ui_state.add_fluid_density,
+                    ui_state.add_remove_fluid_radius,
+                    tool_use.pos,
+                    Vec2::ZERO
+                );
             }
             SimTool::RemoveFluid => {
                 // TODO: Handle Remove Fluid usage
