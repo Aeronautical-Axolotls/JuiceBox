@@ -321,10 +321,11 @@ fn show_current_tool_menu(
 						&mut ui_state.faucet_direction,
 						0.0..=360.0
 					).text("Faucet Direction"));
-					ui.add(egui::Slider::new(
-						&mut ui_state.faucet_radius,
-						0.01..=2.5
-					).text("Faucet Pipe Diameter"));
+					// This does not appear to do the simulation any favors!  Bye bye!
+					// ui.add(egui::Slider::new(
+					// 	&mut ui_state.faucet_radius,
+					// 	0.01..=2.5
+					// ).text("Faucet Pipe Diameter"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.faucet_pressure,
 						0.0..=100.0
@@ -341,7 +342,7 @@ fn show_current_tool_menu(
 				SimTool::AddDrain		=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.drain_radius,
-						0.0..=50.0
+						0.0..=35.0
 					).text("Drain Suck Radius"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.drain_pressure,

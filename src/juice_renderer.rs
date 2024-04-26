@@ -10,7 +10,7 @@ use crate::{
 		SimGridCellType,
 		SimParticle,
 	}, ui::{SimTool, UIStateManager}, util::{
-		self, cartesian_to_polar, get_cursor_position, JUICE_BLUE, JUICE_GREEN, JUICE_SKY_BLUE
+		self, cartesian_to_polar, degrees_to_radians, get_cursor_position, JUICE_BLUE, JUICE_GREEN, JUICE_SKY_BLUE
 	}
 };
 
@@ -626,6 +626,23 @@ fn draw_tool_guides(
 				cursor_position,
 				ui_state.grab_slider_radius,
 				JUICE_SKY_BLUE
+			)
+		},
+		SimTool::AddFaucet => {
+			draw_vector_arrow(
+				cursor_position,
+				degrees_to_radians(ui_state.faucet_direction),
+				ui_state.faucet_pressure,
+				Color::BISQUE,
+				&mut gizmos
+			);
+		},
+		SimTool::AddDrain => {
+			draw_selection_circle(
+				&mut gizmos,
+				cursor_position,
+				ui_state.drain_radius,
+				Color::GOLD
 			)
 		},
 		SimTool::AddWall => {

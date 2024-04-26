@@ -9,7 +9,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut SimParticle)>) -> SimGrid {
 
     // for velocity_u points and velocity_v points,
-    // add up all particle velocities nearby scaled
+    // up all particle velocities nearby scaled
     // by their distance / cell width (their influence)
     // then divide by the summation of all their
     // influences
