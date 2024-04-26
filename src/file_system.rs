@@ -149,13 +149,13 @@ impl Pipeline for JuicePipeline {
 			.allow::<SimGrid>()
 			.allow::<SimConstraints>()
 			.allow::<SimParticle>()
-			.allow::<SimFaucet>()
-			.allow::<SimDrain>()
+			// .allow::<SimFaucet>()
+			// .allow::<SimDrain>()
             .extract_resource::<SimGrid>()
             .extract_resource::<SimConstraints>()
             .extract_entities_matching(|e| e.contains::<SimParticle>())
-			.extract_entities_matching(|e| e.contains::<SimFaucet>())
-			.extract_entities_matching(|e| e.contains::<SimDrain>())
+			// .extract_entities_matching(|e| e.contains::<SimFaucet>())
+			// .extract_entities_matching(|e| e.contains::<SimDrain>())
             .build()
     }
 
