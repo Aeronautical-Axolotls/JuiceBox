@@ -50,6 +50,22 @@ pub fn add_particles_in_radius(
 	}
 }
 
+pub fn delete_particles_in_radius(
+	commands:		&mut Commands,
+    grid:           &mut SimGrid,
+	particles:		&Query<(Entity, &mut SimParticle)>,
+    position:       Vec2,
+	radius:			f32) {
+
+    // Can't be par_iter() because &mut commands doesn't have Clone
+    particles.iter().for_each(|(id, particle)|{
+        if position.distance(particle.position) <= radius {
+		    commands.entity(id).despawn();
+            grid.remove_particle_from_lookup(id, particle.lookup_index);
+        }
+    });
+}
+
 /// Add particles into the simulation.
 pub fn add_particle(
 	commands:		&mut Commands,

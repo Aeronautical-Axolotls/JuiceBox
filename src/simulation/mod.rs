@@ -7,6 +7,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use bevy::math::Vec2;
+use bevy::input::mouse::MouseMotion;
 use crate::error::Error;
 use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::ui::{SimTool, UIStateManager};
@@ -14,7 +15,7 @@ use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{self, construct_simulation_bias_test, construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_faucet, delete_drain, delete_particle, select_particles};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_drains, delete_all_faucets, delete_all_particles, delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -57,7 +58,9 @@ fn update(
     ui_state:       Res<UIStateManager>,
     ev_tool_use: 	EventReader<UseToolEvent>,
     ev_reset:   	EventReader<ResetEvent>,
-	ev_paused:		EventReader<PlayPauseStepEvent>) {
+	ev_paused:		EventReader<PlayPauseStepEvent>,
+	ev_mouse_motion:	EventReader<MouseMotion>,
+	mut mut_cameras:		Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>) {
 
 	// TODO: Check for and handle simulation saving/loading.
 
@@ -92,6 +95,8 @@ fn update(
 		ev_reset,
 		ev_tool_use,
 		ev_paused,
+		ev_mouse_motion,
+		mut_cameras,
 		&mut commands,
 		&asset_server,
 		constraints.as_mut(),
@@ -109,6 +114,8 @@ fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
 	mut ev_pause:		EventReader<PlayPauseStepEvent>,
+	mut ev_mouse_motion:	EventReader<MouseMotion>,
+	mut mut_cameras:		Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>,
 	mut commands:	    &mut Commands,
 	asset_server:		&AssetServer,
 	constraints:	    &mut SimConstraints,
@@ -162,13 +169,60 @@ fn handle_events(
                 // TODO: Handle Select usage
             }
             SimTool::Grab => {
-                // TODO: Handle Grab usage.
+				//select particles in radius, use mouse motion
+				let selected_paticles_id = select_particles(particles, grid, tool_use.pos, ui_state.grab_slider_radius);
+
+				// Extract the camera from our Query<>.
+				let camera_query = &mut mut_cameras.single_mut();
+				let mut camera = (camera_query.0.as_mut(), camera_query.1.as_mut());
+
+				// Extract the transform vector
+				let transform = &mut camera.0;
+
+				let z_rot_rads: f32		= transform.rotation.to_euler(bevy::math::EulerRot::XYZ).2;
+				let sin_rot: f32		= f32::sin(z_rot_rads);
+				let cos_rot: f32		= f32::cos(z_rot_rads);
+
+				for motion in ev_mouse_motion.read() {
+					// calculates movement for particles
+					let horizontal_move	= -1.0 * motion.delta.x*0.35;
+					let vertical_move	= motion.delta.y*0.35;
+
+					// queries for particles
+					for particle_id in selected_paticles_id.iter() {
+						let Ok((_, mut particle)) = particles.get_mut(*particle_id)
+						else {
+							continue;
+						};
+
+						// moves particles using mouse movement and sets velocity to zero
+						particle.velocity = Vec2::ZERO;
+						particle.position.x += ((horizontal_move * cos_rot*-1.0) + (vertical_move * sin_rot * 1.0));
+						particle.position.y += ((horizontal_move * sin_rot*-1.0) + (vertical_move * cos_rot * -1.0));
+					}
+				}
             }
             SimTool::AddFluid => {
-                // TODO: Handle Add Fluid usage
+                // Add particles with the given slider info from the UI
+                add_particles_in_radius(
+                    &mut commands,
+                    constraints,
+                    grid,
+                    ui_state.add_fluid_density,
+                    ui_state.add_remove_fluid_radius,
+                    tool_use.pos,
+                    Vec2::ZERO
+                );
             }
             SimTool::RemoveFluid => {
-                // TODO: Handle Remove Fluid usage
+                // Remove particles with the given slider info from the UI
+                delete_particles_in_radius(
+                    &mut commands,
+                    grid,
+                    particles,
+                    tool_use.pos,
+                    ui_state.add_remove_fluid_radius,
+                );
             }
             SimTool::AddWall => {
 				let _ = grid.set_grid_cell_type(
