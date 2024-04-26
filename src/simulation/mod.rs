@@ -163,7 +163,7 @@ fn handle_events(
     // For every tool usage, we change the state
     for tool_use in ev_tool_use.read() {
 
-		if !grid.is_position_within_grid(&tool_use.pos) { continue; }
+		// if !grid.is_position_within_grid(&tool_use.pos) { continue; }
 		let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
 
         match tool_use.tool {
@@ -176,18 +176,18 @@ fn handle_events(
 				if !tool_use.mouse_held {
 
 					//select particles in radius and store in SimConstraints.
-					constraints.selected_particles		= select_particles(particles, grid, tool_use.pos, ui_state.grab_slider_radius);
-					let selected_particle_count: usize	= constraints.selected_particles.len();
+					let selected_particles: Vec<Entity>	= select_particles(particles, grid, tool_use.pos, ui_state.grab_slider_radius);
 
 					// For each selected particle, track its position delta with the mouse; keep this constant while the particle is selected.
-					constraints.selected_particle_mouse_offsets.resize(selected_particle_count, Vec2::ZERO);
-					for i in 0..selected_particle_count {
+					constraints.selected_particles.resize(selected_particles.len(), (Entity::PLACEHOLDER, Vec2::ZERO));
+					for i in 0..selected_particles.len() {
 
 						// Get the particle as a SimParticle object.
-						let Ok((_, mut particle)) = particles.get(constraints.selected_particles[i])
+						let Ok((_, mut particle)) = particles.get(selected_particles[i])
 						else { continue; };
 
-						constraints.selected_particle_mouse_offsets[i] = Vec2 {
+						constraints.selected_particles[i].0 = selected_particles[i];
+						constraints.selected_particles[i].1 = Vec2 {
 							x: tool_use.pos.x - particle.position.x,
 							y: tool_use.pos.y - particle.position.y,
 						};
@@ -206,27 +206,15 @@ fn handle_events(
 				let sin_rot: f32		= f32::sin(z_rot_rads);
 				let cos_rot: f32		= f32::cos(z_rot_rads);
 
-				// Capture the most recent mouse motion event.
-				// let mut mouse_motion: Vec2 = Vec2::ZERO;
-				// for motion in ev_mouse_motion.read() {
-				// 	mouse_motion = motion.delta;
-				// }
-
-				// calculates movement for particles
-				// let mouse_motion_scale: f32 = 1.0;
-				// let horizontal_move	= -1.0 * mouse_motion.x * mouse_motion_scale;
-				// let vertical_move	= mouse_motion.y * mouse_motion_scale;
-
-				// queries for particles
-				let mut i = 0;
-				for particle_id in constraints.selected_particles.iter() {
-					let Ok((_, mut particle)) = particles.get_mut(*particle_id)
+				// Iterate through each particle and move it to where it needs to go!
+				for i in 0..constraints.selected_particles.len() {
+					let Ok((_, mut particle)) = particles.get_mut(constraints.selected_particles[i].0)
 					else { continue; };
 
 					// Figure out where the particle needs to go!
 					let new_position: Vec2 = Vec2 {
-						x: tool_use.pos.x + constraints.selected_particle_mouse_offsets[i].x,
-						y: tool_use.pos.y + constraints.selected_particle_mouse_offsets[i].y,
+						x: tool_use.pos.x - constraints.selected_particles[i].1.x,
+						y: tool_use.pos.y - constraints.selected_particles[i].1.y,
 					};
 
 					// Move the particle (and allow it to be thrown by changing velocity too!).
@@ -235,12 +223,6 @@ fn handle_events(
 					particle.velocity.y = (new_position.y - particle.position.y) * throw_strength;
 					particle.position.x = new_position.x.clamp(0.0, (grid.dimensions.1 * grid.cell_size) as f32);
 					particle.position.y = new_position.y.clamp(0.0, (grid.dimensions.0 * grid.cell_size) as f32);
-
-					// moves particles using mouse movement and sets velocity to zero
-					// particle.velocity = Vec2 { x: horizontal_move * 50.0, y: vertical_move * 50.0 };
-					// particle.position.x += (horizontal_move * cos_rot*-1.0) + (vertical_move * sin_rot * 1.0);
-					// particle.position.y += (horizontal_move * sin_rot*-1.0) + (vertical_move * cos_rot * -1.0);
-					i += 1;
 				}
             }
             SimTool::AddFluid => {
@@ -443,8 +425,8 @@ pub struct SimConstraints {
 	pub particle_count:				usize,	// Number of particles in the simulation.
 	pub particle_rest_density:		f32,	// Rest density of particles in simulation.
 
-	pub selected_particles:					Vec<Entity>,	// A list of currently selected particles.
-	pub selected_particle_mouse_offsets:	Vec<Vec2>,		// Selected particles' position offsets from the mouse cursor!
+	// A list of currently selected particles along with their position offsets from the mouse cursor!
+	pub selected_particles:			Vec<(Entity, Vec2)>,
 }
 
 impl Default for SimConstraints {
@@ -464,8 +446,7 @@ impl Default for SimConstraints {
 			particle_count:				0,
 			particle_rest_density:		0.0,
 
-			selected_particles:					Vec::new(),
-			selected_particle_mouse_offsets:	Vec::new(),
+			selected_particles:			Vec::new(),
 		}
 	}
 }
