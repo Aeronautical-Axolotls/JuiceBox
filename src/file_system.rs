@@ -145,10 +145,14 @@ impl Pipeline for JuicePipeline {
     /// This is the Pipeline's way to save files. Most of the implementation is in bevy_save.
     fn capture(builder: SnapshotBuilder) -> Snapshot {
         builder
+			.deny_all()
+			.allow::<SimGrid>()
+			.allow::<SimConstraints>()
+			.allow::<SimParticle>()
+			.allow::<SimFaucet>()
+			.allow::<SimDrain>()
             .extract_resource::<SimGrid>()
             .extract_resource::<SimConstraints>()
-			.deny::<Handle<Image>>()
-			.deny::<SpriteBundle>()
             .extract_entities_matching(|e| e.contains::<SimParticle>())
 			.extract_entities_matching(|e| e.contains::<SimFaucet>())
 			.extract_entities_matching(|e| e.contains::<SimDrain>())

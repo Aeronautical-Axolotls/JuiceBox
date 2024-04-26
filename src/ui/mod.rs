@@ -129,7 +129,7 @@ impl Default for UIStateManager {
 		UIStateManager {
 			// Currently selected tool menu.
 			show_selected_tool:			true,
-			selected_tool:				SimTool::Grab,
+			selected_tool:				SimTool::AddFluid,
 			tool_icon_handles:			vec![Handle::default(); UI_ICON_COUNT],
 			zoom_slider:				1.0,
 			grab_slider_radius:			35.0,

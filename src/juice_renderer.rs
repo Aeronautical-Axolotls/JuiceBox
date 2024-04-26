@@ -5,10 +5,7 @@ use bevy::{
 };
 use crate::{
 	events::ModifyVisualizationEvent, simulation::{
-		SimConstraints,
-		SimGrid,
-		SimGridCellType,
-		SimParticle,
+		SimConstraints, SimDrain, SimFaucet, SimGrid, SimGridCellType, SimParticle
 	}, ui::{SimTool, UIStateManager}, util::{
 		self, cartesian_to_polar, degrees_to_radians, get_cursor_position, JUICE_BLUE, JUICE_GREEN, JUICE_SKY_BLUE
 	}
@@ -34,6 +31,7 @@ impl Plugin for JuiceRenderer {
 		app.add_systems(Update, draw_grid_cells);
 		app.add_systems(Update, draw_grid_solids);
 
+		app.add_systems(PostUpdate, validate_entity_sprites);
 		app.add_systems(PostUpdate, draw_gravity_arrow);
 		app.add_systems(PostUpdate, draw_tool_guides);
 	}
@@ -229,6 +227,25 @@ fn update_particle_position(mut particles: Query<(&SimParticle, &mut Transform)>
 				will likely see a large performance drop. */
 			z: 0.0,
 		};
+	}
+}
+
+/// When an entity exists without a sprite, give it one!
+fn validate_entity_sprites(
+	particles:		Query<(Entity, &SimParticle), Without<Sprite>>,
+	faucets:		Query<(Entity, &SimFaucet), Without<Sprite>>,
+	drains:			Query<(Entity, &SimDrain), Without<Sprite>>,
+	mut commands:	Commands,
+	asset_server:	Res<AssetServer>) {
+
+	for (particle_id, particle) in particles.iter() {
+		link_particle_sprite(&mut commands, &asset_server, particle_id, particle.position);
+	}
+	for (faucet_id, faucet) in faucets.iter() {
+		link_faucet_sprite(&mut commands, &asset_server, faucet_id, faucet.position);
+	}
+	for (drain_id, drain) in drains.iter() {
+		link_drain_sprite(&mut commands, &asset_server, drain_id, drain.position);
 	}
 }
 
