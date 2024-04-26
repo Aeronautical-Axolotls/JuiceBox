@@ -97,8 +97,6 @@ fn update(
 		ev_reset,
 		ev_tool_use,
 		ev_paused,
-		ev_mouse_motion,
-		mut_cameras,
 		&mut commands,
 		&asset_server,
 		constraints.as_mut(),
@@ -116,8 +114,6 @@ fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
 	mut ev_pause:		EventReader<PlayPauseStepEvent>,
-	mut ev_mouse_motion:	EventReader<MouseMotion>,
-	mut mut_cameras:		Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>,
 	mut commands:	    &mut Commands,
 	asset_server:		&AssetServer,
 	constraints:	    &mut SimConstraints,
@@ -163,8 +159,10 @@ fn handle_events(
     // For every tool usage, we change the state
     for tool_use in ev_tool_use.read() {
 
+		/* If a tool is misbehaving when you click the UI, use the below code and it will *mostly*
+			fix the issue.  Please only put this within the match case where your tool's
+			functionality lies.  Thank you! */
 		// if !grid.is_position_within_grid(&tool_use.pos) { continue; }
-		let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
 
         match tool_use.tool {
             SimTool::Grab => {
@@ -192,17 +190,6 @@ fn handle_events(
 					}
 					break;
 				}
-
-				// Extract the camera from our Query<>.
-				let camera_query = &mut mut_cameras.single_mut();
-				let mut camera = (camera_query.0.as_mut(), camera_query.1.as_mut());
-
-				// Extract the transform vector
-				let transform = &mut camera.0;
-
-				let z_rot_rads: f32		= transform.rotation.to_euler(bevy::math::EulerRot::XYZ).2;
-				let sin_rot: f32		= f32::sin(z_rot_rads);
-				let cos_rot: f32		= f32::cos(z_rot_rads);
 
 				// Iterate through each particle and move it to where it needs to go!
 				for i in 0..constraints.selected_particles.len() {
@@ -421,7 +408,6 @@ pub fn reset_simulation_to_default(
 	grid.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
 	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
 	grid.density			= vec![0.0; row_count * col_count];
-	println!("{:?}", grid.spatial_lookup);
 
 	// Reset constraints by creating a default constraints and copying its values.
 	let reset_constraints: SimConstraints	= SimConstraints::default();

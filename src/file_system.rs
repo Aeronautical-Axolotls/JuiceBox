@@ -31,6 +31,7 @@ impl Plugin for FileSystem {
         // Registering SimConstraints
         // All associated types are f32, usize, u8, and Vec2. All already registered
         app.register_type::<SimConstraints>();
+		app.register_type::<Vec<(Entity, Vec2)>>();
 
         // Registering SimGrid and it's associated types
         app.register_type::<SimGrid>();

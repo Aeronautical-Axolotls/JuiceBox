@@ -139,7 +139,7 @@ impl Default for UIStateManager {
 			faucet_radius:				1.0,
 			faucet_pressure:			35.0,
             drain_radius:               35.0,
-            drain_pressure:             50.0,
+            drain_pressure:             30.0,
 
 			// Visualization menu.
 			show_visualization:			true,
