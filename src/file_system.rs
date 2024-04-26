@@ -3,12 +3,14 @@
 // TODO: The app crashes when the user closes a file dialog or tries to select a wrong file. Fix this.
 
 use bevy::ecs::query::*;
+use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy_save::*;
 use std;
 use std::path::PathBuf;
 
 use crate::error::Error;
+use crate::juice_renderer::link_particle_sprite;
 use crate::simulation::{
     SimConstraints, SimDrain, SimFaucet, SimGrid, SimGridCellType, SimParticle, SimSurfaceDirection,
 };
@@ -245,6 +247,16 @@ fn load_scene(world: &mut World) {
     world
         .load(JuicePipeline::new(key))
         .expect("Did not load correctly, perhaps filepath was incorrect?");
+
+	// let mut system_state	= SystemState::<Commands>::new(world);
+	// let mut commands		= system_state.get_mut(world);
+	// // let asset_server		= world.get_resource::<AssetServer>().unwrap();
+
+	// for (particle_id, _) in world.query::<(Entity, &SimParticle)>().iter_mut(world) {
+	// 	commands.entity(particle_id).insert(SpriteBundle::default());
+	// }
+
+	// system_state.apply(world);
 }
 
 /// Sets state back to JuiceStates::Running.
