@@ -10,7 +10,7 @@ use crate::{
 		SimGridCellType,
 		SimParticle,
 	}, ui::{SimTool, UIStateManager}, util::{
-		self, cartesian_to_polar, get_cursor_position, JUICE_BLUE, JUICE_GREEN
+		self, cartesian_to_polar, get_cursor_position, JUICE_BLUE, JUICE_GREEN, JUICE_SKY_BLUE
 	}
 };
 
@@ -149,12 +149,12 @@ fn setup_renderer(
 	commands.spawn(Camera2dBundle {
 		transform: Transform {
 			translation:	Vec3 {
-				x: ((grid.dimensions.0 * grid.cell_size) as f32) / 2.0,
-				y: ((grid.dimensions.1 * grid.cell_size) as f32) / 2.0,
+				x: ((grid.dimensions.1 * grid.cell_size) as f32) / 2.0,
+				y: (((grid.dimensions.0 * grid.cell_size) as f32) / 2.0) - 15.0,
 				z: 0.0,
 			},
 			rotation:		Quat::IDENTITY,
-			scale:			Vec3::ONE,
+			scale:			Vec3::ONE * 0.5,
 		},
 		..default()
 	});
@@ -614,6 +614,7 @@ fn draw_gravity_arrow(
 fn draw_tool_guides(
 	windows:		Query<&Window>,
 	cameras:		Query<(&Camera, &GlobalTransform)>,
+	grid:			Res<SimGrid>,
 	mut ui_state:   ResMut<UIStateManager>,
 	mut gizmos:		Gizmos) {
 
@@ -624,7 +625,23 @@ fn draw_tool_guides(
 				&mut gizmos,
 				cursor_position,
 				ui_state.grab_slider_radius,
+				JUICE_SKY_BLUE
+			)
+		},
+		SimTool::AddWall => {
+			draw_selection_circle(
+				&mut gizmos,
+				cursor_position,
+				grid.cell_size as f32 * 1.5,
 				Color::GOLD
+			)
+		},
+		SimTool::RemoveWall => {
+			draw_selection_circle(
+				&mut gizmos,
+				cursor_position,
+				grid.cell_size as f32 * 1.5,
+				Color::SALMON
 			)
 		},
 		SimTool::AddFluid => {

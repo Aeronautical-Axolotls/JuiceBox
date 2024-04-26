@@ -246,11 +246,6 @@ fn show_current_tool_menu(
 			// Show different buttons depending on which tool is currently selected.
 			match ui_state.selected_tool {
 
-				// For the Select tool, show some text as there are no options for Select.
-				SimTool::Select			=> {
-					ui.label("No options available for the Select tool!");
-				},
-
 				// For the Move Camera tool, show a slider for the grabbing radius.
 				SimTool::Camera			=> {
 					ui.label("Click and drag (or use WASD) to move the camera around!");
@@ -285,7 +280,7 @@ fn show_current_tool_menu(
 				SimTool::Grab			=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.grab_slider_radius,
-						1.0..=200.0
+						5.0..=100.0
 					).text("Grab Radius"));
 				},
 
@@ -328,11 +323,11 @@ fn show_current_tool_menu(
 					).text("Faucet Direction"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.faucet_radius,
-						1.0..=10.0
+						0.01..=2.5
 					).text("Faucet Pipe Diameter"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.faucet_pressure,
-						0.0..=25.0
+						0.0..=100.0
 					).text("Faucet Pressure"));
 				},
 
@@ -346,11 +341,11 @@ fn show_current_tool_menu(
 				SimTool::AddDrain		=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.drain_radius,
-						0.0..=10.0
+						0.0..=50.0
 					).text("Drain Suck Radius"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.drain_pressure,
-						0.0..=10.0
+						0.0..=50.0
 					).text("Drain Pressure"));
 				},
 
@@ -516,7 +511,6 @@ pub fn load_user_interface_icons(
 
 	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
-		asset_server.load("../assets/ui/select.png"),
 		asset_server.load("../assets/ui/movecamera.png"),
 		asset_server.load("../assets/ui/zoom.png"),
 		asset_server.load("../assets/ui/rotate.png"),

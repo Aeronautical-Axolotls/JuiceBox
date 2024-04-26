@@ -33,8 +33,8 @@ fn main() {
 		SavePlugin,
 
 		// Non-release plugins:
-		LogDiagnosticsPlugin::default(),
-		FrameTimeDiagnosticsPlugin::default(),
+		// LogDiagnosticsPlugin::default(),
+		// FrameTimeDiagnosticsPlugin::default(),
 	));
 
 	juicebox.add_systems(Startup, util::set_window_icon);

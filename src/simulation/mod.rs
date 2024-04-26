@@ -167,9 +167,6 @@ fn handle_events(
 		let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
 
         match tool_use.tool {
-            SimTool::Select => {
-                // TODO: Handle Select usage
-            }
             SimTool::Grab => {
 
 				// If we just pressed the mouse button for the first time, grab the particles!
@@ -250,27 +247,43 @@ fn handle_events(
                 );
             }
             SimTool::AddWall => {
-				let _ = grid.set_grid_cell_type(
-					cell_coordinates.x as usize,
-					cell_coordinates.y as usize,
-					SimGridCellType::Solid
-				);
 
-				//Delete all particles in the cell we are turning into a solid.
-				let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
-				grid.delete_all_particles_in_cell(
-					&mut commands,
-					constraints,
-					&particles,
-					lookup_index
-				);
+				// Select a 2x2 grid of cells around the mouse cursor.
+				let grid_cells: Vec<Vec2> = grid.select_grid_cells(tool_use.pos, 0.0);
+
+				// For each selected cell, change it to solid and delete all particles inside of it.
+				for i in 0..grid_cells.len() {
+
+					// Change cell to solid.
+					let _ = grid.set_grid_cell_type(
+						grid_cells[i].x as usize,
+						grid_cells[i].y as usize,
+						SimGridCellType::Solid
+					);
+
+					// Delete particles inside of this cell.
+					let lookup_index: usize = grid.get_lookup_index(grid_cells[i]);
+					grid.delete_all_particles_in_cell(
+						&mut commands,
+						constraints,
+						&particles,
+						lookup_index
+					);
+				}
             }
             SimTool::RemoveWall => {
-				let _ = grid.set_grid_cell_type(
-					cell_coordinates.x as usize,
-					cell_coordinates.y as usize,
-					SimGridCellType::Air
-				);
+
+				// Select a 2x2 grid of cells around the mouse cursor.
+				let grid_cells: Vec<Vec2> = grid.select_grid_cells(tool_use.pos, 0.0);
+
+				// For each selected cell, change it to air.
+				for i in 0..grid_cells.len() {
+					let _ = grid.set_grid_cell_type(
+						grid_cells[i].x as usize,
+						grid_cells[i].y as usize,
+						SimGridCellType::Air
+					);
+				}
             }
             SimTool::AddDrain => {
 

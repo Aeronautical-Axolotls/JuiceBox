@@ -149,7 +149,6 @@ pub fn change_cursor_icon(
 	// Change the cursor icon depending on the currently selected tool.
 	println!("{:?}", ui_state.selected_tool);
 	match ui_state.selected_tool {
-		SimTool::Select			=> window.cursor.icon = CursorIcon::Default,
 		SimTool::Camera			=> window.cursor.icon = CursorIcon::Move,
 		SimTool::Zoom			=> window.cursor.icon = CursorIcon::ZoomIn,
 		SimTool::Gravity		=> window.cursor.icon = CursorIcon::Default,
