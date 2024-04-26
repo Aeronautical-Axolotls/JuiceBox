@@ -252,15 +252,17 @@ fn load_scene(world: &mut World) {
         .load(JuicePipeline::new(key))
         .expect("Did not load correctly, perhaps filepath was incorrect?");
 
-	// let mut system_state	= SystemState::<Commands>::new(world);
-	// let mut commands		= system_state.get_mut(world);
-	// // let asset_server		= world.get_resource::<AssetServer>().unwrap();
+	// Erase the spatial lookup table, this will cause "ghost particles" otherwise.
+	if let Some(mut grid) = world.get_resource_mut::<SimGrid>() {
+		grid.spatial_lookup = vec![vec![Entity::PLACEHOLDER; 0]; grid.dimensions.0 as usize * grid.dimensions.1 as usize];
+	}
 
-	// for (particle_id, _) in world.query::<(Entity, &SimParticle)>().iter_mut(world) {
-	// 	commands.entity(particle_id).insert(SpriteBundle::default());
-	// }
-
-	// system_state.apply(world);
+	// Pause the simulation once we have loaded in!
+	if let Some(mut constraints) = world.get_resource_mut::<SimConstraints>() {
+		constraints.is_paused = true;
+	} else {
+		println!("Constraints not constructed in time; cannot pause!");
+	}
 }
 
 /// Sets state back to JuiceStates::Running.
