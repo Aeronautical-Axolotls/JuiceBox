@@ -109,7 +109,7 @@ pub fn add_particle(
 	constraints.particle_count += 1;
 
 	// IMPORTANT: Links a sprite to each particle for rendering.
-	juice_renderer::link_particle_sprite(commands, asset_server, particle, position);
+	// juice_renderer::link_particle_sprite(commands, asset_server, particle, position);
 
 	Ok(())
 }
@@ -216,7 +216,7 @@ pub fn add_faucet(
     let faucet = commands.spawn(
         SimFaucet::new(faucet_pos, surface_direction, faucet_diameter, faucet_flow)
     ).id();
-	link_faucet_sprite(commands, &asset_server, faucet, faucet_pos);
+	// link_faucet_sprite(commands, &asset_server, faucet, faucet_pos);
 
 
     Ok(())
@@ -275,7 +275,7 @@ pub fn add_drain(
     let drain = commands.spawn(
         SimDrain::new(drain_pos, surface_direction, drain_radius, drain_pressure)
     ).id();
-	link_drain_sprite(commands, &asset_server, drain, drain_pos);
+	// link_drain_sprite(commands, &asset_server, drain, drain_pos);
 
 
     Ok(())
