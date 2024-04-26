@@ -31,6 +31,7 @@ impl Plugin for FileSystem {
         // Registering SimConstraints
         // All associated types are f32, usize, u8, and Vec2. All already registered
         app.register_type::<SimConstraints>();
+		app.register_type::<(Entity, Vec2)>();
 		app.register_type::<Vec<(Entity, Vec2)>>();
 
         // Registering SimGrid and it's associated types
@@ -144,7 +145,11 @@ impl Pipeline for JuicePipeline {
         builder
             .extract_resource::<SimGrid>()
             .extract_resource::<SimConstraints>()
+			.deny::<Handle<Image>>()
+			.deny::<SpriteBundle>()
             .extract_entities_matching(|e| e.contains::<SimParticle>())
+			.extract_entities_matching(|e| e.contains::<SimFaucet>())
+			.extract_entities_matching(|e| e.contains::<SimDrain>())
             .build()
     }
 

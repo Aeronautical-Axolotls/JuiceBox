@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "2": {
+      "components": {
+        "bevy_transform::components::transform::Transform": {
+          "translation": {
+            "x": 134.60336,
+            "y": 248.0,
+            "z": 0.0
+          },
+          "rotation": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0,
+            "w": 1.0
+          },
+          "scale": {
+            "x": 1.5,
+            "y": 1.5,
+            "z": 1.0
+          }
+        },
+        "bevy_transform::components::global_transform::GlobalTransform": [
+          {
+            "matrix3": {
+              "x_axis": {
+                "x": 1.5,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "y_axis": {
+                "x": 0.0,
+                "y": 1.5,
+                "z": 0.0
+              },
+              "z_axis": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 1.0
+              }
+            },
+            "translation": {
+              "x": 134.60336,
+              "y": 248.0,
+              "z": 0.0
+            }
+          }
+        ],
+        "juice_box::simulation::SimParticle": {
+          "position": {
+            "x": 136.23471,
+            "y": 248.0
+          },
+          "velocity": {
+            "x": 215.15149,
+            "y": 3.8038745
+          },
+          "lookup_index": 27
+        },
+        "bevy_sprite::sprite::Sprite": {
+          "color": {
+            "Rgba": {
+              "red": 0.80511594,
+              "green": 0.8311898,
+              "blue": 0.17374778,
+              "alpha": 1.0
+            }
+          },
+          "flip_x": false,
+          "flip_y": false,
+          "custom_size": {
+            "x": 6.0,
+            "y": 6.0
+          },
+          "rect": null,
+          "anchor": "Center"
+        },
+        "bevy_asset::handle::Handle<bevy_render::texture::image::Image>": {
+          "Strong": 
