@@ -1,5 +1,5 @@
 use bevy::{
-	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Quat, Vec2, Vec3Swizzles, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
+	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Quat, Vec2, Vec3Swizzles, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, PrimaryWindow, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
 };
 use bevy_egui::egui::lerp;
 use winit::window::Icon;
@@ -11,8 +11,8 @@ use image::{DynamicImage, ImageBuffer, RgbImage, RgbaImage};
 
 use crate::{juice_renderer::draw_vector_arrow, simulation::{sim_state_manager, SimConstraints, SimGrid, SimGridCellType, SimParticle}, test::test_state_manager};
 
-pub const WINDOW_WIDTH: f32		= 640.0;
-pub const WINDOW_HEIGHT: f32	= 480.0;
+pub const WINDOW_WIDTH: f32		= 1440.0;
+pub const WINDOW_HEIGHT: f32	= 1080.0;
 
 /// Color definitions!
 pub const JUICE_RED: Color		= Color::rgb(0.93, 0.16, 0.07);
@@ -220,13 +220,15 @@ pub fn generate_color_from_gradient(colors: &Vec<Color>, mut value: f32) -> Colo
 
 /// Create a window plugin to add into Bevy's default plugins suite.
 pub fn create_window_plugin() -> WindowPlugin {
+
+	// First, create a nice window handle.
 	let window_handle: Window = Window {
 		position:	WindowPosition::Centered(MonitorSelection::Primary),
-		resolution:	(WINDOW_WIDTH, WINDOW_HEIGHT).into(),
 		title:		create_window_title("JuiceBox"),
 		..default()
 	};
 
+	// Then, create a window plugin using the window handle!
 	let window_plugin: WindowPlugin = WindowPlugin {
 		primary_window: Some(window_handle),
 		..default()

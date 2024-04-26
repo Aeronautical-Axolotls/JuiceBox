@@ -29,7 +29,8 @@ use crate::util::{cartesian_to_polar, get_cursor_position, polar_to_cartesian};
 pub fn construct_test_simulation_layout(
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
-	mut commands:	&mut Commands) {
+	mut commands:	&mut Commands,
+	asset_server:	&AssetServer) {
 
 	// Create a lil cup
 	// grid.set_grid_cell_type(40, 32, SimGridCellType::Solid);
@@ -96,8 +97,9 @@ pub fn construct_test_simulation_layout(
 		commands,
         constraints,
 		grid,
-		1.75,
-		100.0,
+		asset_server,
+		1.0,
+		50.0,
 		Vec2 { x: grid_center[0] * 0.7, y: grid_center[1] * 0.85 },
 		Vec2::ZERO
 	);
@@ -109,7 +111,8 @@ pub fn construct_test_simulation_layout(
 pub fn construct_simulation_bias_test(
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
-	mut commands:	&mut Commands) {
+	mut commands:	&mut Commands,
+	asset_server:	&AssetServer) {
 
 	// Spawn a small test group of particles at the center of the screen.
 	let grid_center: Vec2 = Vec2 {
@@ -121,6 +124,7 @@ pub fn construct_simulation_bias_test(
 		commands,
         constraints,
 		grid,
+		asset_server,
 		1.75,
 		100.0,
 		Vec2 { x: grid_center[0], y: grid_center[1] * 0.85 },
@@ -132,7 +136,7 @@ pub fn construct_simulation_bias_test(
 			if x % 5 as usize == 0 && y % 5 as usize == 0 {
 				let grid_top: f32 = (grid.dimensions.0 * grid.cell_size) as f32;
 				let pos: Vec2 = Vec2 { x: x as f32, y: grid_top - y as f32 };
-				let _ = add_particle(commands, constraints, grid, pos, Vec2::ZERO);
+				let _ = add_particle(commands, constraints, grid, asset_server, pos, Vec2::ZERO);
 			}
 		}
 	}
@@ -143,6 +147,7 @@ pub fn construct_simulation_bias_test(
 /// Debugging state controller.
 pub fn debug_state_controller(
 	mut commands:		Commands,
+	asset_server:		Res<AssetServer>,
 	keys:				Res<Input<KeyCode>>,
 	mouse:				Res<Input<MouseButton>>,
 	mut mouse_motion:	EventReader<MouseMotion>,
@@ -167,7 +172,8 @@ pub fn debug_state_controller(
 		construct_test_simulation_layout(
 			constraints.as_mut(),
 			grid.as_mut(),
-			&mut commands
+			&mut commands,
+			&asset_server
 		);
 		return;
 	}
@@ -228,13 +234,15 @@ pub fn debug_state_controller(
 /// Simulation state manager initialization.
 pub fn test_setup(
 	mut commands:		Commands,
+	asset_server:		Res<AssetServer>,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>) {
 
 	construct_test_simulation_layout(
 		constraints.as_mut(),
 		grid.as_mut(),
-		&mut commands
+		&mut commands,
+		&asset_server
 	);
 
 }
@@ -246,6 +254,7 @@ pub fn test_update(
     faucets:			Query<(Entity, &mut SimFaucet)>,
     drains:		        Query<(Entity, &mut SimDrain)>,
 	mut commands:       Commands,
+	asset_server:		Res<AssetServer>
     ) {
 
 	// let delta_time: f32 = time.delta().as_millis() as f32 * 0.001;
@@ -253,6 +262,7 @@ pub fn test_update(
 
     step_simulation_once(
         &mut commands,
+		&asset_server,
         constraints.as_mut(),
         grid.as_mut(),
         &mut particles,

@@ -13,16 +13,18 @@ pub struct UseToolEvent {
     pub tool: SimTool,                      // Tool Used
     pub pos: Vec2,                          // Mouse position
     pub mouse_button: Option<MouseButton>,  // Mouse button pressed
+	pub mouse_held: bool,					// Is the mouse being held or has it just been pressed?
 }
 
 impl UseToolEvent {
 
     /// New function for creating new events
-    pub fn new(tool: SimTool, pos: Vec2, mouse_button: Option<MouseButton>) -> Self {
+    pub fn new(tool: SimTool, pos: Vec2, mouse_button: Option<MouseButton>, mouse_held: bool) -> Self {
        Self {
            tool,
            pos,
-           mouse_button
+           mouse_button,
+		   mouse_held,
        }
     }
 }

@@ -19,11 +19,12 @@ fn main() {
 
 	juicebox.add_plugins((
 		DefaultPlugins
-		.set(util::create_window_plugin())
-		.set(AssetPlugin{
-			watch_for_changes_override: Some(true),
-			..Default::default()
-		}),
+			.set(util::create_window_plugin())
+			.set(AssetPlugin{
+				watch_for_changes_override: Some(true),
+				..Default::default()
+			}
+		),
 		simulation::Simulation,
 		juice_renderer::JuiceRenderer,
         ui::JuiceUI,

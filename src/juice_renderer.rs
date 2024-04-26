@@ -9,8 +9,8 @@ use crate::{
 		SimGrid,
 		SimGridCellType,
 		SimParticle,
-	}, util::{
-		self, cartesian_to_polar, JUICE_BLUE, JUICE_GREEN
+	}, ui::{SimTool, UIStateManager}, util::{
+		self, cartesian_to_polar, get_cursor_position, JUICE_BLUE, JUICE_GREEN
 	}
 };
 
@@ -35,6 +35,7 @@ impl Plugin for JuiceRenderer {
 		app.add_systems(Update, draw_grid_solids);
 
 		app.add_systems(PostUpdate, draw_gravity_arrow);
+		app.add_systems(PostUpdate, draw_tool_guides);
 	}
 }
 
@@ -58,10 +59,10 @@ impl Default for FluidRenderData {
 		Self {
 			color_render_type:	FluidColorRenderType::Velocity,
 			fluid_colors:		[util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
-			velocity_magnitude_color_scale:	200.0,
+			velocity_magnitude_color_scale:	400.0,
 			pressure_magnitude_color_scale:	100.0,
-			density_magnitude_color_scale: 	100.0,
-			particle_render_scale: 1.0,
+			density_magnitude_color_scale: 	400.0,
+			particle_render_scale: 1.5,
 		}
 	}
 }
@@ -161,8 +162,27 @@ fn setup_renderer(
 
 /** Creates and links a new sprite to the specified particle; **Must be called each time a new
 	particle is added to the simulation!** */
-pub fn link_particle_sprite(commands: &mut Commands, particle: Entity) {
-	commands.entity(particle).insert(SpriteBundle::default());
+pub fn link_particle_sprite(commands: &mut Commands, asset_server: &AssetServer, particle: Entity, position: Vec2) {
+
+	// Chad activity of using the default 1x1 pixel sprite:
+	// commands.entity(particle).insert(SpriteBundle::default());
+
+	// Sigma activity of loading a cool particle sprite that you made in paint.net:
+	let particle_image = asset_server.load("../assets/particle.png");
+
+	/* Beta activity of making a structure and then modifying its fields afterward because you can't
+		read and fix cargo error messages: */
+	let mut particle_sprite_bundle = SpriteBundle {
+		texture: particle_image,
+		..default()
+	};
+	particle_sprite_bundle.transform.translation	= Vec3 { x: position.x, y: position.y, z: 0.0 };
+	particle_sprite_bundle.transform.scale			= Vec3 { x: 1.5, y: 1.5, z: 1.0 };
+	// Make the sprite invisible when it spawns so we don't get big ugly white blobs everywhere.
+	particle_sprite_bundle.sprite.color				= Color::NONE;
+
+	// Phi male method of spawning a particle:
+	commands.entity(particle).insert(particle_sprite_bundle);
 }
 
 /** Creates and links a new sprite for the specified faucet. */
@@ -587,4 +607,42 @@ fn draw_gravity_arrow(
 	};
 
 	draw_vector_arrow(arrow_base, polar_gravity.y, polar_gravity.x / 6.0, Color::GOLD, &mut gizmos);
+}
+
+/** Draw shapes around the mouse in the event that we are currently using a tool which would
+	benefit from visualizing its interactions with said shapes! */
+fn draw_tool_guides(
+	windows:		Query<&Window>,
+	cameras:		Query<(&Camera, &GlobalTransform)>,
+	mut ui_state:   ResMut<UIStateManager>,
+	mut gizmos:		Gizmos) {
+
+	let cursor_position: Vec2 = get_cursor_position(&windows, &cameras);
+	match ui_state.selected_tool {
+		SimTool::Grab => {
+			draw_selection_circle(
+				&mut gizmos,
+				cursor_position,
+				ui_state.grab_slider_radius,
+				Color::GOLD
+			)
+		},
+		SimTool::AddFluid => {
+			draw_selection_circle(
+				&mut gizmos,
+				cursor_position,
+				ui_state.add_remove_fluid_radius,
+				Color::SEA_GREEN
+			)
+		},
+		SimTool::RemoveFluid => {
+			draw_selection_circle(
+				&mut gizmos,
+				cursor_position,
+				ui_state.add_remove_fluid_radius,
+				Color::ORANGE_RED
+			)
+		},
+		_ => {},
+	}
 }

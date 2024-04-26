@@ -161,7 +161,7 @@ fn show_file_manager_panel(
 		}
 
 		// "Edit" scene dropdown.
-		let edit_options		= ["Edit", "Reset", "Clear", "Change Dimensions"];
+		let edit_options		= ["Edit", "Reset", "Clear"];
 		let mut edit_selection	= 0;
 		egui::ComboBox::from_id_source(1).show_index(
 			ui,
@@ -173,7 +173,6 @@ fn show_file_manager_panel(
 		match edit_selection {
 			1 => { ui_state.reset = true },
 			2 => {  },
-			3 => {  },
 			_ => {},
 		}
 
@@ -286,7 +285,7 @@ fn show_current_tool_menu(
 				SimTool::Grab			=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.grab_slider_radius,
-						1.0..=500.0
+						1.0..=200.0
 					).text("Grab Radius"));
 				},
 
@@ -294,11 +293,11 @@ fn show_current_tool_menu(
 				SimTool::AddFluid		=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.add_remove_fluid_radius,
-						1.0..=500.0
+						1.0..=50.0
 					).text("Brush Radius"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.add_fluid_density,
-						0.01..=10.0
+						0.01..=1.0
 					).text("Fluid Density"));
 				},
 
@@ -306,7 +305,7 @@ fn show_current_tool_menu(
 				SimTool::RemoveFluid	=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.add_remove_fluid_radius,
-						1.0..=500.0
+						1.0..=50.0
 					).text("Eraser Radius"));
 				},
 
@@ -423,7 +422,7 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 			// Sliders for the particle size and gravity direction.
 			if ui.add(egui::Slider::new(
 				&mut ui_state.particle_physical_size,
-				0.1..=10.0
+				0.1..=5.0
 			).text("Particle Size")).changed() { viz_mod = true; }
 		});
 	});

@@ -45,11 +45,13 @@ pub fn handle_input(
 		let mouse_button: MouseButton;
 		if left_mouse_pressed	{ mouse_button = MouseButton::Left; }
 		else					{ mouse_button = MouseButton::Right; }
+		let mouse_held: bool = !mouse.just_pressed(mouse_button);
 
         ev_tool_use.send(UseToolEvent::new(
 			ui_state.selected_tool,
 			get_cursor_position(&windows, &cameras),
-			Some(mouse_button)
+			Some(mouse_button),
+			mouse_held
 		));
 	}
 
