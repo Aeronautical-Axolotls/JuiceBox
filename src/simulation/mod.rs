@@ -182,9 +182,14 @@ fn handle_events(
 					// For each selected particle, track its position delta with the mouse; keep this constant while the particle is selected.
 					constraints.selected_particle_mouse_offsets.resize(selected_particle_count, Vec2::ZERO);
 					for i in 0..selected_particle_count {
+
+						// Get the particle as a SimParticle object.
+						let Ok((_, mut particle)) = particles.get(constraints.selected_particles[i])
+						else { continue; };
+
 						constraints.selected_particle_mouse_offsets[i] = Vec2 {
-							x: tool_use.pos.x - constraints.selected_particles[i].x,
-							y: tool_use.pos.y - constraints.selected_particles[i].y
+							x: tool_use.pos.x - particle.position.x,
+							y: tool_use.pos.y - particle.position.y,
 						};
 					}
 					break;
@@ -202,29 +207,40 @@ fn handle_events(
 				let cos_rot: f32		= f32::cos(z_rot_rads);
 
 				// Capture the most recent mouse motion event.
-				let mut mouse_motion: Vec2 = Vec2::ZERO;
-				for motion in ev_mouse_motion.read() {
-					mouse_motion = motion.delta;
-				}
-
-				let mouse_position = tool_use.pos;
+				// let mut mouse_motion: Vec2 = Vec2::ZERO;
+				// for motion in ev_mouse_motion.read() {
+				// 	mouse_motion = motion.delta;
+				// }
 
 				// calculates movement for particles
-				let mouse_motion_scale: f32 = 1.0;
-				let horizontal_move	= -1.0 * mouse_motion.x * mouse_motion_scale;
-				let vertical_move	= mouse_motion.y * mouse_motion_scale;
+				// let mouse_motion_scale: f32 = 1.0;
+				// let horizontal_move	= -1.0 * mouse_motion.x * mouse_motion_scale;
+				// let vertical_move	= mouse_motion.y * mouse_motion_scale;
 
 				// queries for particles
-				for particle_id in constraints.currently_selected_particles.iter() {
+				let mut i = 0;
+				for particle_id in constraints.selected_particles.iter() {
 					let Ok((_, mut particle)) = particles.get_mut(*particle_id)
-					else {
-						continue;
+					else { continue; };
+
+					// Figure out where the particle needs to go!
+					let new_position: Vec2 = Vec2 {
+						x: tool_use.pos.x + constraints.selected_particle_mouse_offsets[i].x,
+						y: tool_use.pos.y + constraints.selected_particle_mouse_offsets[i].y,
 					};
 
+					// Move the particle (and allow it to be thrown by changing velocity too!).
+					let throw_strength: f32 = 50.0;
+					particle.velocity.x = (new_position.x - particle.position.x) * throw_strength;
+					particle.velocity.y = (new_position.y - particle.position.y) * throw_strength;
+					particle.position.x = new_position.x.clamp(0.0, (grid.dimensions.1 * grid.cell_size) as f32);
+					particle.position.y = new_position.y.clamp(0.0, (grid.dimensions.0 * grid.cell_size) as f32);
+
 					// moves particles using mouse movement and sets velocity to zero
-					particle.velocity = Vec2 { x: horizontal_move * 50.0, y: vertical_move * 50.0 };
-					particle.position.x += (horizontal_move * cos_rot*-1.0) + (vertical_move * sin_rot * 1.0);
-					particle.position.y += (horizontal_move * sin_rot*-1.0) + (vertical_move * cos_rot * -1.0);
+					// particle.velocity = Vec2 { x: horizontal_move * 50.0, y: vertical_move * 50.0 };
+					// particle.position.x += (horizontal_move * cos_rot*-1.0) + (vertical_move * sin_rot * 1.0);
+					// particle.position.y += (horizontal_move * sin_rot*-1.0) + (vertical_move * cos_rot * -1.0);
+					i += 1;
 				}
             }
             SimTool::AddFluid => {
