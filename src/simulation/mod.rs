@@ -186,6 +186,7 @@ fn handle_events(
 						let Ok((_, mut particle)) = particles.get(selected_particles[i])
 						else { continue; };
 
+						// Populate the saved particle list with the now confirmed-valid particle.
 						constraints.selected_particles[i].0 = selected_particles[i];
 						constraints.selected_particles[i].1 = Vec2 {
 							x: tool_use.pos.x - particle.position.x,
@@ -272,6 +273,12 @@ fn handle_events(
 				);
             }
             SimTool::AddDrain => {
+
+				// Only allow the user to place a drain if they click, not hold the mouse button.
+				if tool_use.mouse_held {
+					break;
+				}
+
                 add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32, ui_state.drain_pressure).ok();
             }
             SimTool::RemoveDrain => {
@@ -285,6 +292,11 @@ fn handle_events(
                 }
             }
             SimTool::AddFaucet => {
+
+				// Only allow the user to place a faucet if they click, not hold the mouse button.
+				if tool_use.mouse_held {
+					break;
+				}
 
                 // convert the direction from degrees to radians
                 let direction = degrees_to_radians(ui_state.faucet_direction);

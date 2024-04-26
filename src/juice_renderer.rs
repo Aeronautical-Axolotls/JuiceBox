@@ -194,7 +194,7 @@ pub fn link_faucet_sprite(commands: &mut Commands, asset_server: &AssetServer, f
 		..default()
 	};
 
-	faucet_sprite_bundle.transform.translation	= Vec3 { x: position.x, y: position.y, z: 0.0 };
+	faucet_sprite_bundle.transform.translation	= Vec3 { x: position.x, y: position.y, z: 1.0 };
 	faucet_sprite_bundle.transform.rotation		= Quat::from_rotation_x(PI);
 	faucet_sprite_bundle.transform.scale		= Vec3 { x: 0.01, y: 0.01, z: 1.0 };
 
@@ -210,7 +210,7 @@ pub fn link_drain_sprite(commands: &mut Commands, asset_server: &AssetServer, dr
 		..default()
 	};
 
-	drain_sprite_bundle.transform.translation	= Vec3 { x: position.x, y: position.y, z: 0.0 };
+	drain_sprite_bundle.transform.translation	= Vec3 { x: position.x, y: position.y, z: 1.0 };
 	drain_sprite_bundle.transform.rotation		= Quat::from_rotation_x(PI);
 	drain_sprite_bundle.transform.scale			= Vec3 { x: 0.01, y: 0.01, z: 1.0 };
 
