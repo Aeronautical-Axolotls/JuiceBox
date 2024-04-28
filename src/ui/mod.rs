@@ -31,11 +31,10 @@ impl Plugin for JuiceUI {
 	}
 }
 
-const UI_ICON_COUNT: usize = 13;
+const UI_ICON_COUNT: usize = 12;
 #[derive(Clone, Copy, Debug)]
 pub enum SimTool {
-	Select			= 0,
-	Camera,
+	Camera = 0,
 	Zoom,
 	Gravity,
 	Grab,
@@ -52,20 +51,19 @@ pub enum SimTool {
 impl Into<SimTool> for usize {
 	fn into(self) -> SimTool {
 		match self {
-			0	=> { SimTool::Select },
-			1	=> { SimTool::Camera },
-			2	=> { SimTool::Zoom },
-			3	=> { SimTool::Gravity },
-			4	=> { SimTool::Grab },
-			5	=> { SimTool::AddFluid },
-			6	=> { SimTool::RemoveFluid },
-			7	=> { SimTool::AddWall },
-			8	=> { SimTool::RemoveWall },
-			9	=> { SimTool::AddFaucet },
-			10	=> { SimTool::RemoveFaucet },
-			11	=> { SimTool::AddDrain },
-			12	=> { SimTool::RemoveDrain },
-			_	=> { eprintln!("Invalid SimTool; defaulting to Select!"); SimTool::Select },
+			0	=> { SimTool::Camera },
+			1	=> { SimTool::Zoom },
+			2	=> { SimTool::Gravity },
+			3	=> { SimTool::Grab },
+			4	=> { SimTool::AddFluid },
+			5	=> { SimTool::RemoveFluid },
+			6	=> { SimTool::AddWall },
+			7	=> { SimTool::RemoveWall },
+			8	=> { SimTool::AddFaucet },
+			9	=> { SimTool::RemoveFaucet },
+			10	=> { SimTool::AddDrain },
+			11	=> { SimTool::RemoveDrain },
+			_	=> { eprintln!("Invalid SimTool; defaulting to Grab!"); SimTool::Grab },
 		}
 	}
 }
@@ -73,7 +71,6 @@ impl Into<SimTool> for usize {
 impl SimTool {
     fn as_str(&self) -> &'static str {
         match self {
-			Self::Select		=> { "Select" },
 			Self::Camera		=> { "Camera" },
 			Self::Zoom			=> { "Zoom" },
 			Self::Gravity		=> { "Gravity" },
@@ -132,24 +129,24 @@ impl Default for UIStateManager {
 		UIStateManager {
 			// Currently selected tool menu.
 			show_selected_tool:			true,
-			selected_tool:				SimTool::Select,
+			selected_tool:				SimTool::AddFluid,
 			tool_icon_handles:			vec![Handle::default(); UI_ICON_COUNT],
 			zoom_slider:				1.0,
-			grab_slider_radius:			10.0,
+			grab_slider_radius:			35.0,
 			add_remove_fluid_radius:	25.0,
-			add_fluid_density:			1.75,
-			faucet_direction:			45.0,
-			faucet_radius:				2.0,
-			faucet_pressure:			10.0,
-            drain_radius:               1.0,
-            drain_pressure:             10.0,
+			add_fluid_density:			0.5,
+			faucet_direction:			320.0,
+			faucet_radius:				1.0,
+			faucet_pressure:			35.0,
+            drain_radius:               35.0,
+            drain_pressure:             30.0,
 
 			// Visualization menu.
-			show_visualization:			false,
+			show_visualization:			true,
 			show_grid:					false,
 			show_velocity_vectors:		false,
 			show_gravity_vector:		true,
-			particle_physical_size:		1.0,
+			particle_physical_size:		2.0,
 			gravity_direction:			270.0,
 			gravity_magnitude:			9.81,
 			fluid_color_variable:		0,

@@ -9,12 +9,13 @@ use bevy::prelude::*;
 use bevy::math::Vec2;
 use bevy::input::mouse::MouseMotion;
 use crate::error::Error;
+use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
-use crate::test::test_state_manager::{self, construct_test_simulation_layout};
+use crate::test::test_state_manager::{self, construct_simulation_bias_test, construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_drains, delete_all_faucets, delete_all_particles, delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -34,9 +35,11 @@ impl Plugin for Simulation {
 fn setup(
 	mut commands:		Commands,
 	mut constraints:	ResMut<SimConstraints>,
-	mut grid:			ResMut<SimGrid>) {
+	mut grid:			ResMut<SimGrid>,
+	asset_server:		Res<AssetServer>) {
 
-	construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands);
+	construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
+	// construct_simulation_bias_test(constraints.as_mut(), grid.as_mut(), &mut commands);
 
 	// TODO: Get saved simulation data from most recently open file OR default file.
 	// TODO: Population constraints, grid, and particles with loaded data.
@@ -73,6 +76,7 @@ fn update(
 	if !constraints.is_paused {
 		step_simulation_once(
             &mut commands,
+			&asset_server,
 			constraints.as_mut(),
 			grid.as_mut(),
 			&mut particles,
@@ -93,8 +97,6 @@ fn update(
 		ev_reset,
 		ev_tool_use,
 		ev_paused,
-		ev_mouse_motion,
-		mut_cameras,
 		&mut commands,
 		&asset_server,
 		constraints.as_mut(),
@@ -112,8 +114,6 @@ fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
 	mut ev_pause:		EventReader<PlayPauseStepEvent>,
-	mut ev_mouse_motion:	EventReader<MouseMotion>,
-	mut mut_cameras:		Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>,
 	mut commands:	    &mut Commands,
 	asset_server:		&AssetServer,
 	constraints:	    &mut SimConstraints,
@@ -127,7 +127,7 @@ fn handle_events(
     // If there is a reset event sent, we reset the simulation.
     for _ in ev_reset.read() {
         reset_simulation_to_default(&mut commands, constraints, grid, particles, faucets, drains);
-		construct_test_simulation_layout(constraints, grid, &mut commands);
+		construct_test_simulation_layout(constraints, grid, &mut commands, asset_server);
 		return;
     }
 
@@ -152,60 +152,71 @@ fn handle_events(
 			if !constraints.is_paused {
 				constraints.is_paused = true;
 			}
-			step_simulation_once(commands, constraints, grid, particles, faucets, drains, timestep);
+			step_simulation_once(commands, asset_server, constraints, grid, particles, faucets, drains, timestep);
 		}
 	}
 
     // For every tool usage, we change the state
     for tool_use in ev_tool_use.read() {
 
-		if !grid.is_position_within_grid(&tool_use.pos) { continue; }
-		let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&tool_use.pos);
+		/* If a tool is misbehaving when you click the UI, use the below code and it will *mostly*
+			fix the issue.  Please only put this within the match case where your tool's
+			functionality lies.  Thank you! */
+		// if !grid.is_position_within_grid(&tool_use.pos) { continue; }
 
         match tool_use.tool {
-            SimTool::Select => {
-                // TODO: Handle Select usage
-            }
             SimTool::Grab => {
-				//select particles in radius, use mouse motion
-				let selected_paticles_id = select_particles(particles, grid, tool_use.pos, ui_state.grab_slider_radius);
 
-				// Extract the camera from our Query<>.
-				let camera_query = &mut mut_cameras.single_mut();
-				let mut camera = (camera_query.0.as_mut(), camera_query.1.as_mut());
+				// If we just pressed the mouse button for the first time, grab the particles!
+				if !tool_use.mouse_held {
 
-				// Extract the transform vector
-				let transform = &mut camera.0;
+					//select particles in radius and store in SimConstraints.
+					let selected_particles: Vec<Entity>	= select_particles(particles, grid, tool_use.pos, ui_state.grab_slider_radius);
 
-				let z_rot_rads: f32		= transform.rotation.to_euler(bevy::math::EulerRot::XYZ).2;
-				let sin_rot: f32		= f32::sin(z_rot_rads);
-				let cos_rot: f32		= f32::cos(z_rot_rads);
+					// For each selected particle, track its position delta with the mouse; keep this constant while the particle is selected.
+					constraints.selected_particles.resize(selected_particles.len(), (Entity::PLACEHOLDER, Vec2::ZERO));
+					for i in 0..selected_particles.len() {
 
-				for motion in ev_mouse_motion.read() {
-					// calculates movement for particles
-					let horizontal_move	= -1.0 * motion.delta.x*0.35;
-					let vertical_move	= motion.delta.y*0.35;
+						// Get the particle as a SimParticle object.
+						let Ok((_, mut particle)) = particles.get(selected_particles[i])
+						else { continue; };
 
-					// queries for particles
-					for particle_id in selected_paticles_id.iter() {
-						let Ok((_, mut particle)) = particles.get_mut(*particle_id)
-						else {
-							continue;
+						// Populate the saved particle list with the now confirmed-valid particle.
+						constraints.selected_particles[i].0 = selected_particles[i];
+						constraints.selected_particles[i].1 = Vec2 {
+							x: tool_use.pos.x - particle.position.x,
+							y: tool_use.pos.y - particle.position.y,
 						};
-
-						// moves particles using mouse movement and sets velocity to zero
-						particle.velocity = Vec2::ZERO;
-						particle.position.x += ((horizontal_move * cos_rot*-1.0) + (vertical_move * sin_rot * 1.0));
-						particle.position.y += ((horizontal_move * sin_rot*-1.0) + (vertical_move * cos_rot * -1.0));
 					}
+					break;
+				}
+
+				// Iterate through each particle and move it to where it needs to go!
+				for i in 0..constraints.selected_particles.len() {
+					let Ok((_, mut particle)) = particles.get_mut(constraints.selected_particles[i].0)
+					else { continue; };
+
+					// Figure out where the particle needs to go!
+					let new_position: Vec2 = Vec2 {
+						x: tool_use.pos.x - constraints.selected_particles[i].1.x,
+						y: tool_use.pos.y - constraints.selected_particles[i].1.y,
+					};
+
+					// Move the particle (and allow it to be thrown by changing velocity too!).
+					let throw_strength: f32 = 50.0;
+					particle.velocity.x = (new_position.x - particle.position.x) * throw_strength;
+					particle.velocity.y = (new_position.y - particle.position.y) * throw_strength;
+					particle.position.x = new_position.x.clamp(0.0, (grid.dimensions.1 * grid.cell_size) as f32);
+					particle.position.y = new_position.y.clamp(0.0, (grid.dimensions.0 * grid.cell_size) as f32);
 				}
             }
             SimTool::AddFluid => {
-                // Add particles with the given slider info from the UI
+                // Add particles with the given slider info from the UI.
                 add_particles_in_radius(
                     &mut commands,
                     constraints,
                     grid,
+					&asset_server,
                     ui_state.add_fluid_density,
                     ui_state.add_remove_fluid_radius,
                     tool_use.pos,
@@ -213,7 +224,7 @@ fn handle_events(
                 );
             }
             SimTool::RemoveFluid => {
-                // Remove particles with the given slider info from the UI
+                // Remove particles with the given slider info from the UI.
                 delete_particles_in_radius(
                     &mut commands,
                     grid,
@@ -223,29 +234,51 @@ fn handle_events(
                 );
             }
             SimTool::AddWall => {
-				let _ = grid.set_grid_cell_type(
-					cell_coordinates.x as usize,
-					cell_coordinates.y as usize,
-					SimGridCellType::Solid
-				);
 
-				//Delete all particles in the cell we are turning into a solid.
-				let lookup_index: usize = grid.get_lookup_index(cell_coordinates);
-				grid.delete_all_particles_in_cell(
-					&mut commands,
-					constraints,
-					&particles,
-					lookup_index
-				);
+				// Select a 2x2 grid of cells around the mouse cursor.
+				let grid_cells: Vec<Vec2> = grid.select_grid_cells(tool_use.pos, 0.0);
+
+				// For each selected cell, change it to solid and delete all particles inside of it.
+				for i in 0..grid_cells.len() {
+
+					// Change cell to solid.
+					let _ = grid.set_grid_cell_type(
+						grid_cells[i].x as usize,
+						grid_cells[i].y as usize,
+						SimGridCellType::Solid
+					);
+
+					// Delete particles inside of this cell.
+					let lookup_index: usize = grid.get_lookup_index(grid_cells[i]);
+					grid.delete_all_particles_in_cell(
+						&mut commands,
+						constraints,
+						&particles,
+						lookup_index
+					);
+				}
             }
             SimTool::RemoveWall => {
-				let _ = grid.set_grid_cell_type(
-					cell_coordinates.x as usize,
-					cell_coordinates.y as usize,
-					SimGridCellType::Air
-				);
+
+				// Select a 2x2 grid of cells around the mouse cursor.
+				let grid_cells: Vec<Vec2> = grid.select_grid_cells(tool_use.pos, 0.0);
+
+				// For each selected cell, change it to air.
+				for i in 0..grid_cells.len() {
+					let _ = grid.set_grid_cell_type(
+						grid_cells[i].x as usize,
+						grid_cells[i].y as usize,
+						SimGridCellType::Air
+					);
+				}
             }
             SimTool::AddDrain => {
+
+				// Only allow the user to place a drain if they click, not hold the mouse button.
+				if tool_use.mouse_held {
+					break;
+				}
+
                 add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32, ui_state.drain_pressure).ok();
             }
             SimTool::RemoveDrain => {
@@ -253,12 +286,17 @@ fn handle_events(
                 for (drain_id, drain_props) in drains.iter() {
                     if tool_use.pos.distance(drain_props.position) <= (grid.cell_size as f32 * 3.0) {
                         // Delete the closest drain
-                        delete_drain(&mut commands, drains, drain_id);
+                        let _ = delete_drain(&mut commands, drains, drain_id);
                         break;
                     }
                 }
             }
             SimTool::AddFaucet => {
+
+				// Only allow the user to place a faucet if they click, not hold the mouse button.
+				if tool_use.mouse_held {
+					break;
+				}
 
                 // convert the direction from degrees to radians
                 let direction = degrees_to_radians(ui_state.faucet_direction);
@@ -273,7 +311,7 @@ fn handle_events(
                 for (faucet_id, faucet_props) in faucets.iter() {
                     if tool_use.pos.distance(faucet_props.position) <= (grid.cell_size as f32 * 3.0) {
                         // Delete the closest faucet
-                        delete_faucet(&mut commands, faucets, faucet_id);
+                        let _ = delete_faucet(&mut commands, faucets, faucet_id);
                         break;
                     }
                 }
@@ -306,6 +344,7 @@ pub fn change_gravity(
 /// Step the fluid simulation one time!
 pub fn step_simulation_once(
 	commands:		&mut Commands,
+	asset_server:	&AssetServer,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
 	particles:		&mut Query<(Entity, &mut SimParticle)>,
@@ -314,7 +353,7 @@ pub fn step_simulation_once(
 	timestep:		f32) {
 
     // Run drains and faucets, panics if something weird/bad happens
-    activate_components(commands, constraints, particles, faucets, drains, grid).ok();
+    activate_components(commands, &asset_server, constraints, particles, faucets, drains, grid).ok();
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -369,7 +408,6 @@ pub fn reset_simulation_to_default(
 	grid.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
 	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
 	grid.density			= vec![0.0; row_count * col_count];
-	println!("{:?}", grid.spatial_lookup);
 
 	// Reset constraints by creating a default constraints and copying its values.
 	let reset_constraints: SimConstraints	= SimConstraints::default();
@@ -397,6 +435,9 @@ pub struct SimConstraints {
 	pub particle_radius:			f32,	// Particle collision radii.
 	pub particle_count:				usize,	// Number of particles in the simulation.
 	pub particle_rest_density:		f32,	// Rest density of particles in simulation.
+
+	// A list of currently selected particles along with their position offsets from the mouse cursor!
+	pub selected_particles:			Vec<(Entity, Vec2)>,
 }
 
 impl Default for SimConstraints {
@@ -412,9 +453,11 @@ impl Default for SimConstraints {
 			incomp_iters_per_frame:		100,
 			collision_iters_per_frame:	2,
 
-			particle_radius:			1.0,
+			particle_radius:			2.0,
 			particle_count:				0,
 			particle_rest_density:		0.0,
+
+			selected_particles:			Vec::new(),
 		}
 	}
 }
@@ -1041,14 +1084,14 @@ impl SimFaucet {
         &self,
         commands: &mut Commands,
         constraints: &mut SimConstraints,
-        grid: &mut SimGrid
-        ) -> Result<()> {
+        grid: &mut SimGrid,
+		asset_server: &AssetServer) -> Result<()> {
 
         let cell_coords = grid.get_cell_coordinates_from_position(&self.position);
 
         // Run fluid
         let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32));
-        add_particles_in_radius(commands, constraints, grid, self.diameter, self.diameter, position, self.velocity);
+        add_particles_in_radius(commands, constraints, grid, &asset_server, self.diameter, self.diameter, position, self.velocity);
 
         Ok(())
     }

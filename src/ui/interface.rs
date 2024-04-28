@@ -161,7 +161,7 @@ fn show_file_manager_panel(
 		}
 
 		// "Edit" scene dropdown.
-		let edit_options		= ["Edit", "Reset", "Clear", "Change Dimensions"];
+		let edit_options		= ["Edit", "Reset", "Clear"];
 		let mut edit_selection	= 0;
 		egui::ComboBox::from_id_source(1).show_index(
 			ui,
@@ -173,7 +173,6 @@ fn show_file_manager_panel(
 		match edit_selection {
 			1 => { ui_state.reset = true },
 			2 => {  },
-			3 => {  },
 			_ => {},
 		}
 
@@ -247,11 +246,6 @@ fn show_current_tool_menu(
 			// Show different buttons depending on which tool is currently selected.
 			match ui_state.selected_tool {
 
-				// For the Select tool, show some text as there are no options for Select.
-				SimTool::Select			=> {
-					ui.label("No options available for the Select tool!");
-				},
-
 				// For the Move Camera tool, show a slider for the grabbing radius.
 				SimTool::Camera			=> {
 					ui.label("Click and drag (or use WASD) to move the camera around!");
@@ -286,7 +280,7 @@ fn show_current_tool_menu(
 				SimTool::Grab			=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.grab_slider_radius,
-						1.0..=500.0
+						5.0..=100.0
 					).text("Grab Radius"));
 				},
 
@@ -294,11 +288,11 @@ fn show_current_tool_menu(
 				SimTool::AddFluid		=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.add_remove_fluid_radius,
-						1.0..=500.0
+						1.0..=50.0
 					).text("Brush Radius"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.add_fluid_density,
-						0.01..=10.0
+						0.01..=1.0
 					).text("Fluid Density"));
 				},
 
@@ -306,7 +300,7 @@ fn show_current_tool_menu(
 				SimTool::RemoveFluid	=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.add_remove_fluid_radius,
-						1.0..=500.0
+						1.0..=50.0
 					).text("Eraser Radius"));
 				},
 
@@ -327,13 +321,14 @@ fn show_current_tool_menu(
 						&mut ui_state.faucet_direction,
 						0.0..=360.0
 					).text("Faucet Direction"));
-					ui.add(egui::Slider::new(
-						&mut ui_state.faucet_radius,
-						1.0..=10.0
-					).text("Faucet Pipe Diameter"));
+					// This does not appear to do the simulation any favors!  Bye bye!
+					// ui.add(egui::Slider::new(
+					// 	&mut ui_state.faucet_radius,
+					// 	0.01..=2.5
+					// ).text("Faucet Pipe Diameter"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.faucet_pressure,
-						0.0..=25.0
+						0.0..=100.0
 					).text("Faucet Pressure"));
 				},
 
@@ -347,11 +342,11 @@ fn show_current_tool_menu(
 				SimTool::AddDrain		=> {
 					ui.add(egui::Slider::new(
 						&mut ui_state.drain_radius,
-						0.0..=10.0
+						0.0..=35.0
 					).text("Drain Suck Radius"));
 					ui.add(egui::Slider::new(
 						&mut ui_state.drain_pressure,
-						0.0..=10.0
+						0.0..=50.0
 					).text("Drain Pressure"));
 				},
 
@@ -423,7 +418,7 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 			// Sliders for the particle size and gravity direction.
 			if ui.add(egui::Slider::new(
 				&mut ui_state.particle_physical_size,
-				0.1..=10.0
+				0.1..=5.0
 			).text("Particle Size")).changed() { viz_mod = true; }
 		});
 	});
@@ -517,7 +512,6 @@ pub fn load_user_interface_icons(
 
 	// Load all UI icons using Bevy's asset server.
 	let icon_handles: [Handle<Image>; UI_ICON_COUNT] = [
-		asset_server.load("../assets/ui/select.png"),
 		asset_server.load("../assets/ui/movecamera.png"),
 		asset_server.load("../assets/ui/zoom.png"),
 		asset_server.load("../assets/ui/rotate.png"),

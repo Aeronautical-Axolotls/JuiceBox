@@ -45,11 +45,13 @@ pub fn handle_input(
 		let mouse_button: MouseButton;
 		if left_mouse_pressed	{ mouse_button = MouseButton::Left; }
 		else					{ mouse_button = MouseButton::Right; }
+		let mouse_held: bool = !mouse.just_pressed(mouse_button);
 
         ev_tool_use.send(UseToolEvent::new(
 			ui_state.selected_tool,
 			get_cursor_position(&windows, &cameras),
-			Some(mouse_button)
+			Some(mouse_button),
+			mouse_held
 		));
 	}
 
@@ -147,7 +149,6 @@ pub fn change_cursor_icon(
 	// Change the cursor icon depending on the currently selected tool.
 	println!("{:?}", ui_state.selected_tool);
 	match ui_state.selected_tool {
-		SimTool::Select			=> window.cursor.icon = CursorIcon::Default,
 		SimTool::Camera			=> window.cursor.icon = CursorIcon::Move,
 		SimTool::Zoom			=> window.cursor.icon = CursorIcon::ZoomIn,
 		SimTool::Gravity		=> window.cursor.icon = CursorIcon::Default,

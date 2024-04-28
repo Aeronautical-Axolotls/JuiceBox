@@ -3,12 +3,14 @@
 // TODO: The app crashes when the user closes a file dialog or tries to select a wrong file. Fix this.
 
 use bevy::ecs::query::*;
+use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy_save::*;
 use std;
 use std::path::PathBuf;
 
 use crate::error::Error;
+use crate::juice_renderer::link_particle_sprite;
 use crate::simulation::{
     SimConstraints, SimDrain, SimFaucet, SimGrid, SimGridCellType, SimParticle, SimSurfaceDirection,
 };
@@ -31,6 +33,8 @@ impl Plugin for FileSystem {
         // Registering SimConstraints
         // All associated types are f32, usize, u8, and Vec2. All already registered
         app.register_type::<SimConstraints>();
+		app.register_type::<(Entity, Vec2)>();
+		app.register_type::<Vec<(Entity, Vec2)>>();
 
         // Registering SimGrid and it's associated types
         app.register_type::<SimGrid>();
@@ -141,9 +145,17 @@ impl Pipeline for JuicePipeline {
     /// This is the Pipeline's way to save files. Most of the implementation is in bevy_save.
     fn capture(builder: SnapshotBuilder) -> Snapshot {
         builder
+			.deny_all()
+			.allow::<SimGrid>()
+			.allow::<SimConstraints>()
+			.allow::<SimParticle>()
+			// .allow::<SimFaucet>()
+			// .allow::<SimDrain>()
             .extract_resource::<SimGrid>()
             .extract_resource::<SimConstraints>()
             .extract_entities_matching(|e| e.contains::<SimParticle>())
+			// .extract_entities_matching(|e| e.contains::<SimFaucet>())
+			// .extract_entities_matching(|e| e.contains::<SimDrain>())
             .build()
     }
 
@@ -239,6 +251,18 @@ fn load_scene(world: &mut World) {
     world
         .load(JuicePipeline::new(key))
         .expect("Did not load correctly, perhaps filepath was incorrect?");
+
+	// Erase the spatial lookup table, this will cause "ghost particles" otherwise.
+	if let Some(mut grid) = world.get_resource_mut::<SimGrid>() {
+		grid.spatial_lookup = vec![vec![Entity::PLACEHOLDER; 0]; grid.dimensions.0 as usize * grid.dimensions.1 as usize];
+	}
+
+	// Pause the simulation once we have loaded in!
+	if let Some(mut constraints) = world.get_resource_mut::<SimConstraints>() {
+		constraints.is_paused = true;
+	} else {
+		println!("Constraints not constructed in time; cannot pause!");
+	}
 }
 
 /// Sets state back to JuiceStates::Running.

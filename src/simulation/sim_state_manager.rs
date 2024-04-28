@@ -15,19 +15,20 @@ pub fn add_particles_in_radius(
 	commands:			&mut Commands,
 	constraints:		&mut SimConstraints,
 	grid:				&mut SimGrid,
+	asset_server:		&AssetServer,
 	particle_density:	f32,
 	radius:				f32,
 	center_position:	Vec2,
 	velocity:			Vec2) {
 
 	// Create center particle.
-	let _center_particle = add_particle(commands, constraints, grid, center_position, velocity);
+	let _center_particle = add_particle(commands, constraints, grid, asset_server, center_position, velocity);
 
 	// Density for the rings inside the circle.
 	let ring_density: f32		= particle_density * 2.0;
 
 	// Create concentric rings of particles that evenly space themselves out to form a circle!
-	let ring_count: usize = 1 + (radius * ring_density / 20.0) as usize;
+	let ring_count: usize = 1 + (radius * ring_density / 20.0) as usize * 2;
 	for ring_index in 1..ring_count {
 
 		/* Create each particle around the current ring. */
@@ -45,7 +46,7 @@ pub fn add_particles_in_radius(
 			};
 //
 			// If particle_position is outside the grid bounds, this will not create a particle:
-			let _particle = add_particle(commands, constraints, grid, particle_position, velocity);
+			let _particle = add_particle(commands, constraints, grid, asset_server, particle_position, velocity);
 		}
 	}
 }
@@ -71,6 +72,7 @@ pub fn add_particle(
 	commands:		&mut Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
+	asset_server:	&AssetServer,
 	position:		Vec2,
 	velocity:		Vec2) -> Result<()> {
 
@@ -80,7 +82,7 @@ pub fn add_particle(
 			"X-coordinate for particle creation is out of grid bounds!"
 		));
 	}
-if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
 		return Err(Error::OutOfGridBounds(
 			"Y-coordinate for particle creation is out of grid bounds!"
 		));
@@ -107,7 +109,7 @@ if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f3
 	constraints.particle_count += 1;
 
 	// IMPORTANT: Links a sprite to each particle for rendering.
-	juice_renderer::link_particle_sprite(commands, particle);
+	// juice_renderer::link_particle_sprite(commands, asset_server, particle, position);
 
 	Ok(())
 }
@@ -214,7 +216,7 @@ pub fn add_faucet(
     let faucet = commands.spawn(
         SimFaucet::new(faucet_pos, surface_direction, faucet_diameter, faucet_flow)
     ).id();
-	link_faucet_sprite(commands, &asset_server, faucet, faucet_pos);
+	// link_faucet_sprite(commands, &asset_server, faucet, faucet_pos);
 
 
     Ok(())
@@ -273,7 +275,7 @@ pub fn add_drain(
     let drain = commands.spawn(
         SimDrain::new(drain_pos, surface_direction, drain_radius, drain_pressure)
     ).id();
-	link_drain_sprite(commands, &asset_server, drain, drain_pos);
+	// link_drain_sprite(commands, &asset_server, drain, drain_pos);
 
 
     Ok(())
@@ -309,6 +311,7 @@ pub fn delete_all_drains(
 
 pub fn activate_components(
     commands:		&mut Commands,
+	asset_server:	&AssetServer,
     constraints:	&mut SimConstraints,
     particles:      &mut Query<(Entity, &mut SimParticle)>,
     faucets:        &Query<(Entity, &mut SimFaucet)>,
@@ -317,7 +320,7 @@ pub fn activate_components(
     ) -> Result<()> {
 
     for (_, faucet) in faucets.iter() {
-        faucet.run(commands, constraints, grid)?;
+        faucet.run(commands, constraints, grid, &asset_server)?;
     }
 
     for (_, drain) in drains.iter() {
