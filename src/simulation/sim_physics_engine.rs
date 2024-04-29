@@ -543,6 +543,7 @@ fn integrate_particle_with_collisions(
 	target_position:	&Vec2,
 	target_velocity:	&Vec2) {
 
+	// Figure out the coordinates (and type) of the grid cell that the particle is heading towards.
 	let target_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&target_position);
 	let target_cell_type: u8		= grid.get_cell_type_value(
 		target_coordinates.x as usize,
@@ -730,12 +731,10 @@ pub fn make_grid_velocities_incompressible(
 	// Get the "particle rest density" for the simulation domain.
 	let mut fluid_cell_count: f32		= 0.0;
 	let mut density_sum: f32			= 0.0;
-
 	for i in 0..grid.density.len() {
 		density_sum			+= grid.density[i];
 		fluid_cell_count	+= 1.0;
 	}
-
 	if fluid_cell_count > 0.0 {
 		constraints.particle_rest_density = density_sum / fluid_cell_count;
 	}
@@ -744,25 +743,26 @@ pub fn make_grid_velocities_incompressible(
 	for _ in 0..constraints.incomp_iters_per_frame {
 
 		/* For each grid cell, calculate the inflow/outflow (divergence).  Then, find out how many
-			surrounding cells are solid, then adjust grid velocities accordingly. */
+			surrounding cells are solid and adjust grid velocities accordingly. */
 		for row in 0..grid.dimensions.0 {
 			for col in 0..grid.dimensions.1 {
 
-				// Continue if we are not inside of a fluid cell.
+				// Don't process this cell if we are not inside of a fluid cell.
 				if grid.cell_type[row as usize][col as usize] != SimGridCellType::Fluid {
 					continue;
 				}
 
-				// Calculate and sum the solid modifier for each surrounding cell.
+				// Calculate and sum the solid modifiers for each surrounding cell.
 				let solids: [u8; 5]	= calculate_cell_solids(&grid, row as usize, col as usize);
 				let left_solid: u8	= solids[1];
 				let right_solid: u8	= solids[2];
 				let up_solid: u8	= solids[3];
 				let down_solid: u8	= solids[4];
-
 				let solids_sum: u8	= left_solid + right_solid + up_solid + down_solid;
 				if solids_sum == 0 {
 					continue;
+				} else {
+					// println!("{:?}", solids);
 				}
 
 				// Determine the inflow/outflow of the current cell.
@@ -772,7 +772,8 @@ pub fn make_grid_velocities_incompressible(
 					col as usize
 				);
 
-				// Density calculations.
+				/* Density calculations; will reduce jittering in high-density areas by negatively
+					increasing divergence, indicating there is too much inflow. */
 				if constraints.particle_rest_density > 0.0 {
 					let stiffness: f32			= 1.0;
 					let cell_coordinates: Vec2	= Vec2 {
