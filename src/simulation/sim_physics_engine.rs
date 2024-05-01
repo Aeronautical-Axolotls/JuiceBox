@@ -761,9 +761,9 @@ pub fn make_grid_velocities_incompressible(
 				let solids_sum: u8	= left_solid + right_solid + up_solid + down_solid;
 				if solids_sum == 0 {
 					continue;
-				} else {
-					// println!("{:?}", solids);
-				}
+				} // else if solids_sum != 4 {
+				// 	println!("{:?}", solids);
+				// }
 
 				// Determine the inflow/outflow of the current cell.
 				let mut divergence: f32 = calculate_cell_divergence(
