@@ -132,7 +132,7 @@ impl Default for UIStateManager {
 			selected_tool:				SimTool::AddFluid,
 			tool_icon_handles:			vec![Handle::default(); UI_ICON_COUNT],
 			zoom_slider:				1.0,
-			grab_slider_radius:			35.0,
+			grab_slider_radius:			15.0,
 			add_remove_fluid_radius:	25.0,
 			add_fluid_density:			0.5,
 			faucet_direction:			320.0,
