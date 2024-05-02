@@ -94,15 +94,15 @@ fn show_informational_menu(
 			ui.end_row();
 			ui.label(" • WASD - Move the camera around.");
 			ui.end_row();
-			ui.label(" • Arrow keys - Rotate and change the strength of gravity.");
+			ui.label(" • Arrow keys - Play with gravity!");
 			ui.end_row();
 			ui.label(" • Q & E - Zoom in/out.");
 			ui.end_row();
 			ui.label(" • R - Reset Simulation.");
 			ui.end_row();
-			ui.label(" • Space - Pause/unpause the simulation.");
+			ui.label(" • Space - Pause/unpause.");
 			ui.end_row();
-			ui.label(" • F (Tap) - Step through the simulation one frame at a time!");
+			ui.label(" • F (Tap) - Step through the simulation!");
 			ui.end_row();
 
 			ui.vertical_centered(|ui| {
@@ -206,7 +206,7 @@ fn show_file_manager_panel(
 		}
 
 		// "View" scene dropdown.
-		let view_options		= ["View", "Current Tool", "Visualization", "Controls/Info"];
+		let view_options		= ["View", "Tool", "Visuals", "Controls"];
 		let mut view_selection	= 0;
 		egui::ComboBox::from_id_source(2).show_index(
 			ui,
@@ -481,7 +481,7 @@ fn show_play_pause_menu(
 		.frame(ui_state.window_frame)
 		.fixed_pos(Pos2 { x: ui_state.window_size.x / 2.0, y: ui_state.window_size.y * 0.95 } )
 		.pivot(Align2::CENTER_CENTER)
-		.default_width(0.0)
+		.default_width(105.0)
 		.resizable(false)
 		.show(contexts.ctx_mut(), |ui| {
 
