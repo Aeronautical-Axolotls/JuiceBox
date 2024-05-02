@@ -2,7 +2,11 @@ use std::mem::transmute;
 
 use super::{UIStateManager, SimTool, UI_ICON_COUNT};
 use bevy::{asset::{AssetServer, Assets, Handle}, ecs::{schedule::NextState, {event::{EventReader, EventWriter}, system::{Query, Res, ResMut, Resource}}}, prelude::default, render::{color::Color, texture::Image}, ui::FlexWrap, window::Window};
-use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Separator, Ui, Vec2},EguiContexts};
+use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Color32, Frame, Margin, Pos2, Separator, Ui, Vec2},EguiContexts};
+
+use egui::FontFamily::Proportional;
+use egui::FontId;
+use egui::TextStyle::*;
 
 use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, util};
 use crate::file_system;
@@ -13,6 +17,31 @@ pub fn init_user_interface(
 	mut ui_state:	ResMut<UIStateManager>) {
 
 	load_user_interface_icons(&mut ui_state, &asset_server);
+	update_user_interface_style(&mut contexts);
+}
+
+/// Modify the user interface style to be a little less inaccessible.
+fn update_user_interface_style(contexts: &mut EguiContexts) {
+
+	// Clone the current context and its style to modify it.
+	let ctx			= contexts.ctx_mut();
+	let mut style	= (*ctx.style()).clone();
+
+	// Modify styles!
+	style.text_styles = [
+		(Heading, FontId::new(30.0, Proportional)),
+		(Name("Heading2".into()), FontId::new(25.0, Proportional)),
+		(Name("Context".into()), FontId::new(23.0, Proportional)),
+		(Body, FontId::new(18.0, Proportional)),
+		(Monospace, FontId::new(18.0, Proportional)),
+		(Button, FontId::new(18.0, Proportional)),
+		(Small, FontId::new(14.0, Proportional)),
+	].into();
+	style.visuals.override_text_color = Some(Color32::WHITE);
+	style.visuals.widgets.inactive.bg_fill = Color32::LIGHT_GRAY;
+
+	// Mutate global style with the above changes.
+	ctx.set_style(style);
 }
 
 pub fn draw_user_interface(
