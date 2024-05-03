@@ -7,7 +7,7 @@ use crate::{
 	events::ModifyVisualizationEvent, simulation::{
 		SimConstraints, SimDrain, SimFaucet, SimGrid, SimGridCellType, SimParticle
 	}, ui::{SimTool, UIStateManager}, util::{
-		self, cartesian_to_polar, degrees_to_radians, get_cursor_position, JUICE_BLUE, JUICE_GREEN, JUICE_SKY_BLUE
+		self, cartesian_to_polar, degrees_to_radians, get_cursor_position, JUICE_BLUE, JUICE_GREEN, JUICE_RED, JUICE_SKY_BLUE, JUICE_YELLOW
 	}
 };
 
@@ -59,7 +59,7 @@ impl Default for FluidRenderData {
 			fluid_colors:		[util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
 			velocity_magnitude_color_scale:	400.0,
 			pressure_magnitude_color_scale:	100.0,
-			density_magnitude_color_scale: 	400.0,
+			density_magnitude_color_scale: 	250.0,
 			particle_render_scale: 1.5,
 		}
 	}
@@ -92,7 +92,7 @@ impl Default for GridRenderData {
 			vector_color:			Color::WHITE,
 			vector_magnitude_scale:	0.05,
 
-			draw_gravity: true,
+			draw_gravity: false,
 		}
 	}
 }
@@ -321,6 +321,7 @@ fn color_particles_by_velocity(
 		);
 
 		sprite.color = color;
+		// sprite.color = Color::NONE;
 	}
 }
 
@@ -408,6 +409,15 @@ fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, m
 			// 		&mut gizmos
 			// 	);
 			// }
+
+			// Uncomment to visualize density per grid cell.
+			// let density: f32 = grid.get_density_at_position(grid.get_cell_position_from_coordinates(Vec2 { x: row as f32, y: col as f32 })) / 25.0;
+			// draw_solid_cell(
+			// 	grid.as_ref(),
+			// 	Vec2 { x: row as f32, y: col as f32 },
+			// 	util::generate_color_from_gradient(&vec![JUICE_BLUE, JUICE_GREEN, JUICE_YELLOW, JUICE_RED], density),
+			// 	&mut gizmos
+			// );
 
 			match grid.cell_type[row as usize][col as usize] {
 				SimGridCellType::Fluid	=> continue,			// Do nothing if fluid.

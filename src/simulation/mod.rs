@@ -211,6 +211,7 @@ fn handle_events(
 				}
             }
             SimTool::AddFluid => {
+
                 // Add particles with the given slider info from the UI.
                 add_particles_in_radius(
                     &mut commands,
@@ -224,6 +225,10 @@ fn handle_events(
                 );
             }
             SimTool::RemoveFluid => {
+
+				// Don't remove fluid if we aren't clicking within the simulation.
+				if !grid.is_position_within_grid(&tool_use.pos) { continue; }
+
                 // Remove particles with the given slider info from the UI.
                 delete_particles_in_radius(
                     &mut commands,
@@ -234,6 +239,9 @@ fn handle_events(
                 );
             }
             SimTool::AddWall => {
+
+				// Don't add a wall if we aren't clicking within the simulation.
+				if !grid.is_position_within_grid(&tool_use.pos) { continue; }
 
 				// Select a 2x2 grid of cells around the mouse cursor.
 				let grid_cells: Vec<Vec2> = grid.select_grid_cells(tool_use.pos, 0.0);

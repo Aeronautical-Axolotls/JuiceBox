@@ -255,6 +255,8 @@ fn load_scene(world: &mut World) {
 	// Erase the spatial lookup table, this will cause "ghost particles" otherwise.
 	if let Some(mut grid) = world.get_resource_mut::<SimGrid>() {
 		grid.spatial_lookup = vec![vec![Entity::PLACEHOLDER; 0]; grid.dimensions.0 as usize * grid.dimensions.1 as usize];
+	} else {
+		println!("Grid not constructed in time; please reset simulation before continuing!");
 	}
 
 	// Pause the simulation once we have loaded in!
