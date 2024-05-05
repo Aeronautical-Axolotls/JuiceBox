@@ -70,7 +70,7 @@ pub struct CurrentFile {
 impl Default for CurrentFile {
     fn default() -> CurrentFile {
         Self {
-            filepath: String::from("assets/scenes/my file"),
+            filepath: String::from("saves/my file"),
         }
     }
 }
@@ -205,9 +205,15 @@ fn save_scene(world: &mut World) {
         None => return (), /*world.get_resource::<CurrentFile>().unwrap().filepath.clone()*/ // TODO run save as here
     };
 
-    world
-        .save(JuicePipeline::new(key))
-        .expect("Did not save correctly, perhaps filepath was incorrect?");
+    match world.save(JuicePipeline::new(key)) {
+        Ok(ok) => {
+
+        },
+        Err(e) => {
+            println!("{}", Error::FileExplorer("Did not save correctly, perhaps filepath was incorrect?"));
+            return ()
+        },
+    }
 }
 
 /// Sets file_system.rs state to Loading, which triggers load_scene() to run.
@@ -248,9 +254,15 @@ fn load_scene(world: &mut World) {
         None => return (), /*world.get_resource::<CurrentFile>().unwrap().filepath.clone()*/
     };
 
-    world
-        .load(JuicePipeline::new(key))
-        .expect("Did not load correctly, perhaps filepath was incorrect?");
+    match world.load(JuicePipeline::new(key)) {
+        Ok(ok) => {
+
+        },
+        Err(e) => {
+            println!("{}", Error::FileExplorer("Did not load correctly, perhaps filepath was incorrect or file was corrupted?"));
+            return ()
+        },
+    }
 
 	// Erase the spatial lookup table, this will cause "ghost particles" otherwise.
 	if let Some(mut grid) = world.get_resource_mut::<SimGrid>() {
