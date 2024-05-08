@@ -1,5 +1,5 @@
 use bevy::{
-	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Quat, Vec2, Vec3Swizzles, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, PrimaryWindow, Window, WindowPlugin, WindowPosition }, winit::WinitWindows
+	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Quat, Vec2, Vec3Swizzles, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, PrimaryWindow, Window, WindowMode, WindowPlugin, WindowPosition }, winit::WinitWindows
 };
 use bevy_egui::egui::lerp;
 use winit::window::Icon;
@@ -225,12 +225,14 @@ pub fn create_window_plugin() -> WindowPlugin {
 	let window_handle: Window = Window {
 		position:	WindowPosition::Centered(MonitorSelection::Primary),
 		title:		create_window_title("JuiceBox"),
+		resizable:	false,
+		mode:		WindowMode::BorderlessFullscreen,
 		..default()
 	};
 
 	// Then, create a window plugin using the window handle!
 	let window_plugin: WindowPlugin = WindowPlugin {
-		primary_window: Some(window_handle),
+		primary_window:	Some(window_handle),
 		..default()
 	};
 
