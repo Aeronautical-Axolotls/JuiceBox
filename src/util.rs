@@ -224,9 +224,9 @@ pub fn create_window_plugin() -> WindowPlugin {
 	// First, create a nice window handle.
 	let window_handle: Window = Window {
 		position:	WindowPosition::Centered(MonitorSelection::Primary),
-		title:		create_window_title("JuiceBox"),
-		resizable:	false,
-		mode:		WindowMode::BorderlessFullscreen,
+		title:		create_window_title("The Award-Winning JuiceBox"),
+		// resizable:	false,
+		// mode:		WindowMode::BorderlessFullscreen,
 		..default()
 	};
 
