@@ -8,7 +8,6 @@ use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use bevy::math::Vec2;
 use bevy::input::mouse::MouseMotion;
-use bevy::reflect::List;
 use crate::error::Error;
 use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::ui::{SimTool, UIStateManager};

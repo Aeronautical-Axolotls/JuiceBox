@@ -20,7 +20,6 @@ pub fn handle_input(
 	mut ui_state:     	ResMut<UIStateManager>,
     mut ev_reset:       EventWriter<ResetEvent>,
     mut ev_tool_use:	EventWriter<UseToolEvent>,
-	grid:				Res<SimGrid>,
 	mut ev_pause:		EventWriter<PlayPauseStepEvent>) {
 
 	let left_mouse_pressed: bool	= mouse.pressed(MouseButton::Left);
