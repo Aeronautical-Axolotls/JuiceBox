@@ -1154,7 +1154,7 @@ impl SimDrain {
             let distance = self.position.distance(particle.position);
             let distance_vector = particle.position - self.position;
             let polar_vector = cartesian_to_polar(distance_vector); // (magnitude, direction)
-            let pull_strength = self.pressure * (polar_vector.x / distance.powf(2.0));
+            let pull_strength = self.pressure.powf(2.0) / polar_vector.x;
 
             let pull_direction = polar_vector.y + degrees_to_radians(180.0);
             let pull_velocity = polar_to_cartesian(Vec2::new(pull_strength, pull_direction));

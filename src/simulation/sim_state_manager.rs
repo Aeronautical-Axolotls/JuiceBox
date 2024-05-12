@@ -320,10 +320,12 @@ pub fn activate_components(
     ) -> Result<()> {
 
     faucets.for_each(|(_, faucet)| {
+        println!("Activating faucet");
         faucet.run(commands, constraints, grid, &asset_server).unwrap();
     });
 
     drains.for_each(|(_, drain)| {
+        println!("Activating drain");
         drain.drain(commands, grid, particles).unwrap();
     });
 
