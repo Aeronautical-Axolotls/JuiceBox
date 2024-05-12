@@ -8,6 +8,7 @@ use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use bevy::math::Vec2;
 use bevy::input::mouse::MouseMotion;
+use bevy::reflect::List;
 use crate::error::Error;
 use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::ui::{SimTool, UIStateManager};
@@ -282,12 +283,15 @@ fn handle_events(
             }
             SimTool::AddDrain => {
 
+                // Don't add drain if we aren't clicking within the simulation.
+				if !grid.is_position_within_grid(&tool_use.pos) { continue; }
+
 				// Only allow the user to place a drain if they click, not hold the mouse button.
 				if tool_use.mouse_held {
 					break;
 				}
 
-                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32, ui_state.drain_pressure).ok();
+                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius, ui_state.drain_pressure).ok();
             }
             SimTool::RemoveDrain => {
                 // Get closest drain id
@@ -300,6 +304,9 @@ fn handle_events(
                 }
             }
             SimTool::AddFaucet => {
+                //
+                // Don't add faucet if we aren't clicking within the simulation.
+				if !grid.is_position_within_grid(&tool_use.pos) { continue; }
 
 				// Only allow the user to place a faucet if they click, not hold the mouse button.
 				if tool_use.mouse_held {
@@ -328,7 +335,9 @@ fn handle_events(
 			// We should not never ever wever get here:
 			_ => {}
         }
+
     }
+
 }
 
 /// Change the direction and strength of gravity!
@@ -813,11 +822,11 @@ impl SimGrid {
 		let center_cell		= self.get_cell_coordinates_from_position(&particle_position);
 
 		// For each nearby cell, add weighted density value based on distance to particle_position.
-		for cell in nearby_cells.iter() {
-			let cell_lookup_index = self.get_lookup_index(*cell);
+		for cell in nearby_cells {
+			let cell_lookup_index = self.get_lookup_index(cell);
 
 			// Get the center of the cell so we can weight density properly.
-			let cell_position: Vec2		= self.get_cell_position_from_coordinates(*cell);
+			let cell_position: Vec2		= self.get_cell_position_from_coordinates(cell);
 			let cell_center: Vec2		= Vec2 {
 				x: cell_position.x + (0.5 * self.cell_size as f32),
 				y: cell_position.y - (0.5 * self.cell_size as f32)
@@ -825,7 +834,7 @@ impl SimGrid {
 
 			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
-			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
+			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(cell));
 			self.density[cell_lookup_index]	+= 1.0 / density_weight;
 		}
 	}
@@ -840,7 +849,7 @@ impl SimGrid {
 		let center_cell		= self.get_cell_coordinates_from_position(&position);
 
 		// For each nearby cell, add its density weighted based on position to final density value.
-		for mut cell in nearby_cells.iter() {
+		for cell in nearby_cells {
 
 			// If one of our cell is solid, use the center cell's density instead.
 			// if self.cell_type[cell.x as usize][cell.y as usize] == SimGridCellType::Solid {
@@ -849,8 +858,8 @@ impl SimGrid {
 
 			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
-			let cell_lookup_index = self.get_lookup_index(*cell);
-			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
+			let cell_lookup_index = self.get_lookup_index(cell);
+			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(cell));
 			density += self.density[cell_lookup_index] / density_weight;
 		}
 
@@ -902,14 +911,14 @@ impl SimGrid {
 
 		let mut lookup_vector: Vec<Entity> = Vec::new();
 
-		for particle_id in self.spatial_lookup[lookup_index].iter() {
+		for particle_id in self.spatial_lookup[lookup_index].clone() {
 
 			// TODO: Don't use placeholder!  Bad kitty!!!
-			if *particle_id == Entity::PLACEHOLDER {
+			if particle_id == Entity::PLACEHOLDER {
 				continue;
 			}
 
-			lookup_vector.push(*particle_id);
+			lookup_vector.push(particle_id);
 		}
 
 		lookup_vector
@@ -1137,42 +1146,26 @@ impl SimDrain {
     pub fn drain(
         &self,
         commands: &mut Commands,
-        constraints: &mut SimConstraints,
         grid: &mut SimGrid,
         particles: &mut Query<(Entity, &mut SimParticle)>,
         ) -> Result<()> {
 
-        let nearby_particle_ids = select_particles(particles, grid, self.position, self.radius);
-
-        for particle_id in nearby_particle_ids.iter() {
-
-            let Ok((_, mut particle)) = particles.get_mut(*particle_id) else {
-                continue;
-            };
-
+        particles.par_iter_mut().for_each(|(_, mut particle)| {
             let distance = self.position.distance(particle.position);
             let distance_vector = particle.position - self.position;
             let polar_vector = cartesian_to_polar(distance_vector); // (magnitude, direction)
-            let pull_strength = self.pressure * (1.0 / polar_vector.x);
-
-            // prevent particle from being pulled past the drain
-            if distance < pull_strength {
-                let _ = delete_particle(commands, constraints, particles, grid, *particle_id);
-                continue;
-            }
+            let pull_strength = self.pressure * (polar_vector.x / distance.powf(2.0));
 
             let pull_direction = polar_vector.y + degrees_to_radians(180.0);
             let pull_velocity = polar_to_cartesian(Vec2::new(pull_strength, pull_direction));
 
-            particle.position += pull_velocity;
-
-            if distance < grid.cell_size as f32 * 1.5 {
-                if let Err(_) = delete_particle(commands, constraints, particles, grid, *particle_id) {
-                    continue;
-                };
+            if distance < self.radius {
+                particle.velocity = pull_velocity;
             }
 
-        }
+        });
+
+        delete_particles_in_radius(commands, grid, particles, self.position, grid.cell_size as f32 * 1.5);
 
         Ok(())
     }
