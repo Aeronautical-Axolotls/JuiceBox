@@ -368,8 +368,6 @@ pub fn step_simulation_once(
 	drains:		    &Query<(Entity, &mut SimDrain)>,
 	timestep:		f32) {
 
-    // Run drains and faucets, panics if something weird/bad happens
-    activate_components(commands, &asset_server, constraints, particles, faucets, drains, grid).ok();
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -394,6 +392,9 @@ pub fn step_simulation_once(
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints);
     extrapolate_values(grid, 1);
+
+    // Run drains and faucets, panics if something weird/bad happens
+    activate_components(commands, &asset_server, constraints, particles, faucets, drains, grid).ok();
 }
 
 /// Reset simulation components to their default state and delete all particles.
