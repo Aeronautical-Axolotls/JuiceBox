@@ -298,7 +298,7 @@ fn handle_events(
                 for (drain_id, drain_props) in drains.iter() {
                     if tool_use.pos.distance(drain_props.position) <= (grid.cell_size as f32 * 3.0) {
                         // Delete the closest drain
-                        let _ = delete_drain(&mut commands, drains, drain_id);
+                        delete_drain(&mut commands, drains, drain_id).unwrap();
                         break;
                     }
                 }
@@ -326,7 +326,7 @@ fn handle_events(
                 for (faucet_id, faucet_props) in faucets.iter() {
                     if tool_use.pos.distance(faucet_props.position) <= (grid.cell_size as f32 * 3.0) {
                         // Delete the closest faucet
-                        let _ = delete_faucet(&mut commands, faucets, faucet_id);
+                        delete_faucet(&mut commands, faucets, faucet_id).unwrap();
                         break;
                     }
                 }
@@ -421,8 +421,8 @@ pub fn reset_simulation_to_default(
 	grid.cell_size			= reset_grid.cell_size;
 	grid.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
 	grid.cell_center		= vec![vec![0.0; row_count]; col_count];
-	grid.velocity_u			= vec![vec![0.0; row_count + 1]; col_count];
-	grid.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
+	grid.velocity_u			= vec![vec![f32::MIN; row_count + 1]; col_count];
+	grid.velocity_v			= vec![vec![f32::MIN; row_count]; col_count + 1];
 	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
 	grid.density			= vec![0.0; row_count * col_count];
 
@@ -1160,7 +1160,7 @@ impl SimDrain {
             let pull_velocity = polar_to_cartesian(Vec2::new(pull_strength, pull_direction));
 
             if distance < self.radius {
-                particle.velocity = pull_velocity;
+                particle.velocity += pull_velocity;
             }
 
         });
