@@ -2,20 +2,17 @@ pub mod sim_physics_engine;
 pub mod sim_state_manager;
 pub mod util;
 
-use std::f32::consts::PI;
-
 use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use bevy::math::Vec2;
-use bevy::input::mouse::MouseMotion;
 use crate::error::Error;
 use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
-use crate::test::test_state_manager::{self, construct_simulation_bias_test, construct_test_simulation_layout};
+use crate::test::test_state_manager::{construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particles_in_radius, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -52,18 +49,13 @@ fn update(
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:		    Query<(Entity, &mut SimFaucet)>,
     drains:		        Query<(Entity, &mut SimDrain)>,
-	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
 	asset_server:	Res<AssetServer>,
     ui_state:       Res<UIStateManager>,
     ev_tool_use: 	EventReader<UseToolEvent>,
     ev_reset:   	EventReader<ResetEvent>,
-	ev_paused:		EventReader<PlayPauseStepEvent>,
-	ev_mouse_motion:	EventReader<MouseMotion>,
-	mut mut_cameras:		Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>) {
-
-	// TODO: Check for and handle simulation saving/loading.
+	ev_paused:		EventReader<PlayPauseStepEvent>) {
 
 	/* A fixed timestep is generally recommended for fluid simulations like ours.  Unfortunately,
 		this does mean that a lower framerate slows everything down, but it does prevent the
@@ -752,6 +744,9 @@ impl SimGrid {
 		y_cell_count						/= self.cell_size as usize;
 		let cells_in_selection_count: usize	= x_cell_count * y_cell_count;
 
+		let mut actual_cell_count: usize	= cells_in_selection_count;
+		let mut actual_cell_index: usize	= 0;
+
 		// Figure out which grid cells we are actually going to be checking.
 		let mut cells_in_selection: Vec<Vec2>	= vec![Vec2::ZERO; cells_in_selection_count];
 		for cell_index in 0..cells_in_selection_count {
@@ -777,10 +772,16 @@ impl SimGrid {
 
 				// Add our selected cell's coordinates to our list of selected cell coordinates!
 				let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
-				cells_in_selection[cell_index] = cell_coordinates;
+				cells_in_selection[actual_cell_index] = cell_coordinates;
+				actual_cell_index += 1;
+
+				// If the cell is not valid, don't count it!
+			} else {
+				actual_cell_count -= 1;
 			}
 		}
 
+		cells_in_selection.resize(actual_cell_count, Vec2::ZERO);
 		cells_in_selection
 	}
 

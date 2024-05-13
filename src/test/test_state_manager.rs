@@ -302,16 +302,16 @@ pub fn test_select_particles(
 
 /// Test grid cell selection.
 pub fn test_select_grid_cells(
-	commands:			&mut Commands,
-	constraints:		&mut SimConstraints,
-	mut grid:			&mut SimGrid,
-	mut particles:		&Query<(Entity, &mut SimParticle)>,
-	windows:			&Query<&Window>,
-	cameras:			&Query<(&Camera, &GlobalTransform)>,
-	mut gizmos:			&mut Gizmos) {
+	commands:			Commands,
+	constraints:		ResMut<SimConstraints>,
+	mut grid:			ResMut<SimGrid>,
+	mut particles:		Query<(Entity, &mut SimParticle)>,
+	windows:			Query<&Window>,
+	cameras:			Query<(&Camera, &GlobalTransform)>,
+	mut gizmos:			Gizmos) {
 
 	let radius: f32				= 55.0;
-	let cursor_position: Vec2	= get_cursor_position(windows, cameras);
+	let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
 
 	// Test cell selection.
 	let selected_cells: Vec<Vec2> = grid.select_grid_cells(cursor_position, radius);
