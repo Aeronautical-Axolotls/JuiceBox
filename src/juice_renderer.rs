@@ -54,7 +54,7 @@ impl Default for FluidRenderData {
 
 	fn default() -> Self {
 		Self {
-			color_render_type:	FluidColorRenderType::Density,
+			color_render_type:	FluidColorRenderType::Velocity,
 			fluid_colors:		[util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
 			velocity_magnitude_color_scale:	400.0,
 			density_magnitude_color_scale: 	250.0,
