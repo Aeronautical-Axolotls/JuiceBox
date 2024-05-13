@@ -39,7 +39,7 @@ impl Plugin for JuiceRenderer {
 
 #[derive(Clone, Copy)]
 pub enum FluidColorRenderType	{ Arbitrary, Velocity, Density, GridCell, Spume }
-enum FluidGridVectorType	{ Velocity, Gravity }
+enum FluidGridVectorType	{ Velocity }
 
 #[derive(Resource)]
 struct FluidRenderData {
@@ -70,7 +70,6 @@ struct GridRenderData {
 	solid_cell_color:	Color,
 
 	draw_vectors:			bool,
-	vector_type:			FluidGridVectorType,
 	vector_color:			Color,
 	vector_magnitude_scale:	f32,
 
@@ -86,7 +85,6 @@ impl Default for GridRenderData {
 			solid_cell_color:	Color::GOLD,
 
 			draw_vectors:			false,
-			vector_type:			FluidGridVectorType::Velocity,
 			vector_color:			Color::WHITE,
 			vector_magnitude_scale:	0.05,
 
@@ -114,32 +112,8 @@ fn handle_events(
 	}
 }
 
-// toggle draw grid
-fn toggle_draw_grid(grid: &mut GridRenderData) {
-	if grid.draw_grid == true {
-		grid.draw_grid = false;
-	}
-	else{
-		grid.draw_grid = true;
-	}
-}
-
-// toggle draw grid vectors
-fn toggle_draw_grid_vectors(grid: &mut GridRenderData) {
-	if grid.draw_vectors == true {
-		grid.draw_vectors = false;
-	}
-	else{
-		grid.draw_vectors = true;
-	}
-}
-
 /// Custom rendering pipeline initialization.
-fn setup_renderer(
-	mut commands:	Commands,
-	grid:			Res<SimGrid>,
-	mut meshes:		ResMut<Assets<Mesh>>,
-	mut materials:	ResMut<Assets<ColorMaterial>>) {
+fn setup_renderer(mut commands: Commands, grid: Res<SimGrid>) {
 
 	// Spawn a camera to view our simulation world!
 	commands.spawn(Camera2dBundle {
@@ -305,15 +279,12 @@ fn color_particles_by_velocity(
 	velocity_magnitude_color_scale:	f32,
 	color_list:						&Vec<Color>) {
 
+	// For each
 	for (particle, mut sprite) in particles.iter_mut() {
-
-		let color: Color = util::generate_color_from_gradient(
+		sprite.color = util::generate_color_from_gradient(
 			color_list,
 			util::vector_magnitude(particle.velocity) / velocity_magnitude_color_scale,
 		);
-
-		sprite.color = color;
-		// sprite.color = Color::NONE;
 	}
 }
 

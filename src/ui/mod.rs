@@ -32,7 +32,7 @@ impl Plugin for JuiceUI {
 }
 
 const UI_ICON_COUNT: usize = 12;
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SimTool {
 	Camera = 0,
 	Zoom,
