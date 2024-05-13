@@ -38,7 +38,7 @@ impl Plugin for JuiceRenderer {
 }
 
 #[derive(Clone, Copy)]
-pub enum FluidColorRenderType	{ Arbitrary, Velocity, Pressure, Density, GridCell, Spume }
+pub enum FluidColorRenderType	{ Arbitrary, Velocity, Density, GridCell, Spume }
 enum FluidGridVectorType	{ Velocity, Gravity }
 
 #[derive(Resource)]
@@ -46,7 +46,6 @@ struct FluidRenderData {
 	color_render_type:	FluidColorRenderType,
 	fluid_colors:		[Color; 4],
 	velocity_magnitude_color_scale:	f32,
-	pressure_magnitude_color_scale:	f32,
 	density_magnitude_color_scale:	f32,
 	particle_render_scale: f32
 }
@@ -58,9 +57,8 @@ impl Default for FluidRenderData {
 			color_render_type:	FluidColorRenderType::Density,
 			fluid_colors:		[util::JUICE_BLUE, util::JUICE_GREEN, util::JUICE_YELLOW, util::JUICE_RED],
 			velocity_magnitude_color_scale:	400.0,
-			pressure_magnitude_color_scale:	100.0,
 			density_magnitude_color_scale: 	250.0,
-			particle_render_scale: 1.5,
+			particle_render_scale: 0.4,
 		}
 	}
 }
@@ -276,12 +274,6 @@ fn update_particle_color(
 			particle_render_data.velocity_magnitude_color_scale,
 			&particle_render_data.fluid_colors.to_vec()
 		),
-		FluidColorRenderType::Pressure	=> color_particles_by_pressure(
-			particles,
-			grid.as_ref(),
-			particle_render_data.pressure_magnitude_color_scale,
-			&particle_render_data.fluid_colors.to_vec()
-		),
 		FluidColorRenderType::Density	=> color_particles_by_density(
 			particles,
 			grid.as_ref(),
@@ -322,27 +314,6 @@ fn color_particles_by_velocity(
 
 		sprite.color = color;
 		// sprite.color = Color::NONE;
-	}
-}
-
-/// Color all particles in the simulation by their pressures.
-fn color_particles_by_pressure(
-	mut particles:					Query<(&SimParticle, &mut Sprite)>,
-	grid:							&SimGrid,
-	pressure_magnitude_color_scale:	f32,
-	color_list:						&Vec<Color>) {
-
-	for (particle, mut sprite) in particles.iter_mut() {
-
-		let cell_pos: Vec2	= grid.get_cell_coordinates_from_position(&particle.position);
-		let cell_row: usize	= cell_pos[1] as usize;
-		let cell_col: usize	= cell_pos[0] as usize;
-
-		let color: Color = util::generate_color_from_gradient(
-			color_list,
-			grid.cell_center[cell_row][cell_col] / pressure_magnitude_color_scale,
-		);
-		sprite.color = color;
 	}
 }
 

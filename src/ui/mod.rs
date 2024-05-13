@@ -146,7 +146,7 @@ impl Default for UIStateManager {
 			show_grid:					false,
 			show_velocity_vectors:		false,
 			show_gravity_vector:		false,
-			particle_physical_size:		2.0,
+			particle_physical_size:		0.4,
 			gravity_direction:			270.0,
 			gravity_magnitude:			9.81,
 			fluid_color_variable:		0,

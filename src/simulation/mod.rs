@@ -28,8 +28,6 @@ impl Plugin for Simulation {
 
 		app.add_systems(Startup, setup);
 		app.add_systems(Update, update);
-
-		app.add_systems(Update, test_select_grid_cells);
 	}
 }
 

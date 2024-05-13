@@ -421,7 +421,7 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 
 				// Labels for each button.
 				ui.label("Color by:");
-				let color_options = ["Velocity", "Density", "Pressure", "None"];
+				let color_options = ["Velocity", "Density", "None"];
 
 				// Combobox setup and event polling:
 				if egui::ComboBox::from_id_source(0).show_index(
@@ -447,7 +447,7 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 			// Sliders for the particle size and gravity direction.
 			if ui.add(egui::Slider::new(
 				&mut ui_state.particle_physical_size,
-				0.1..=5.0
+				0.2..=2.0
 			).text("Particle Size")).changed() { viz_mod = true; }
 		});
 	});
