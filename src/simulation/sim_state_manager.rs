@@ -170,10 +170,10 @@ pub fn select_particles<'a>(
 	for i in 0..selected_cell_coordinates.len() {
 
 		let cell_lookup_index: usize = grid.get_lookup_index(selected_cell_coordinates[i]);
-		for particle_id in grid.get_particles_in_lookup(cell_lookup_index).iter() {
+		for particle_id in grid.get_particles_in_lookup(cell_lookup_index) {
 
             // Skip particles we can't find
-            let Ok(particle_entity) = particles.get(*particle_id) else {
+            let Ok(particle_entity) = particles.get(particle_id) else {
                 continue;
             };
 
@@ -184,7 +184,7 @@ pub fn select_particles<'a>(
 
 			// If we are within our radius, add the particle to the list and return it!
 			if distance < (radius * radius) {
-				selected_particles.push(*particle_id);
+				selected_particles.push(particle_id);
 			}
 		}
 	}
@@ -319,13 +319,13 @@ pub fn activate_components(
     grid:           &mut SimGrid,
     ) -> Result<()> {
 
-    for (_, faucet) in faucets.iter() {
-        faucet.run(commands, constraints, grid, &asset_server)?;
-    }
+    faucets.for_each(|(_, faucet)| {
+        faucet.run(commands, constraints, grid, &asset_server).unwrap();
+    });
 
-    for (_, drain) in drains.iter() {
-        drain.drain(commands, constraints, grid, particles)?;
-    }
+    drains.for_each(|(_, drain)| {
+        drain.drain(commands, grid, particles).unwrap();
+    });
 
     Ok(())
 }
