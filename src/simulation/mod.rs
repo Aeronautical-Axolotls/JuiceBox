@@ -737,9 +737,11 @@ impl SimGrid {
 			y: position.y - adj_radius,
 		};
 
-		// Find the number of cells we need to check.
-		let mut x_cell_count: usize			= (selection_max_bound.x - selection_min_bound.x) as usize;
-		let mut y_cell_count: usize			= (selection_max_bound.y - selection_min_bound.y) as usize;
+		/* Find the number of cells we need to check.  Make sure to ceil and floor these values;
+			otherwise, we introduce hard-to-find bugs where this function selects fewer cells than
+			necessary. */
+		let mut x_cell_count: usize			= (f32::ceil(selection_max_bound.x) - f32::floor(selection_min_bound.x)) as usize;
+		let mut y_cell_count: usize			= (f32::ceil(selection_max_bound.y) - f32::floor(selection_min_bound.y)) as usize;
 		x_cell_count						/= self.cell_size as usize;
 		y_cell_count						/= self.cell_size as usize;
 		let cells_in_selection_count: usize	= x_cell_count * y_cell_count;
@@ -747,37 +749,32 @@ impl SimGrid {
 		let mut actual_cell_count: usize	= cells_in_selection_count;
 		let mut actual_cell_index: usize	= 0;
 
-		// Figure out which grid cells we are actually going to be checking.
+		// Populate a list of valid cells we are trying to select.
 		let mut cells_in_selection: Vec<Vec2>	= vec![Vec2::ZERO; cells_in_selection_count];
-		for cell_index in 0..cells_in_selection_count {
 
-			/* BUG: Sometimes the top two corner cells of the selection "flicker", and the sides have
-				an extra cell jutting out.  Not sure why, but my guess is it's a type casting or
-				rounding issue; not important (for now).  The corner flickering does affect the number
-				of cells checked, however the extra cell jutting out does not (making me think the
-				latter is a rendering issue).  Finally, the algorithm breaks down a little bit extra
-				if the radius is not a multiple of the grid cell size. */
+		let mut i: usize = 0;
+		for cell_x_index in 0..x_cell_count {
+			for cell_y_index in 0..y_cell_count {
 
-			// Per cell, get the x and y indices through our cell selection array.
-			let cell_y_index: usize	= (cell_index / y_cell_count) % y_cell_count;
-			let cell_x_index: usize	= cell_index % x_cell_count;
+				// Get the cell position relative to this selection's bounds.
+				let cell_position: Vec2 = Vec2 {
+					x: selection_min_bound.x + cell_x_index as f32 * self.cell_size as f32,
+					y: selection_min_bound.y + cell_y_index as f32 * self.cell_size as f32
+				};
 
-			// Convert the cell's x and y indices into a position, and then into a grid coordinate.
-			let cell_position: Vec2 = Vec2 {
-				x: selection_min_bound.x + cell_x_index as f32 * self.cell_size as f32,
-				y: selection_min_bound.y + cell_y_index as f32 * self.cell_size as f32
-			};
+				if self.is_position_within_grid(&cell_position) {
 
-			if self.is_position_within_grid(&cell_position) {
+					// Add our selected cell's coordinates to our list of selected cell coordinates!
+					let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
+					cells_in_selection[actual_cell_index] = cell_coordinates;
+					actual_cell_index += 1;
 
-				// Add our selected cell's coordinates to our list of selected cell coordinates!
-				let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
-				cells_in_selection[actual_cell_index] = cell_coordinates;
-				actual_cell_index += 1;
+					// If the cell is not valid, don't count it!
+				} else {
+					actual_cell_count -= 1;
+				}
 
-				// If the cell is not valid, don't count it!
-			} else {
-				actual_cell_count -= 1;
+				i += 1;
 			}
 		}
 
@@ -869,7 +866,7 @@ impl SimGrid {
 
 	// Get a cell lookup index into our spatial lookup table.
 	pub fn get_lookup_index(&self, cell_coordinates: Vec2) -> usize {
-		(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * self.dimensions.0)) as usize
+		((cell_coordinates[0] as u16 * self.dimensions.1) + cell_coordinates[1] as u16) as usize
 	}
 
 
