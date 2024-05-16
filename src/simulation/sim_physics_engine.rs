@@ -603,8 +603,8 @@ pub fn handle_particle_grid_collisions(
 	for (_, mut particle) in particles.iter_mut() {
 
 		// Don't let particles escape the grid!
-		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
-		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
+		let grid_width: f32		= (grid.cell_size * grid.dimensions.1) as f32;
+		let grid_height: f32	= (grid.cell_size * grid.dimensions.0) as f32;
 
 		// Left/right collision checks.
 		if particle.position.x < constraints.particle_radius {
@@ -754,6 +754,7 @@ pub fn make_grid_velocities_incompressible(
 				}
 
 				// Calculate and sum the solid modifiers for each surrounding cell.
+                println!("Checking solids for Row: {}, Col: {}", row, col);
 				let solids: [u8; 5]	= calculate_cell_solids(&grid, row as usize, col as usize);
 				let left_solid: u8	= solids[1];
 				let right_solid: u8	= solids[2];
@@ -763,9 +764,9 @@ pub fn make_grid_velocities_incompressible(
 
 				if solids_sum == 0 {
 					continue;
-				} // else if solids_sum != 4 {
-					// println!("Solids: {:?}, row: {}, col: {}, State: {:?}", solids, row, col, grid.cell_type[row as usize][col as usize]);
-				// }
+				} else if solids_sum != 4 {
+					println!("Solids: {:?}, Position: {}, State: {:?}", solids, grid.get_cell_center_position_from_coordinates(&Vec2::new(row as f32, col as f32)), grid.cell_type[row as usize][col as usize]);
+				}
 
 				// Determine the inflow/outflow of the current cell.
 				let mut divergence: f32 = calculate_cell_divergence(

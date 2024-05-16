@@ -570,7 +570,7 @@ impl SimGrid {
         width: u16,
         height: u16) -> Result<()> {
 
-        self.dimensions = (width, height);
+        self.dimensions = (height, width);
 
         Ok(())
     }
