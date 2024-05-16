@@ -7,7 +7,7 @@ use bevy::{asset::{AssetServer, Assets, Handle}, ecs::system::{Query, Res, ResMu
 use bevy_egui::{egui::{self, color_picker::color_edit_button_rgb, Align2, Frame, Margin, Pos2, Ui, Vec2},EguiContexts};
 use bevy::prelude::*;
 
-use crate::file_system;
+use crate::file_system::{self, JuiceStates};
 use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, util};
 use self::interaction::{change_cursor_icon, handle_input, handle_camera_input};
 use crate::events::{ResetEvent, UseToolEvent};
@@ -121,7 +121,12 @@ pub struct UIStateManager {
 
 	pub	show_informational:			bool,
 
+	pub file_state:					JuiceStates,
 	pub reset:						bool,
+	pub new:						bool,
+	pub load:						bool,
+	pub save:						bool,
+	pub save_as:					bool,
 }
 
 impl Default for UIStateManager {
@@ -170,7 +175,12 @@ impl Default for UIStateManager {
 			show_informational:			true,
 
 			// File and scene stuff.
+			file_state:					JuiceStates::Running,
 			reset:						false,
+			new:						false,
+			load:						false,
+			save:						false,
+			save_as:					false,
 		}
 	}
 }

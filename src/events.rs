@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::ecs::event::Event;
+use crate::file_system;
 use crate::juice_renderer::FluidColorRenderType;
 use crate::ui::{SimTool, UIStateManager};
 
@@ -35,6 +36,11 @@ impl UseToolEvent {
 */
 #[derive(Event)]
 pub struct ResetEvent;
+
+#[derive(Event)]
+pub struct FileEvent {
+	pub file_event: file_system::JuiceStates,
+}
 
 /** Event that controls play/pause/stepping.  Here is how it works:
 	- `is_step_event == true`, `sim_paused == true`: Simulation steps one time.

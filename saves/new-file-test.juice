@@ -5,8 +5,8 @@
       "is_paused": true,
       "timestep": 0.008333334,
       "gravity": {
-        "x": -3.188289,
-        "y": -384.9467
+        "x": 0.000029062496,
+        "y": 384.94443
       },
       "grid_particle_ratio": 0.3,
       "incomp_iters_per_frame": 100,
