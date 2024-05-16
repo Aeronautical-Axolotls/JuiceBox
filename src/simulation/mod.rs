@@ -411,10 +411,10 @@ pub fn reset_simulation_to_default(
 	let col_count: usize	= reset_grid.dimensions.1 as usize;
 	grid.dimensions			= reset_grid.dimensions;
 	grid.cell_size			= reset_grid.cell_size;
-	grid.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
-	grid.cell_center		= vec![vec![0.0; row_count]; col_count];
-	grid.velocity_u			= vec![vec![f32::MIN; row_count + 1]; col_count];
-	grid.velocity_v			= vec![vec![f32::MIN; row_count]; col_count + 1];
+	grid.cell_type			= vec![vec![SimGridCellType::Air; col_count]; row_count];
+	grid.cell_center		= vec![vec![0.0; col_count]; row_count];
+	grid.velocity_u			= vec![vec![f32::MIN; col_count + 1]; row_count];
+	grid.velocity_v			= vec![vec![f32::MIN; col_count]; row_count + 1];
 	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
 	grid.density			= vec![0.0; row_count * col_count];
 
@@ -545,37 +545,21 @@ impl Default for SimGrid {
 
 impl SimGrid {
 
-	/// Create a new SimGrid!
-	fn change_dimensions(&mut self, dimensions: (u16, u16), cell_size: u16) {
-
-		let row_count: usize	= dimensions.0 as usize;
-		let col_count: usize	= dimensions.1 as usize;
-
-		self.dimensions			= dimensions;
-		self.cell_size			= cell_size;
-		self.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
-		self.cell_center		= vec![vec![0.0; row_count]; col_count];
-		self.velocity_u			= vec![vec![0.0; row_count + 1]; col_count];
-		self.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
-		self.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
-		self.density			= vec![0.0; row_count * col_count];
-	}
-
 	/// Set simulation grid cell type.
     pub fn set_grid_cell_type(
         &mut self,
-        cell_x: usize,
-		cell_y: usize,
+        row: usize,
+		col: usize,
         cell_type: SimGridCellType) -> Result<()> {
 
-		if cell_x >= self.dimensions.0 as usize {
+		if row >= self.dimensions.0 as usize {
 			return Err(Error::OutOfGridBounds("X-coord. is out of bounds!"));
 		}
-		if cell_y >= self.dimensions.1 as usize {
+		if col >= self.dimensions.1 as usize {
 			return Err(Error::OutOfGridBounds("Y-coord. is out of bounds!"));
 		}
 
-        self.cell_type[cell_x][cell_y] = cell_type;
+        self.cell_type[row][col] = cell_type;
 
         Ok(())
     }
@@ -636,8 +620,8 @@ impl SimGrid {
 	pub fn get_cell_type_value(&self, cell_row: usize, cell_col: usize) -> u8 {
 
 		// Because cell_x and cell_y are unsigned, we do not need an underflow check.
-		if cell_row >= self.dimensions.0 as usize ||
-			cell_col >= self.dimensions.1 as usize {
+		if cell_col >= self.dimensions.1 as usize ||
+			cell_row >= self.dimensions.0 as usize {
 			return 0;
 		}
 
@@ -655,7 +639,7 @@ impl SimGrid {
 		closest valid cell to any invalid position input.** */
 	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
 		let cell_size: f32			= self.cell_size as f32;
-		let grid_upper_bound: f32	= self.dimensions.1 as f32 * cell_size;
+		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
 
 		let mut coordinates: Vec2 = Vec2 {
 			x: f32::floor((grid_upper_bound - position[1]) / cell_size),	// Row
@@ -678,7 +662,7 @@ impl SimGrid {
 	pub fn get_cell_position_from_coordinates(&self, coordinates: Vec2) -> Vec2 {
 		let cell_size: f32			= self.cell_size as f32;
 		let grid_max_x_bound: f32	= self.dimensions.1 as f32 * cell_size;
-		let grid_max_y_bound: f32	= self.dimensions.0 as f32 * cell_size - cell_size;
+		let grid_max_y_bound: f32	= self.dimensions.0 as f32 * cell_size;
 
 		let mut position: Vec2 = Vec2 {
 			x: f32::floor(coordinates.y * cell_size),
@@ -832,7 +816,7 @@ impl SimGrid {
 
 			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
-			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(cell));
+			let density_weight: f32 = f32::max(1.0, cell_center.distance_squared(cell));
 			self.density[cell_lookup_index]	+= 1.0 / density_weight;
 		}
 	}
@@ -866,7 +850,7 @@ impl SimGrid {
 
 	// Get a cell lookup index into our spatial lookup table.
 	pub fn get_lookup_index(&self, cell_coordinates: Vec2) -> usize {
-		((cell_coordinates[0] as u16 * self.dimensions.1) + cell_coordinates[1] as u16) as usize
+		((cell_coordinates[0] as u16 * self.dimensions.0) + cell_coordinates[1] as u16) as usize
 	}
 
 
@@ -1046,6 +1030,7 @@ impl SimGrid {
                     cell_types[row][col] = SimGridCellType::Air;
                 }
                 else {
+                    println!("Labeling cell at row: {}, col: {} as fluid", row, col);
                     cell_types[row][col] = SimGridCellType::Fluid;
                 }
 
@@ -1101,8 +1086,6 @@ impl SimFaucet {
         constraints: &mut SimConstraints,
         grid: &mut SimGrid,
 		asset_server: &AssetServer) -> Result<()> {
-
-        let cell_coords = grid.get_cell_coordinates_from_position(&self.position);
 
         // Run fluid
         let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32));
