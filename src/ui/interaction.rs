@@ -48,13 +48,15 @@ pub fn handle_input(
 		if left_mouse_pressed	{ mouse_button = MouseButton::Left; }
 		else					{ mouse_button = MouseButton::Right; }
 		let mouse_held: bool = !mouse.just_pressed(mouse_button);
+        let cursor_position = get_cursor_position(&windows, &cameras);
 
         ev_tool_use.send(UseToolEvent::new(
-			ui_state.selected_tool,
-			get_cursor_position(&windows, &cameras),
-			Some(mouse_button),
-			mouse_held
-		));
+            ui_state.selected_tool,
+            cursor_position,
+            Some(mouse_button),
+            mouse_held
+        ));
+
 	}
 
 	/* Rotate/scale gravity when we press the arrow keys.  First, set the simulation's gravity to

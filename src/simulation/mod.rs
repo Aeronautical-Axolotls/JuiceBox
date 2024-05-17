@@ -2,20 +2,17 @@ pub mod sim_physics_engine;
 pub mod sim_state_manager;
 pub mod util;
 
-use std::f32::consts::PI;
-
 use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use bevy::math::Vec2;
-use bevy::input::mouse::MouseMotion;
 use crate::error::Error;
 use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
-use crate::test::test_state_manager::{self, construct_simulation_bias_test, construct_test_simulation_layout};
+use crate::test::test_state_manager::{construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particles_in_radius, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -52,18 +49,13 @@ fn update(
 	mut particles:		Query<(Entity, &mut SimParticle)>,
     faucets:		    Query<(Entity, &mut SimFaucet)>,
     drains:		        Query<(Entity, &mut SimDrain)>,
-	keys:				Res<Input<KeyCode>>,
 
 	mut commands:	Commands,
 	asset_server:	Res<AssetServer>,
     ui_state:       Res<UIStateManager>,
     ev_tool_use: 	EventReader<UseToolEvent>,
     ev_reset:   	EventReader<ResetEvent>,
-	ev_paused:		EventReader<PlayPauseStepEvent>,
-	ev_mouse_motion:	EventReader<MouseMotion>,
-	mut mut_cameras:		Query<(&mut Transform, &mut OrthographicProjection, With<Camera>)>) {
-
-	// TODO: Check for and handle simulation saving/loading.
+	ev_paused:		EventReader<PlayPauseStepEvent>) {
 
 	/* A fixed timestep is generally recommended for fluid simulations like ours.  Unfortunately,
 		this does mean that a lower framerate slows everything down, but it does prevent the
@@ -282,24 +274,30 @@ fn handle_events(
             }
             SimTool::AddDrain => {
 
+                // Don't add drain if we aren't clicking within the simulation.
+				if !grid.is_position_within_grid(&tool_use.pos) { continue; }
+
 				// Only allow the user to place a drain if they click, not hold the mouse button.
 				if tool_use.mouse_held {
 					break;
 				}
 
-                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius * grid.cell_size as f32, ui_state.drain_pressure).ok();
+                add_drain(&mut commands, &asset_server, grid, tool_use.pos, None, ui_state.drain_radius, ui_state.drain_pressure).ok();
             }
             SimTool::RemoveDrain => {
                 // Get closest drain id
                 for (drain_id, drain_props) in drains.iter() {
                     if tool_use.pos.distance(drain_props.position) <= (grid.cell_size as f32 * 3.0) {
                         // Delete the closest drain
-                        let _ = delete_drain(&mut commands, drains, drain_id);
+                        delete_drain(&mut commands, drains, drain_id).unwrap();
                         break;
                     }
                 }
             }
             SimTool::AddFaucet => {
+                //
+                // Don't add faucet if we aren't clicking within the simulation.
+				if !grid.is_position_within_grid(&tool_use.pos) { continue; }
 
 				// Only allow the user to place a faucet if they click, not hold the mouse button.
 				if tool_use.mouse_held {
@@ -319,7 +317,7 @@ fn handle_events(
                 for (faucet_id, faucet_props) in faucets.iter() {
                     if tool_use.pos.distance(faucet_props.position) <= (grid.cell_size as f32 * 3.0) {
                         // Delete the closest faucet
-                        let _ = delete_faucet(&mut commands, faucets, faucet_id);
+                        delete_faucet(&mut commands, faucets, faucet_id).unwrap();
                         break;
                     }
                 }
@@ -328,7 +326,9 @@ fn handle_events(
 			// We should not never ever wever get here:
 			_ => {}
         }
+
     }
+
 }
 
 /// Change the direction and strength of gravity!
@@ -360,8 +360,6 @@ pub fn step_simulation_once(
 	drains:		    &Query<(Entity, &mut SimDrain)>,
 	timestep:		f32) {
 
-    // Run drains and faucets, panics if something weird/bad happens
-    activate_components(commands, &asset_server, constraints, particles, faucets, drains, grid).ok();
 
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
@@ -386,6 +384,9 @@ pub fn step_simulation_once(
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints);
     extrapolate_values(grid, 1);
+
+    // Run drains and faucets, panics if something weird/bad happens
+    activate_components(commands, &asset_server, constraints, particles, faucets, drains, grid).ok();
 }
 
 /// Reset simulation components to their default state and delete all particles.
@@ -412,8 +413,8 @@ pub fn reset_simulation_to_default(
 	grid.cell_size			= reset_grid.cell_size;
 	grid.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
 	grid.cell_center		= vec![vec![0.0; row_count]; col_count];
-	grid.velocity_u			= vec![vec![0.0; row_count + 1]; col_count];
-	grid.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
+	grid.velocity_u			= vec![vec![f32::MIN; row_count + 1]; col_count];
+	grid.velocity_v			= vec![vec![f32::MIN; row_count]; col_count + 1];
 	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
 	grid.density			= vec![0.0; row_count * col_count];
 
@@ -736,42 +737,48 @@ impl SimGrid {
 			y: position.y - adj_radius,
 		};
 
-		// Find the number of cells we need to check.
-		let mut x_cell_count: usize			= (selection_max_bound.x - selection_min_bound.x) as usize;
-		let mut y_cell_count: usize			= (selection_max_bound.y - selection_min_bound.y) as usize;
+		/* Find the number of cells we need to check.  Make sure to ceil and floor these values;
+			otherwise, we introduce hard-to-find bugs where this function selects fewer cells than
+			necessary. */
+		let mut x_cell_count: usize			= (f32::ceil(selection_max_bound.x) - f32::floor(selection_min_bound.x)) as usize;
+		let mut y_cell_count: usize			= (f32::ceil(selection_max_bound.y) - f32::floor(selection_min_bound.y)) as usize;
 		x_cell_count						/= self.cell_size as usize;
 		y_cell_count						/= self.cell_size as usize;
 		let cells_in_selection_count: usize	= x_cell_count * y_cell_count;
 
-		// Figure out which grid cells we are actually going to be checking.
+		let mut actual_cell_count: usize	= cells_in_selection_count;
+		let mut actual_cell_index: usize	= 0;
+
+		// Populate a list of valid cells we are trying to select.
 		let mut cells_in_selection: Vec<Vec2>	= vec![Vec2::ZERO; cells_in_selection_count];
-		for cell_index in 0..cells_in_selection_count {
 
-			/* BUG: Sometimes the top two corner cells of the selection "flicker", and the sides have
-				an extra cell jutting out.  Not sure why, but my guess is it's a type casting or
-				rounding issue; not important (for now).  The corner flickering does affect the number
-				of cells checked, however the extra cell jutting out does not (making me think the
-				latter is a rendering issue).  Finally, the algorithm breaks down a little bit extra
-				if the radius is not a multiple of the grid cell size. */
+		let mut i: usize = 0;
+		for cell_x_index in 0..x_cell_count {
+			for cell_y_index in 0..y_cell_count {
 
-			// Per cell, get the x and y indices through our cell selection array.
-			let cell_y_index: usize	= (cell_index / y_cell_count) % y_cell_count;
-			let cell_x_index: usize	= cell_index % x_cell_count;
+				// Get the cell position relative to this selection's bounds.
+				let cell_position: Vec2 = Vec2 {
+					x: selection_min_bound.x + cell_x_index as f32 * self.cell_size as f32,
+					y: selection_min_bound.y + cell_y_index as f32 * self.cell_size as f32
+				};
 
-			// Convert the cell's x and y indices into a position, and then into a grid coordinate.
-			let cell_position: Vec2 = Vec2 {
-				x: selection_min_bound.x + cell_x_index as f32 * self.cell_size as f32,
-				y: selection_min_bound.y + cell_y_index as f32 * self.cell_size as f32
-			};
+				if self.is_position_within_grid(&cell_position) {
 
-			if self.is_position_within_grid(&cell_position) {
+					// Add our selected cell's coordinates to our list of selected cell coordinates!
+					let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
+					cells_in_selection[actual_cell_index] = cell_coordinates;
+					actual_cell_index += 1;
 
-				// Add our selected cell's coordinates to our list of selected cell coordinates!
-				let cell_coordinates = self.get_cell_coordinates_from_position(&cell_position);
-				cells_in_selection[cell_index] = cell_coordinates;
+					// If the cell is not valid, don't count it!
+				} else {
+					actual_cell_count -= 1;
+				}
+
+				i += 1;
 			}
 		}
 
+		cells_in_selection.resize(actual_cell_count, Vec2::ZERO);
 		cells_in_selection
 	}
 
@@ -813,11 +820,11 @@ impl SimGrid {
 		let center_cell		= self.get_cell_coordinates_from_position(&particle_position);
 
 		// For each nearby cell, add weighted density value based on distance to particle_position.
-		for cell in nearby_cells.iter() {
-			let cell_lookup_index = self.get_lookup_index(*cell);
+		for cell in nearby_cells {
+			let cell_lookup_index = self.get_lookup_index(cell);
 
 			// Get the center of the cell so we can weight density properly.
-			let cell_position: Vec2		= self.get_cell_position_from_coordinates(*cell);
+			let cell_position: Vec2		= self.get_cell_position_from_coordinates(cell);
 			let cell_center: Vec2		= Vec2 {
 				x: cell_position.x + (0.5 * self.cell_size as f32),
 				y: cell_position.y - (0.5 * self.cell_size as f32)
@@ -825,7 +832,7 @@ impl SimGrid {
 
 			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
-			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
+			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(cell));
 			self.density[cell_lookup_index]	+= 1.0 / density_weight;
 		}
 	}
@@ -840,7 +847,7 @@ impl SimGrid {
 		let center_cell		= self.get_cell_coordinates_from_position(&position);
 
 		// For each nearby cell, add its density weighted based on position to final density value.
-		for mut cell in nearby_cells.iter() {
+		for cell in nearby_cells {
 
 			// If one of our cell is solid, use the center cell's density instead.
 			// if self.cell_type[cell.x as usize][cell.y as usize] == SimGridCellType::Solid {
@@ -849,8 +856,8 @@ impl SimGrid {
 
 			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
-			let cell_lookup_index = self.get_lookup_index(*cell);
-			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(*cell));
+			let cell_lookup_index = self.get_lookup_index(cell);
+			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(cell));
 			density += self.density[cell_lookup_index] / density_weight;
 		}
 
@@ -859,7 +866,7 @@ impl SimGrid {
 
 	// Get a cell lookup index into our spatial lookup table.
 	pub fn get_lookup_index(&self, cell_coordinates: Vec2) -> usize {
-		(cell_coordinates[1] as u16 + (cell_coordinates[0] as u16 * self.dimensions.0)) as usize
+		((cell_coordinates[0] as u16 * self.dimensions.1) + cell_coordinates[1] as u16) as usize
 	}
 
 
@@ -902,14 +909,14 @@ impl SimGrid {
 
 		let mut lookup_vector: Vec<Entity> = Vec::new();
 
-		for particle_id in self.spatial_lookup[lookup_index].iter() {
+		for particle_id in self.spatial_lookup[lookup_index].clone() {
 
 			// TODO: Don't use placeholder!  Bad kitty!!!
-			if *particle_id == Entity::PLACEHOLDER {
+			if particle_id == Entity::PLACEHOLDER {
 				continue;
 			}
 
-			lookup_vector.push(*particle_id);
+			lookup_vector.push(particle_id);
 		}
 
 		lookup_vector
@@ -1137,42 +1144,26 @@ impl SimDrain {
     pub fn drain(
         &self,
         commands: &mut Commands,
-        constraints: &mut SimConstraints,
         grid: &mut SimGrid,
         particles: &mut Query<(Entity, &mut SimParticle)>,
         ) -> Result<()> {
 
-        let nearby_particle_ids = select_particles(particles, grid, self.position, self.radius);
-
-        for particle_id in nearby_particle_ids.iter() {
-
-            let Ok((_, mut particle)) = particles.get_mut(*particle_id) else {
-                continue;
-            };
-
+        particles.par_iter_mut().for_each(|(_, mut particle)| {
             let distance = self.position.distance(particle.position);
             let distance_vector = particle.position - self.position;
             let polar_vector = cartesian_to_polar(distance_vector); // (magnitude, direction)
-            let pull_strength = self.pressure * (1.0 / polar_vector.x);
-
-            // prevent particle from being pulled past the drain
-            if distance < pull_strength {
-                let _ = delete_particle(commands, constraints, particles, grid, *particle_id);
-                continue;
-            }
+            let pull_strength = self.pressure.powf(2.0) / polar_vector.x;
 
             let pull_direction = polar_vector.y + degrees_to_radians(180.0);
             let pull_velocity = polar_to_cartesian(Vec2::new(pull_strength, pull_direction));
 
-            particle.position += pull_velocity;
-
-            if distance < grid.cell_size as f32 * 1.5 {
-                if let Err(_) = delete_particle(commands, constraints, particles, grid, *particle_id) {
-                    continue;
-                };
+            if distance < self.radius {
+                particle.velocity += pull_velocity;
             }
 
-        }
+        });
+
+        delete_particles_in_radius(commands, grid, particles, self.position, grid.cell_size as f32 * 1.5);
 
         Ok(())
     }

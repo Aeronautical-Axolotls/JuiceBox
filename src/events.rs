@@ -81,7 +81,6 @@ impl ModifyVisualizationEvent {
 		let fluid_color_variable: FluidColorRenderType = match ui_state.fluid_color_variable {
 			0 => { FluidColorRenderType::Velocity },
 			1 => { FluidColorRenderType::Density },
-			2 => { FluidColorRenderType::Pressure },
 			_ => { FluidColorRenderType::Arbitrary },
 		};
 

@@ -164,10 +164,10 @@ fn show_scene_manager_menu(
 
 /// File management row; align horizontally wrapped.
 fn show_file_manager_panel(
-	ui_state: &mut UIStateManager,
-	ui: &mut Ui,
-	current_file: &mut file_system::CurrentFile,
-	mut file_state: ResMut<NextState<file_system::JuiceStates>>) {
+	ui_state:		&mut UIStateManager,
+	ui:				&mut Ui,
+	current_file:	&mut file_system::CurrentFile,
+	file_state:		ResMut<NextState<file_system::JuiceStates>>) {
 
 	ui.horizontal_wrapped(|ui| {
 
@@ -240,11 +240,34 @@ fn show_tool_manager_panel(
 
 			let current_tool: SimTool = i.into();
 
-			// Add a button to the UI and switch the active tool when it is clicked!
-			if ui.add(egui::Button::image_and_text(
-				tool_icons[i].clone(), current_tool.as_str() )).clicked() {
+			/* If the currently selected tool corresponds to the button we are creating, highlight
+				and add it to the UI.  Otherwise, only add it to the UI. */
+			if ui_state.selected_tool == current_tool {
 
-				ui_state.selected_tool = current_tool;
+				// Store the previous text color and switch it to black for readability.
+				let prev_text_color = ui.visuals().text_color();
+				ui.visuals_mut().override_text_color = Some(Color32::BLACK);
+
+				// Create a highlighted button with the new text color.
+				let button = egui::Button::image_and_text(
+					tool_icons[i].clone(),
+					current_tool.as_str())
+						.fill(Color32::GOLD);
+
+				// Add the button to our UI!
+				ui.add(button);
+
+				// Reset text color.
+				ui.visuals_mut().override_text_color = Some(prev_text_color);
+
+			} else {
+				// Otherwise if the button is not clicked, draw it unhighlighted.
+				let button = egui::Button::image_and_text(tool_icons[i].clone(), current_tool.as_str());
+
+				// Add our button to the UI and switch the active tool when it is clicked!
+				if ui.add(button).clicked() {
+					ui_state.selected_tool = current_tool;
+				}
 			}
 		}
 	});
@@ -421,7 +444,7 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 
 				// Labels for each button.
 				ui.label("Color by:");
-				let color_options = ["Velocity", "Density", "Pressure", "None"];
+				let color_options = ["Velocity", "Density", "None"];
 
 				// Combobox setup and event polling:
 				if egui::ComboBox::from_id_source(0).show_index(
@@ -447,7 +470,7 @@ fn show_visualization_menu(ui_state: &mut UIStateManager, contexts: &mut EguiCon
 			// Sliders for the particle size and gravity direction.
 			if ui.add(egui::Slider::new(
 				&mut ui_state.particle_physical_size,
-				0.1..=5.0
+				0.2..=2.0
 			).text("Particle Size")).changed() { viz_mod = true; }
 		});
 	});

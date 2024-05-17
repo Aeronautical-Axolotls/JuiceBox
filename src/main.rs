@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_save::SavePlugin;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use test::test_state_manager::test_select_grid_cells;
 
 pub mod simulation;
 pub mod util;
@@ -17,6 +18,7 @@ fn main() {
 
     let mut juicebox: App = App::new();
 
+	juicebox.add_systems(Startup, util::set_window_icon);
 	juicebox.add_plugins((
 		DefaultPlugins
 			.set(util::create_window_plugin())
@@ -37,6 +39,5 @@ fn main() {
 		// FrameTimeDiagnosticsPlugin::default(),
 	));
 
-	juicebox.add_systems(Startup, util::set_window_icon);
 	juicebox.run();
 }
