@@ -461,8 +461,8 @@ pub fn grid_to_particles(
     // figure out which particles are 'within' that cell,
     // then apply the grid transformation
 
-    for row_index in 0..grid.dimensions.1 as usize {
-        for col_index in 0..grid.dimensions.0 as usize {
+    for row_index in 0..grid.dimensions.0 as usize {
+        for col_index in 0..grid.dimensions.1 as usize {
 
             // Skip over looking for particles where
             // they are not located
@@ -754,7 +754,6 @@ pub fn make_grid_velocities_incompressible(
 				}
 
 				// Calculate and sum the solid modifiers for each surrounding cell.
-                println!("Checking solids for Row: {}, Col: {}", row, col);
 				let solids: [u8; 5]	= calculate_cell_solids(&grid, row as usize, col as usize);
 				let left_solid: u8	= solids[1];
 				let right_solid: u8	= solids[2];
@@ -764,9 +763,9 @@ pub fn make_grid_velocities_incompressible(
 
 				if solids_sum == 0 {
 					continue;
-				} else if solids_sum != 4 {
-					println!("Solids: {:?}, Position: {}, State: {:?}", solids, grid.get_cell_center_position_from_coordinates(&Vec2::new(row as f32, col as f32)), grid.cell_type[row as usize][col as usize]);
-				}
+				} // else if solids_sum != 4 {
+					// println!("Solids: {:?}, Position: {}, State: {:?}", solids, grid.get_cell_center_position_from_coordinates(&Vec2::new(row as f32, col as f32)), grid.cell_type[row as usize][col as usize]);
+				// }
 
 				// Determine the inflow/outflow of the current cell.
 				let mut divergence: f32 = calculate_cell_divergence(

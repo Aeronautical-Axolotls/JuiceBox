@@ -531,14 +531,14 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (50, 50),
+			dimensions:	    (25, 50),
 			cell_size:		5,
-			cell_type:		vec![vec![SimGridCellType::Air; 50]; 50],
-            cell_center:    vec![vec![0.0; 50]; 50],
-			velocity_u:		vec![vec![0.0; 51]; 50],
-            velocity_v:     vec![vec![0.0; 50]; 51],
-			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 2500],
-			density:		vec![0.0; 2500],
+			cell_type:		vec![vec![SimGridCellType::Air; 50]; 25],
+            cell_center:    vec![vec![0.0; 50]; 25],
+			velocity_u:		vec![vec![0.0; 51]; 25],
+            velocity_v:     vec![vec![0.0; 50]; 26],
+			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 1250],
+			density:		vec![0.0; 1250],
 		}
 	}
 }
@@ -662,7 +662,7 @@ impl SimGrid {
 	pub fn get_cell_position_from_coordinates(&self, coordinates: Vec2) -> Vec2 {
 		let cell_size: f32			= self.cell_size as f32;
 		let grid_max_x_bound: f32	= self.dimensions.1 as f32 * cell_size;
-		let grid_max_y_bound: f32	= self.dimensions.0 as f32 * cell_size;
+		let grid_max_y_bound: f32	= self.dimensions.0 as f32 * cell_size - cell_size;
 
 		let mut position: Vec2 = Vec2 {
 			x: f32::floor(coordinates.y * cell_size),
@@ -809,14 +809,14 @@ impl SimGrid {
 
 			// Get the center of the cell so we can weight density properly.
 			let cell_position: Vec2		= self.get_cell_position_from_coordinates(cell);
-			let cell_center: Vec2		= Vec2 {
+			let current_cell_center: Vec2		= Vec2 {
 				x: cell_position.x + (0.5 * self.cell_size as f32),
 				y: cell_position.y - (0.5 * self.cell_size as f32)
 			};
 
 			/* Weight density based on the center cell's distance to neighbors.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
-			let density_weight: f32 = f32::max(1.0, cell_center.distance_squared(cell));
+			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(current_cell_center));
 			self.density[cell_lookup_index]	+= 1.0 / density_weight;
 		}
 	}
@@ -850,7 +850,7 @@ impl SimGrid {
 
 	// Get a cell lookup index into our spatial lookup table.
 	pub fn get_lookup_index(&self, cell_coordinates: Vec2) -> usize {
-		((cell_coordinates[0] as u16 * self.dimensions.0) + cell_coordinates[1] as u16) as usize
+		((cell_coordinates[0] as u16 * self.dimensions.1) + cell_coordinates[1] as u16) as usize
 	}
 
 
@@ -1030,7 +1030,6 @@ impl SimGrid {
                     cell_types[row][col] = SimGridCellType::Air;
                 }
                 else {
-                    println!("Labeling cell at row: {}, col: {} as fluid", row, col);
                     cell_types[row][col] = SimGridCellType::Fluid;
                 }
 
