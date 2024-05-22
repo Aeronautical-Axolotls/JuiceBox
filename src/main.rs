@@ -17,7 +17,6 @@ pub mod ui;
 fn main() {
 
     let mut juicebox: App = App::new();
-	juicebox.add_systems(Update, test_select_grid_cells);
 
 	juicebox.add_systems(Startup, util::set_window_icon);
 	juicebox.add_plugins((

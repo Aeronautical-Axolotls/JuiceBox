@@ -538,14 +538,14 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (25, 50),
+			dimensions:	    (50, 50),
 			cell_size:		5,
-			cell_type:		vec![vec![SimGridCellType::Air; 50]; 25],
-            cell_center:    vec![vec![0.0; 50]; 25],
-			velocity_u:		vec![vec![0.0; 51]; 25],
-            velocity_v:     vec![vec![0.0; 50]; 26],
-			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 1250],
-			density:		vec![0.0; 1250],
+			cell_type:		vec![vec![SimGridCellType::Air; 50]; 50],
+            cell_center:    vec![vec![0.0; 50]; 50],
+			velocity_u:		vec![vec![0.0; 51]; 50],
+            velocity_v:     vec![vec![0.0; 50]; 51],
+			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 5000],
+			density:		vec![0.0; 5000],
 		}
 	}
 }
