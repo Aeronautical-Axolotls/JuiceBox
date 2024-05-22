@@ -1,12 +1,13 @@
 use std::borrow::BorrowMut;
 use std::f32::consts::PI;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, ui};
 use bevy::input::mouse::MouseMotion;
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use crate::util::*;
 use crate::ui::UIStateManager;
 use crate::simulation::{change_gravity, SimConstraints, SimGrid};
+use crate::file_system::JuiceStates;
 
 use super::SimTool;
 
@@ -20,7 +21,8 @@ pub fn handle_input(
 	mut ui_state:     	ResMut<UIStateManager>,
     mut ev_reset:       EventWriter<ResetEvent>,
     mut ev_tool_use:	EventWriter<UseToolEvent>,
-	mut ev_pause:		EventWriter<PlayPauseStepEvent>) {
+	mut ev_pause:		EventWriter<PlayPauseStepEvent>,
+	mut file_state:		ResMut<NextState<JuiceStates>>) {
 
 	let left_mouse_pressed: bool	= mouse.pressed(MouseButton::Left);
 	let right_mouse_pressed: bool	= mouse.pressed(MouseButton::Right);
@@ -70,6 +72,8 @@ pub fn handle_input(
 	let polar_gravity			= cartesian_to_polar(constraints.gravity);
 	ui_state.gravity_magnitude	= f32::sqrt(polar_gravity.x / 4.0);
 	ui_state.gravity_direction	= radians_to_degrees(polar_gravity.y + PI);
+
+	file_state.set(ui_state.file_state.clone());
 }
 
 /// Handle all user input as it relates to the camera!

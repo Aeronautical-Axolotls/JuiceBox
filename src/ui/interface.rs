@@ -8,7 +8,7 @@ use egui::FontFamily::Proportional;
 use egui::FontId;
 use egui::TextStyle::*;
 
-use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, util};
+use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, file_system::JuiceStates, util};
 use crate::file_system;
 
 pub fn init_user_interface(
@@ -182,15 +182,15 @@ fn show_file_manager_panel(
 		);
 		// Do stuff when selection changes.
 		match file_selection {
-			1 => {  },
-			2 => { file_system::init_loading(None, current_file, file_state) },
-			3 => { file_system::init_saving(false, current_file, file_state) },
-			4 => { file_system::init_saving(true, current_file, file_state) },
+			1 => { ui_state.file_state = JuiceStates::New },
+			2 => { ui_state.file_state = JuiceStates::Loading },
+			3 => { ui_state.file_state = JuiceStates::Saving },
+			4 => { ui_state.file_state = JuiceStates::SavingAs },
 			_ => {},
 		}
 
 		// "Edit" scene dropdown.
-		let edit_options		= ["Edit", "Reset", "Clear"];
+		let edit_options		= ["Edit", "Reload", "Clear"];
 		let mut edit_selection	= 0;
 		egui::ComboBox::from_id_source(1).show_index(
 			ui,
@@ -200,7 +200,7 @@ fn show_file_manager_panel(
 		);
 		// Do stuff when selection changes.
 		match edit_selection {
-			1 => { ui_state.reset = true },
+			1 => { ui_state.file_state = JuiceStates::Reloading },
 			2 => {  },
 			_ => {},
 		}
@@ -293,7 +293,7 @@ fn show_current_tool_menu(
 		.show(contexts.ctx_mut(), |ui| {
 
 		// Align the buttons in this row horizontally from left to right.
-		ui.with_layout(egui::Layout::top_down(egui::Align::TOP), |ui| {
+		ui.with_layout(egui::Layout::top_down(egui::Align::BOTTOM), |ui| {
 
 			// Show different buttons depending on which tool is currently selected.
 			match ui_state.selected_tool {
