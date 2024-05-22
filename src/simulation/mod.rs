@@ -808,7 +808,6 @@ impl SimGrid {
 		/* Select all 9 nearby cells so we can weight their densities; a radius of grid.cell_size
 			automatically clamps to a 3x3 grid of cells surrounding the position vector. */
 		let nearby_cells	= self.select_grid_cells(particle_position, self.cell_size as f32);
-		let center_cell		= self.get_cell_coordinates_from_position(&particle_position);
 
 		// For each nearby cell, add weighted density value based on distance to particle_position.
 		for cell in nearby_cells {
