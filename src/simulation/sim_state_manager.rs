@@ -44,7 +44,7 @@ pub fn add_particles_in_radius(
 				x: center_position[0] + (f32::cos(angle) * ring_radius),
 				y: center_position[1] + (f32::sin(angle) * ring_radius),
 			};
-//
+
 			// If particle_position is outside the grid bounds, this will not create a particle:
 			let _particle = add_particle(commands, constraints, grid, asset_server, particle_position, velocity);
 		}
