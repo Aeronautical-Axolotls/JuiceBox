@@ -21,8 +21,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     let half_cell = grid.cell_size as f32 / 2.0;
 
     // Create new, blank grids
-	let mut velocity_u = vec![vec![f32::MIN; (grid.dimensions.0 + 1) as usize]; grid.dimensions.1 as usize];
-    let mut velocity_v = vec![vec![f32::MIN; grid.dimensions.0 as usize]; (grid.dimensions.1 + 1) as usize];
+	let mut velocity_u = vec![vec![f32::MIN; (grid.dimensions.1 + 1) as usize]; grid.dimensions.0 as usize];
+    let mut velocity_v = vec![vec![f32::MIN; grid.dimensions.1 as usize]; (grid.dimensions.0 + 1) as usize];
 
     // Go through each horizontal u velocity point in the MAC grid
     for row_index in 0..grid.dimensions.0 as usize {
@@ -169,8 +169,8 @@ pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     let (rows, cols) = old_grid.dimensions;
 
     let mut change_grid = old_grid.clone();
-	let mut change_u = vec![vec![f32::MIN; (old_grid.dimensions.0 + 1) as usize]; old_grid.dimensions.1 as usize];
-    let mut change_v = vec![vec![f32::MIN; old_grid.dimensions.0 as usize]; (old_grid.dimensions.1 + 1) as usize];
+	let mut change_u = vec![vec![f32::MIN; (cols + 1) as usize]; rows as usize];
+    let mut change_v = vec![vec![f32::MIN; cols as usize]; (rows + 1) as usize];
 
     for row_index in 0..rows as usize {
         for col_index in 0..(cols as usize + 1) {
@@ -461,8 +461,8 @@ pub fn grid_to_particles(
     // figure out which particles are 'within' that cell,
     // then apply the grid transformation
 
-    for row_index in 0..grid.dimensions.1 as usize {
-        for col_index in 0..grid.dimensions.0 as usize {
+    for row_index in 0..grid.dimensions.0 as usize {
+        for col_index in 0..grid.dimensions.1 as usize {
 
             // Skip over looking for particles where
             // they are not located
@@ -473,17 +473,18 @@ pub fn grid_to_particles(
                 SimGridCellType::Solid => {
                     continue;
                 },
-                SimGridCellType::Fluid => (),
+                SimGridCellType::Fluid => {
+                    // Grab the center postition of the cell
+                    let coords = Vec2::new(row_index as f32, col_index as f32);
+
+                    // Grab all the particles within this specific cell
+                    let particles_in_cell = collect_particles(grid, coords, particles);
+
+                    // Solve for the new velocities of the particles
+                    apply_grid(particles_in_cell, grid, change_grid, constraints);
+                },
             }
 
-            // Grab the center postition of the cell
-            let coords = Vec2::new(row_index as f32, col_index as f32);
-
-            // Grab all the particles within this specific cell
-            let particles_in_cell = collect_particles(grid, coords, particles);
-
-            // Solve for the new velocities of the particles
-            apply_grid(particles_in_cell, grid, change_grid, constraints);
         }
     }
 }
@@ -602,8 +603,8 @@ pub fn handle_particle_grid_collisions(
 	for (_, mut particle) in particles.iter_mut() {
 
 		// Don't let particles escape the grid!
-		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
-		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
+		let grid_width: f32		= (grid.cell_size * grid.dimensions.1) as f32;
+		let grid_height: f32	= (grid.cell_size * grid.dimensions.0) as f32;
 
 		// Left/right collision checks.
 		if particle.position.x < constraints.particle_radius {
@@ -759,10 +760,11 @@ pub fn make_grid_velocities_incompressible(
 				let up_solid: u8	= solids[3];
 				let down_solid: u8	= solids[4];
 				let solids_sum: u8	= left_solid + right_solid + up_solid + down_solid;
+
 				if solids_sum == 0 {
 					continue;
 				} // else if solids_sum != 4 {
-				// 	println!("{:?}", solids);
+					// println!("Solids: {:?}, Position: {}, State: {:?}", solids, grid.get_cell_center_position_from_coordinates(&Vec2::new(row as f32, col as f32)), grid.cell_type[row as usize][col as usize]);
 				// }
 
 				// Determine the inflow/outflow of the current cell.

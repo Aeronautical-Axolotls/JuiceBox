@@ -343,14 +343,14 @@ fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, m
 		for col in 0..grid.dimensions.1 {
 
 			// Uncomment to visualize all non-air cells within the simulation!
-			// if grid.cell_type[row as usize][col as usize] != SimGridCellType::Air {
-			// 	draw_solid_cell(		// Draw something if solid.
-			// 		grid.as_ref(),
-			// 		Vec2 { x: row as f32, y: col as f32 },
-			// 		Color::BLUE,
-			// 		&mut gizmos
-			// 	);
-			// }
+			if grid.cell_type[row as usize][col as usize] != SimGridCellType::Air {
+				draw_solid_cell(		// Draw something if solid.
+					grid.as_ref(),
+					Vec2 { x: row as f32, y: col as f32 },
+					Color::BLUE,
+					&mut gizmos
+				);
+			}
 
 			// Uncomment to visualize density per grid cell.
 			// let density: f32 = grid.get_density_at_position(grid.get_cell_position_from_coordinates(Vec2 { x: row as f32, y: col as f32 })) / 25.0;
@@ -379,7 +379,7 @@ fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, m
 fn draw_solid_cell(grid: &SimGrid, cell_coordinates: Vec2, color: Color, gizmos: &mut Gizmos) {
 
 	// Get cell position.
-	let grid_height: f32	= (grid.dimensions.1 * grid.cell_size) as f32;
+	let grid_height: f32	= (grid.dimensions.0 * grid.cell_size) as f32;
 	let half_cell_size: f32	= grid.cell_size as f32 * 0.5;
 	let position: Vec2 = Vec2 {
 		x: cell_coordinates[1] * (grid.cell_size as f32) + half_cell_size,
@@ -398,8 +398,8 @@ fn draw_solid_cell(grid: &SimGrid, cell_coordinates: Vec2, color: Color, gizmos:
 /// Draw grid cells based on SimGrid using Bevy's Gizmos!
 fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mut gizmos: Gizmos) {
 
-	let grid_width: f32		= (grid.dimensions.0 * grid.cell_size) as f32;
-	let grid_height: f32	= (grid.dimensions.1 * grid.cell_size) as f32;
+	let grid_width: f32		= (grid.dimensions.1 * grid.cell_size) as f32;
+	let grid_height: f32	= (grid.dimensions.0 * grid.cell_size) as f32;
 
 	// If we don't want to draw the grid cells, still outline the simulation.
 	if !grid_render_data.draw_grid {
@@ -417,7 +417,7 @@ fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mu
 	}
 
 	// Draw vertical grid lines.
-	for i in 0..((grid.dimensions.0 as u16) + 1) {
+	for i in 0..((grid.dimensions.1 as u16) + 1) {
 		let cell_bottom_position: Vec2 = Vec2 {
 			x: (i * grid.cell_size) as f32,
 			y: 0.0,
@@ -430,7 +430,7 @@ fn draw_grid_cells(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, mu
 	}
 
 	// Draw horizontal grid lines.
-	for i in 0..((grid.dimensions.1 as u16) + 1) {
+	for i in 0..((grid.dimensions.0 as u16) + 1) {
 		let cell_left_position: Vec2 = Vec2 {
 			x: 0.0,
 			y: (i * grid.cell_size) as f32,
@@ -453,8 +453,8 @@ fn draw_grid_vectors(
 		return;
 	}
 
-	for row in 0..grid.dimensions.1 {
-		for col in 0..grid.dimensions.0 {
+	for row in 0..grid.dimensions.0 {
+		for col in 0..grid.dimensions.1 {
 
 			/* Indices for each column/row of each u/v velocity component on the grid.  Note that
 				because each cell has two velocity components going in either direction, the
