@@ -65,7 +65,6 @@ pub fn interpolate_velocity(particle_pos: Vec2, grid: &SimGrid) -> Vec2 {
 
     let interp_velocity = Vec2::new(interp_velocity_u, interp_velocity_v);
 
-
     interp_velocity
 
 }
