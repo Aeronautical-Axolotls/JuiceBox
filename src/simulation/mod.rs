@@ -364,7 +364,7 @@ pub fn step_simulation_once(
 	/* Integrate particles, update their lookup indices, update grid density values, and process
 		collisions. */
     update_particles(constraints, particles, grid, timestep);
-    push_particles_apart(constraints, grid, particles);
+    // push_particles_apart(constraints, grid, particles);
     handle_particle_grid_collisions(constraints, grid, particles);
 
 	/* Label grid cells, transfer particle velocities to the grid, project/diffuse/advect them,
@@ -372,7 +372,7 @@ pub fn step_simulation_once(
 		fluid-air boundary. */
 	grid.label_cells();
 	particles_to_grid(grid, particles);
-    extrapolate_values(grid, 1);
+    // extrapolate_values(grid, 1);
 
     // Store a copy of the grid from the previous simulation step for "change grid" creation.
 	let old_grid = grid.clone();
@@ -380,13 +380,13 @@ pub fn step_simulation_once(
 	/* Make fluid incompressible, find the difference in grid from before incompressibility,
 		interpolate grid velocities back to each particle, and finally extrapolate velocity values
 		one final time! */
-    make_grid_velocities_incompressible(grid, constraints);
+    // make_grid_velocities_incompressible(grid, constraints);
     let change_grid = create_change_grid(&old_grid, &grid);
     grid_to_particles(grid, &change_grid, particles, constraints);
-    extrapolate_values(grid, 1);
+    // extrapolate_values(grid, 1);
 
     // Run drains and faucets, panics if something weird/bad happens
-    activate_components(commands, &asset_server, constraints, particles, faucets, drains, grid).ok();
+    // activate_components(commands, &asset_server, constraints, particles, faucets, drains, grid).ok();
 }
 
 /// Reset simulation components to their default state and delete all particles.
