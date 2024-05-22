@@ -538,12 +538,12 @@ impl Default for SimGrid {
 
 	fn default() -> SimGrid {
 		SimGrid {
-			dimensions:	    (50, 25),
+			dimensions:	    (25, 50),
 			cell_size:		5,
-			cell_type:		vec![vec![SimGridCellType::Air; 25]; 50],
-            cell_center:    vec![vec![0.0; 25]; 50],
-			velocity_u:		vec![vec![0.0; 26]; 50],
-            velocity_v:     vec![vec![0.0; 25]; 51],
+			cell_type:		vec![vec![SimGridCellType::Air; 50]; 25],
+            cell_center:    vec![vec![0.0; 50]; 25],
+			velocity_u:		vec![vec![0.0; 51]; 25],
+            velocity_v:     vec![vec![0.0; 50]; 26],
 			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 1250],
 			density:		vec![0.0; 1250],
 		}
@@ -627,8 +627,8 @@ impl SimGrid {
 	pub fn get_cell_type_value(&self, cell_row: usize, cell_col: usize) -> u8 {
 
 		// Because cell_x and cell_y are unsigned, we do not need an underflow check.
-		if cell_col >= self.dimensions.1 as usize ||
-			cell_row >= self.dimensions.0 as usize {
+		if cell_row >= self.dimensions.0 as usize ||
+			cell_col >= self.dimensions.1 as usize {
 			return 0;
 		}
 

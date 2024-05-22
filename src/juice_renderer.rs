@@ -343,14 +343,14 @@ fn draw_grid_solids(grid: Res<SimGrid>, grid_render_data: Res<GridRenderData>, m
 		for col in 0..grid.dimensions.1 {
 
 			// Uncomment to visualize all non-air cells within the simulation!
-			if grid.cell_type[row as usize][col as usize] != SimGridCellType::Air {
-				draw_solid_cell(		// Draw something if solid.
-					grid.as_ref(),
-					Vec2 { x: row as f32, y: col as f32 },
-					Color::BLUE,
-					&mut gizmos
-				);
-			}
+			// if grid.cell_type[row as usize][col as usize] != SimGridCellType::Air {
+			// 	draw_solid_cell(		// Draw something if solid.
+			// 		grid.as_ref(),
+			// 		Vec2 { x: row as f32, y: col as f32 },
+			// 		Color::BLUE,
+			// 		&mut gizmos
+			// 	);
+			// }
 
 			// Uncomment to visualize density per grid cell.
 			// let density: f32 = grid.get_density_at_position(grid.get_cell_position_from_coordinates(Vec2 { x: row as f32, y: col as f32 })) / 25.0;
