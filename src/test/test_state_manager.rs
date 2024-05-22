@@ -310,7 +310,7 @@ pub fn test_select_grid_cells(
 	cameras:			Query<(&Camera, &GlobalTransform)>,
 	mut gizmos:			Gizmos) {
 
-	let radius: f32				= 55.0;
+	let radius: f32				= 5.0;
 	let cursor_position: Vec2	= get_cursor_position(&windows, &cameras);
 
 	// Test cell selection.
