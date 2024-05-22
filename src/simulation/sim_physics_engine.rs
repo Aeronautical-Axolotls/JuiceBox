@@ -20,13 +20,18 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     // easy measurement for half the cell size
     let half_cell = grid.cell_size as f32 / 2.0;
 
+    let (rows, cols) = grid.dimensions;
+
+    let grid_height = rows as f32 * grid.cell_size as f32;
+    let grid_width = cols as f32 * grid.cell_size as f32;
+
     // Create new, blank grids
-	let mut velocity_u = vec![vec![f32::MIN; (grid.dimensions.1 + 1) as usize]; grid.dimensions.0 as usize];
-    let mut velocity_v = vec![vec![f32::MIN; grid.dimensions.1 as usize]; (grid.dimensions.0 + 1) as usize];
+	let mut velocity_u = vec![vec![f32::MIN; (cols + 1) as usize]; rows as usize];
+    let mut velocity_v = vec![vec![f32::MIN; cols as usize]; (rows + 1) as usize];
 
     // Go through each horizontal u velocity point in the MAC grid
-    for row_index in 0..grid.dimensions.0 as usize {
-        for col_index in 0..grid.dimensions.1 as usize + 1 {
+    for row_index in 0..rows as usize {
+        for col_index in 0..cols as usize + 1 {
 
             // Get (x, y) of current velocity point
             let pos = grid.get_velocity_point_pos(
@@ -43,7 +48,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                 continue;
             }
 
-            if right_center.x > grid.dimensions.1 as f32 * grid.cell_size as f32 {
+            if right_center.x > grid_width {
                 continue;
             }
 
@@ -88,8 +93,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     }
 
     // Do the same thing for vertical velocity points within the MAC grid
-    for row_index in 0..grid.dimensions.0 as usize + 1 {
-        for col_index in 0..grid.dimensions.1 as usize {
+    for row_index in 0..rows as usize + 1 {
+        for col_index in 0..cols as usize {
 
             let pos = grid.get_velocity_point_pos(
                 row_index,
@@ -99,11 +104,11 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
             let bottom_center = pos - Vec2::new(0.0, half_cell);
             let top_center = pos + Vec2::new(0.0, half_cell);
 
-            if bottom_center.x < 0.0 {
+            if bottom_center.y < 0.0 {
                 continue;
             }
 
-            if top_center.x > grid.dimensions.0 as f32 * grid.cell_size as f32 {
+            if top_center.y > grid_height {
                 continue;
             }
 
