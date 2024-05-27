@@ -20,13 +20,18 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     // easy measurement for half the cell size
     let half_cell = grid.cell_size as f32 / 2.0;
 
+    let (rows, cols) = grid.dimensions;
+
+    let grid_height = rows as f32 * grid.cell_size as f32;
+    let grid_width = cols as f32 * grid.cell_size as f32;
+
     // Create new, blank grids
-	let mut velocity_u = vec![vec![f32::MIN; (grid.dimensions.0 + 1) as usize]; grid.dimensions.1 as usize];
-    let mut velocity_v = vec![vec![f32::MIN; grid.dimensions.0 as usize]; (grid.dimensions.1 + 1) as usize];
+	let mut velocity_u = vec![vec![f32::MIN; (cols + 1) as usize]; rows as usize];
+    let mut velocity_v = vec![vec![f32::MIN; cols as usize]; (rows + 1) as usize];
 
     // Go through each horizontal u velocity point in the MAC grid
-    for row_index in 0..grid.dimensions.0 as usize {
-        for col_index in 0..grid.dimensions.1 as usize + 1 {
+    for row_index in 0..rows as usize {
+        for col_index in 0..cols as usize + 1 {
 
             // Get (x, y) of current velocity point
             let pos = grid.get_velocity_point_pos(
@@ -43,7 +48,7 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
                 continue;
             }
 
-            if right_center.x > grid.dimensions.1 as f32 * grid.cell_size as f32 {
+            if right_center.x > grid_width {
                 continue;
             }
 
@@ -88,8 +93,8 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
     }
 
     // Do the same thing for vertical velocity points within the MAC grid
-    for row_index in 0..grid.dimensions.0 as usize + 1 {
-        for col_index in 0..grid.dimensions.1 as usize {
+    for row_index in 0..rows as usize + 1 {
+        for col_index in 0..cols as usize {
 
             let pos = grid.get_velocity_point_pos(
                 row_index,
@@ -99,11 +104,11 @@ pub fn particles_to_grid(grid: &mut SimGrid, particles: &mut Query<(Entity, &mut
             let bottom_center = pos - Vec2::new(0.0, half_cell);
             let top_center = pos + Vec2::new(0.0, half_cell);
 
-            if bottom_center.x < 0.0 {
+            if bottom_center.y < 0.0 {
                 continue;
             }
 
-            if top_center.x > grid.dimensions.0 as f32 * grid.cell_size as f32 {
+            if top_center.y > grid_height {
                 continue;
             }
 
@@ -169,8 +174,8 @@ pub fn create_change_grid(old_grid: &SimGrid, new_grid: &SimGrid) -> SimGrid {
     let (rows, cols) = old_grid.dimensions;
 
     let mut change_grid = old_grid.clone();
-	let mut change_u = vec![vec![f32::MIN; (old_grid.dimensions.0 + 1) as usize]; old_grid.dimensions.1 as usize];
-    let mut change_v = vec![vec![f32::MIN; old_grid.dimensions.0 as usize]; (old_grid.dimensions.1 + 1) as usize];
+	let mut change_u = vec![vec![f32::MIN; (cols + 1) as usize]; rows as usize];
+    let mut change_v = vec![vec![f32::MIN; cols as usize]; (rows + 1) as usize];
 
     for row_index in 0..rows as usize {
         for col_index in 0..(cols as usize + 1) {
@@ -461,8 +466,8 @@ pub fn grid_to_particles(
     // figure out which particles are 'within' that cell,
     // then apply the grid transformation
 
-    for row_index in 0..grid.dimensions.1 as usize {
-        for col_index in 0..grid.dimensions.0 as usize {
+    for row_index in 0..grid.dimensions.0 as usize {
+        for col_index in 0..grid.dimensions.1 as usize {
 
             // Skip over looking for particles where
             // they are not located
@@ -473,17 +478,18 @@ pub fn grid_to_particles(
                 SimGridCellType::Solid => {
                     continue;
                 },
-                SimGridCellType::Fluid => (),
+                SimGridCellType::Fluid => {
+                    // Grab the center postition of the cell
+                    let coords = Vec2::new(row_index as f32, col_index as f32);
+
+                    // Grab all the particles within this specific cell
+                    let particles_in_cell = collect_particles(grid, coords, particles);
+
+                    // Solve for the new velocities of the particles
+                    apply_grid(particles_in_cell, grid, change_grid, constraints);
+                },
             }
 
-            // Grab the center postition of the cell
-            let coords = Vec2::new(row_index as f32, col_index as f32);
-
-            // Grab all the particles within this specific cell
-            let particles_in_cell = collect_particles(grid, coords, particles);
-
-            // Solve for the new velocities of the particles
-            apply_grid(particles_in_cell, grid, change_grid, constraints);
         }
     }
 }
@@ -602,8 +608,8 @@ pub fn handle_particle_grid_collisions(
 	for (_, mut particle) in particles.iter_mut() {
 
 		// Don't let particles escape the grid!
-		let grid_width: f32		= (grid.cell_size * grid.dimensions.0) as f32;
-		let grid_height: f32	= (grid.cell_size * grid.dimensions.1) as f32;
+		let grid_width: f32		= (grid.cell_size * grid.dimensions.1) as f32;
+		let grid_height: f32	= (grid.cell_size * grid.dimensions.0) as f32;
 
 		// Left/right collision checks.
 		if particle.position.x < constraints.particle_radius {
@@ -759,10 +765,11 @@ pub fn make_grid_velocities_incompressible(
 				let up_solid: u8	= solids[3];
 				let down_solid: u8	= solids[4];
 				let solids_sum: u8	= left_solid + right_solid + up_solid + down_solid;
+
 				if solids_sum == 0 {
 					continue;
 				} // else if solids_sum != 4 {
-				// 	println!("{:?}", solids);
+					// println!("Solids: {:?}, Position: {}, State: {:?}", solids, grid.get_cell_center_position_from_coordinates(&Vec2::new(row as f32, col as f32)), grid.cell_type[row as usize][col as usize]);
 				// }
 
 				// Determine the inflow/outflow of the current cell.
@@ -832,9 +839,9 @@ fn calculate_cell_solids(grid: &SimGrid, cell_row: usize, cell_col: usize) -> [u
 	/* Calculate collision modifiers for each cell face.  Note that we must perform a wrapping
 		subtraction to prevent an underflow for our usize types. */
 	let collision_center: u8	= grid.get_cell_type_value(cell_row, cell_col);
-	let collision_left: u8		= grid.get_cell_type_value(usize::wrapping_sub(cell_col, 1), cell_col);
+	let collision_left: u8		= grid.get_cell_type_value(cell_row, usize::wrapping_sub(cell_col, 1));
 	let collision_right: u8		= grid.get_cell_type_value(cell_row, cell_col + 1);
-	let collision_up: u8		= grid.get_cell_type_value(cell_row, usize::wrapping_sub(cell_row, 1));
+	let collision_up: u8		= grid.get_cell_type_value(usize::wrapping_sub(cell_row, 1), cell_col);
 	let collision_down: u8		= grid.get_cell_type_value(cell_row + 1, cell_col);
 
 	[collision_center, collision_left, collision_right, collision_up, collision_down]

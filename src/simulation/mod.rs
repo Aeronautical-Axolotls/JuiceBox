@@ -12,7 +12,7 @@ use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particles_in_radius, select_particles};
+use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -387,6 +387,13 @@ pub fn step_simulation_once(
 
     // Run drains and faucets, panics if something weird/bad happens
     activate_components(commands, &asset_server, constraints, particles, faucets, drains, grid).ok();
+
+	// If a particle freaks out, get rid of it!
+	for particle in particles.iter() {
+		if particle.1.position.x.is_nan() || particle.1.position.y.is_nan() {
+			let _ = delete_particle(commands, constraints, particles, grid, particle.0);
+		}
+	}
 }
 
 /// Reset simulation components to their default state and delete all particles.
@@ -411,10 +418,10 @@ pub fn reset_simulation_to_default(
 	let col_count: usize	= reset_grid.dimensions.1 as usize;
 	grid.dimensions			= reset_grid.dimensions;
 	grid.cell_size			= reset_grid.cell_size;
-	grid.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
-	grid.cell_center		= vec![vec![0.0; row_count]; col_count];
-	grid.velocity_u			= vec![vec![f32::MIN; row_count + 1]; col_count];
-	grid.velocity_v			= vec![vec![f32::MIN; row_count]; col_count + 1];
+	grid.cell_type			= vec![vec![SimGridCellType::Air; col_count]; row_count];
+	grid.cell_center		= vec![vec![0.0; col_count]; row_count];
+	grid.velocity_u			= vec![vec![f32::MIN; col_count + 1]; row_count];
+	grid.velocity_v			= vec![vec![f32::MIN; col_count]; row_count + 1];
 	grid.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
 	grid.density			= vec![0.0; row_count * col_count];
 
@@ -537,45 +544,29 @@ impl Default for SimGrid {
             cell_center:    vec![vec![0.0; 50]; 50],
 			velocity_u:		vec![vec![0.0; 51]; 50],
             velocity_v:     vec![vec![0.0; 50]; 51],
-			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 2500],
-			density:		vec![0.0; 2500],
+			spatial_lookup:	vec![vec![Entity::PLACEHOLDER; 0]; 5000],
+			density:		vec![0.0; 5000],
 		}
 	}
 }
 
 impl SimGrid {
 
-	/// Create a new SimGrid!
-	fn change_dimensions(&mut self, dimensions: (u16, u16), cell_size: u16) {
-
-		let row_count: usize	= dimensions.0 as usize;
-		let col_count: usize	= dimensions.1 as usize;
-
-		self.dimensions			= dimensions;
-		self.cell_size			= cell_size;
-		self.cell_type			= vec![vec![SimGridCellType::Air; row_count]; col_count];
-		self.cell_center		= vec![vec![0.0; row_count]; col_count];
-		self.velocity_u			= vec![vec![0.0; row_count + 1]; col_count];
-		self.velocity_v			= vec![vec![0.0; row_count]; col_count + 1];
-		self.spatial_lookup		= vec![vec![Entity::PLACEHOLDER; 0]; row_count * col_count];
-		self.density			= vec![0.0; row_count * col_count];
-	}
-
 	/// Set simulation grid cell type.
     pub fn set_grid_cell_type(
         &mut self,
-        cell_x: usize,
-		cell_y: usize,
+        row: usize,
+		col: usize,
         cell_type: SimGridCellType) -> Result<()> {
 
-		if cell_x >= self.dimensions.0 as usize {
+		if row >= self.dimensions.0 as usize {
 			return Err(Error::OutOfGridBounds("X-coord. is out of bounds!"));
 		}
-		if cell_y >= self.dimensions.1 as usize {
+		if col >= self.dimensions.1 as usize {
 			return Err(Error::OutOfGridBounds("Y-coord. is out of bounds!"));
 		}
 
-        self.cell_type[cell_x][cell_y] = cell_type;
+        self.cell_type[row][col] = cell_type;
 
         Ok(())
     }
@@ -586,7 +577,7 @@ impl SimGrid {
         width: u16,
         height: u16) -> Result<()> {
 
-        self.dimensions = (width, height);
+        self.dimensions = (height, width);
 
         Ok(())
     }
@@ -655,7 +646,7 @@ impl SimGrid {
 		closest valid cell to any invalid position input.** */
 	pub fn get_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
 		let cell_size: f32			= self.cell_size as f32;
-		let grid_upper_bound: f32	= self.dimensions.1 as f32 * cell_size;
+		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
 
 		let mut coordinates: Vec2 = Vec2 {
 			x: f32::floor((grid_upper_bound - position[1]) / cell_size),	// Row
@@ -814,25 +805,24 @@ impl SimGrid {
 	/// Update each grid cell's density based on weighted particle influences.
 	pub fn update_grid_density(&mut self, particle_position: Vec2) {
 
-		/* Select all 9 nearby cells so we can weight their densities; a radius of 0.0
+		/* Select all 9 nearby cells so we can weight their densities; a radius of grid.cell_size
 			automatically clamps to a 3x3 grid of cells surrounding the position vector. */
-		let nearby_cells	= self.select_grid_cells(particle_position, 0.0);
-		let center_cell		= self.get_cell_coordinates_from_position(&particle_position);
+		let nearby_cells	= self.select_grid_cells(particle_position, self.cell_size as f32);
 
 		// For each nearby cell, add weighted density value based on distance to particle_position.
 		for cell in nearby_cells {
 			let cell_lookup_index = self.get_lookup_index(cell);
 
-			// Get the center of the cell so we can weight density properly.
-			let cell_position: Vec2		= self.get_cell_position_from_coordinates(cell);
-			let cell_center: Vec2		= Vec2 {
-				x: cell_position.x + (0.5 * self.cell_size as f32),
-				y: cell_position.y - (0.5 * self.cell_size as f32)
+			// Get the center of the current cell so we can weight density properly.
+			let current_cell_position: Vec2		= self.get_cell_position_from_coordinates(cell);
+			let current_cell_center: Vec2		= Vec2 {
+				x: current_cell_position.x + (0.5 * self.cell_size as f32),
+				y: current_cell_position.y - (0.5 * self.cell_size as f32)
 			};
 
-			/* Weight density based on the center cell's distance to neighbors.  Distance squared
+			/* Weight density based on the particle's distance to neighboring cells.  Distance squared
 				to save ourselves the sqrt(); density is arbitrary here anyways. */
-			let density_weight: f32 = f32::max(1.0, center_cell.distance_squared(cell));
+			let density_weight: f32 = f32::max(1.0, particle_position.distance_squared(current_cell_center));
 			self.density[cell_lookup_index]	+= 1.0 / density_weight;
 		}
 	}
@@ -1101,8 +1091,6 @@ impl SimFaucet {
         constraints: &mut SimConstraints,
         grid: &mut SimGrid,
 		asset_server: &AssetServer) -> Result<()> {
-
-        let cell_coords = grid.get_cell_coordinates_from_position(&self.position);
 
         // Run fluid
         let position = self.position + Vec2::new(0.0, -(grid.cell_size as f32));
