@@ -1,66 +1,63 @@
 use std::f32::consts::PI;
 
-use bevy::prelude::*;
-use bevy::math::Vec2;
 use crate::error::Error;
+use bevy::math::Vec2;
+use bevy::prelude::*;
 
 use super::*;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
 /** Add many particles into the simulation within a radius.  Note that particle_density is
-	the number of particles per unit radius. */
+the number of particles per unit radius. */
 pub fn add_particles_in_radius(
-	commands:			&mut Commands,
-	constraints:		&mut SimConstraints,
-	grid:				&mut SimGrid,
-	asset_server:		&AssetServer,
-	particle_density:	f32,
-	radius:				f32,
-	center_position:	Vec2,
-	velocity:			Vec2) {
+    commands: &mut Commands,
+    constraints: &mut SimConstraints,
+    grid: &mut SimGrid,
+    particle_density: f32,
+    radius: f32,
+    center_position: Vec2,
+    velocity: Vec2,
+) {
+    // Create center particle.
+    let _center_particle = add_particle(commands, constraints, grid, center_position, velocity);
 
-	// Create center particle.
-	let _center_particle = add_particle(commands, constraints, grid, center_position, velocity);
+    // Density for the rings inside the circle.
+    let ring_density: f32 = particle_density * 2.0;
 
-	// Density for the rings inside the circle.
-	let ring_density: f32		= particle_density * 2.0;
+    // Create concentric rings of particles that evenly space themselves out to form a circle!
+    let ring_count: usize = 1 + (radius * ring_density / 20.0) as usize * 2;
+    for ring_index in 1..ring_count {
+        /* Create each particle around the current ring. */
+        let ring_radius: f32 = ring_index as f32 / ring_density * 10.0;
+        let particle_count: usize = (ring_radius as f32 * particle_density) as usize;
+        for particle_index in 0..particle_count as usize {
+            // Find the angle around the circle so we can correctly position this particle.
+            let angle: f32 = particle_index as f32 * ((2.0 * PI) / particle_count as f32);
 
-	// Create concentric rings of particles that evenly space themselves out to form a circle!
-	let ring_count: usize = 1 + (radius * ring_density / 20.0) as usize * 2;
-	for ring_index in 1..ring_count {
+            // Find the position of the particle at the desired position around the ring.
+            let particle_position: Vec2 = Vec2 {
+                x: center_position[0] + (f32::cos(angle) * ring_radius),
+                y: center_position[1] + (f32::sin(angle) * ring_radius),
+            };
 
-		/* Create each particle around the current ring. */
-		let ring_radius: f32		= ring_index as f32 / ring_density * 10.0;
-		let particle_count: usize	= (ring_radius as f32 * particle_density) as usize;
-		for particle_index in 0..particle_count as usize {
-
-			// Find the angle around the circle so we can correctly position this particle.
-			let angle: f32 = particle_index as f32 * ((2.0 * PI) / particle_count as f32);
-
-			// Find the position of the particle at the desired position around the ring.
-			let particle_position: Vec2 = Vec2 {
-				x: center_position[0] + (f32::cos(angle) * ring_radius),
-				y: center_position[1] + (f32::sin(angle) * ring_radius),
-			};
-
-			// If particle_position is outside the grid bounds, this will not create a particle:
-			let _particle = add_particle(commands, constraints, grid, particle_position, velocity);
-		}
-	}
+            // If particle_position is outside the grid bounds, this will not create a particle:
+            let _particle = add_particle(commands, constraints, grid, particle_position, velocity);
+        }
+    }
 }
 
 pub fn delete_particles_in_radius(
-	commands:		&mut Commands,
-    grid:           &mut SimGrid,
-	particles:		&Query<(Entity, &mut SimParticle)>,
-    position:       Vec2,
-	radius:			f32) {
-
+    commands: &mut Commands,
+    grid: &mut SimGrid,
+    particles: &Query<(Entity, &mut SimParticle)>,
+    position: Vec2,
+    radius: f32,
+) {
     // Can't be par_iter() because &mut commands doesn't have Clone
-    particles.iter().for_each(|(id, particle)|{
+    particles.iter().for_each(|(id, particle)| {
         if position.distance(particle.position) <= radius {
-		    commands.entity(id).despawn();
+            commands.entity(id).despawn();
             grid.remove_particle_from_lookup(id, particle.lookup_index);
         }
     });
@@ -68,108 +65,106 @@ pub fn delete_particles_in_radius(
 
 /// Add particles into the simulation.
 pub fn add_particle(
-	commands:		&mut Commands,
-	constraints:	&mut SimConstraints,
-	grid:			&mut SimGrid,
-	position:		Vec2,
-	velocity:		Vec2) -> Result<()> {
+    commands: &mut Commands,
+    constraints: &mut SimConstraints,
+    grid: &mut SimGrid,
+    position: Vec2,
+    velocity: Vec2,
+) -> Result<()> {
+    // Don't allow the user to create particles out of the simulation grid's bounds!
+    if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
+        return Err(Error::OutOfGridBounds(
+            "X-coordinate for particle creation is out of grid bounds!",
+        ));
+    }
+    if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
+        return Err(Error::OutOfGridBounds(
+            "Y-coordinate for particle creation is out of grid bounds!",
+        ));
+    }
+    // If the cell we are inside of is a solid, don't create the particle!
+    let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&position);
+    if matches!(
+        grid.cell_type[cell_coordinates[0] as usize][cell_coordinates[1] as usize],
+        SimGridCellType::Solid
+    ) {
+        return Err(Error::InvalidCellParticleCreation("Chosen cell is solid!"));
+    }
 
-	// Don't allow the user to create particles out of the simulation grid's bounds!
-	if position[0] < 0.0 || position[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds(
-			"X-coordinate for particle creation is out of grid bounds!"
-		));
-	}
-	if position[1] < 0.0 || position[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds(
-			"Y-coordinate for particle creation is out of grid bounds!"
-		));
-	}
-	// If the cell we are inside of is a solid, don't create the particle!
-	let cell_coordinates: Vec2 = grid.get_cell_coordinates_from_position(&position);
-	if matches!(
-		grid.cell_type[cell_coordinates[0] as usize][cell_coordinates[1] as usize],
-		SimGridCellType::Solid) {
-		return Err(Error::InvalidCellParticleCreation("Chosen cell is solid!"));
-	}
+    // Add every particle to the 0-cell's lookup at first; we will sort this next frame.
+    let lookup_index: usize = 0;
+    let particle: Entity = commands
+        .spawn(SimParticle {
+            position: position,
+            velocity: velocity,
+            lookup_index: lookup_index,
+        })
+        .id();
+    grid.add_particle_to_lookup(particle, lookup_index);
 
-	// Add every particle to the 0-cell's lookup at first; we will sort this next frame.
-	let lookup_index: usize	= 0;
-	let particle: Entity	= commands.spawn(
-		SimParticle {
-			position:		position,
-			velocity:		velocity,
-			lookup_index:	lookup_index,
-		}
-	).id();
-	grid.add_particle_to_lookup(particle, lookup_index);
+    constraints.particle_count += 1;
 
-	constraints.particle_count += 1;
+    // IMPORTANT: Links a sprite to each particle for rendering.
+    // juice_renderer::link_particle_sprite(commands, asset_server, particle, position);
 
-	// IMPORTANT: Links a sprite to each particle for rendering.
-	// juice_renderer::link_particle_sprite(commands, asset_server, particle, position);
-
-	Ok(())
+    Ok(())
 }
 
 /// Remove a particle with ID particle_id from the simulation.
 pub fn delete_particle(
-	commands:		&mut Commands,
-	constraints:	&mut SimConstraints,
-	particles:		&Query<(Entity, &mut SimParticle)>,
-	grid:			&mut SimGrid,
-	particle_id:	Entity) -> Result<()> {
+    commands: &mut Commands,
+    constraints: &mut SimConstraints,
+    particles: &Query<(Entity, &mut SimParticle)>,
+    grid: &mut SimGrid,
+    particle_id: Entity,
+) -> Result<()> {
+    // Look for the particle in our particles query.
+    if let Ok(particle) = particles.get(particle_id) {
+        // Remove particle from lookup table and despawn it.
+        grid.remove_particle_from_lookup(particle_id, particle.1.lookup_index);
+        commands.entity(particle_id).despawn();
 
-	// Look for the particle in our particles query.
-	if let Ok(particle) = particles.get(particle_id) {
+        /* BUG: This overflowed once while testing, and I'm betting it's because I misuse
+        Entity::PLACEHOLDER.  Here is my silly little fix: */
+        if constraints.particle_count > 0 {
+            constraints.particle_count -= 1;
+        }
 
-		// Remove particle from lookup table and despawn it.
-		grid.remove_particle_from_lookup(particle_id, particle.1.lookup_index);
-		commands.entity(particle_id).despawn();
+        return Ok(());
+    }
 
-		/* BUG: This overflowed once while testing, and I'm betting it's because I misuse
-			Entity::PLACEHOLDER.  Here is my silly little fix: */
-		if constraints.particle_count > 0 {
-			constraints.particle_count -= 1;
-		}
-
-		return Ok(());
-	}
-
-	Err(Error::InvalidEntityID("Invalid particle entity ID!"))
+    Err(Error::InvalidEntityID("Invalid particle entity ID!"))
 }
 
 /// Reset all simulation components to their default state.
 pub fn delete_all_particles(
-	commands:		&mut Commands,
-	constraints:	&mut SimConstraints,
-	grid:			&mut SimGrid,
-	particles:		&Query<(Entity, &mut SimParticle)>) {
-
-	// KILL THEM ALL!!!
-	for (particle_id, _) in particles.iter() {
-		let _ = delete_particle(commands, constraints, particles, grid, particle_id);
-	}
+    commands: &mut Commands,
+    constraints: &mut SimConstraints,
+    grid: &mut SimGrid,
+    particles: &Query<(Entity, &mut SimParticle)>,
+) {
+    // KILL THEM ALL!!!
+    for (particle_id, _) in particles.iter() {
+        let _ = delete_particle(commands, constraints, particles, grid, particle_id);
+    }
 }
 
 /** Returns a vector of entity ID's of each particle within a circle centered at `position` with
-	radius `radius`; returns an empty vector if no particles are found. */
+radius `radius`; returns an empty vector if no particles are found. */
 pub fn select_particles<'a>(
-	particles:	&Query<(Entity, &mut SimParticle)>,
-	grid:		&SimGrid,
-	position:	Vec2,
-	radius:		f32) -> Vec<Entity> {
+    particles: &Query<(Entity, &mut SimParticle)>,
+    grid: &SimGrid,
+    position: Vec2,
+    radius: f32,
+) -> Vec<Entity> {
+    let mut selected_particles: Vec<Entity> = Vec::new();
 
-	let mut selected_particles: Vec<Entity>	= Vec::new();
+    // TODO: Maybe use map() here?  Idk.  Garrett I need u to explain map() to me I don't get it :(
+    let selected_cell_coordinates: Vec<Vec2> = grid.select_grid_cells(position, radius);
 
-	// TODO: Maybe use map() here?  Idk.  Garrett I need u to explain map() to me I don't get it :(
-	let selected_cell_coordinates: Vec<Vec2> = grid.select_grid_cells(position, radius);
-
-	for i in 0..selected_cell_coordinates.len() {
-
-		let cell_lookup_index: usize = grid.get_lookup_index(selected_cell_coordinates[i]);
-		for particle_id in grid.get_particles_in_lookup(cell_lookup_index) {
-
+    for i in 0..selected_cell_coordinates.len() {
+        let cell_lookup_index: usize = grid.get_lookup_index(selected_cell_coordinates[i]);
+        for particle_id in grid.get_particles_in_lookup(cell_lookup_index) {
             // Skip particles we can't find
             let Ok(particle_entity) = particles.get(particle_id) else {
                 continue;
@@ -177,148 +172,141 @@ pub fn select_particles<'a>(
 
             let particle = particle_entity.1;
 
-			// Avoid an unnecessary sqrt() here:
-			let distance: f32 = Vec2::distance_squared(position, particle.position);
+            // Avoid an unnecessary sqrt() here:
+            let distance: f32 = Vec2::distance_squared(position, particle.position);
 
-			// If we are within our radius, add the particle to the list and return it!
-			if distance < (radius * radius) {
-				selected_particles.push(particle_id);
-			}
-		}
-	}
+            // If we are within our radius, add the particle to the list and return it!
+            if distance < (radius * radius) {
+                selected_particles.push(particle_id);
+            }
+        }
+    }
 
-	selected_particles
+    selected_particles
 }
 
 pub fn add_faucet(
-	commands:			&mut Commands,
-	asset_server:		&AssetServer,
-	grid:				&mut SimGrid,
-    faucet_pos:         Vec2,
-    surface_direction:  Option<SimSurfaceDirection>,
-    faucet_diameter:    f32,
-    faucet_flow:        Vec2,
-    ) -> Result<()> {
-
-	if faucet_pos[0] < 0.0 || faucet_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds(
-			"X-coordinate for particle creation is out of grid bounds!"
-		));
-	}
+    commands: &mut Commands,
+    grid: &mut SimGrid,
+    faucet_pos: Vec2,
+    surface_direction: Option<SimSurfaceDirection>,
+    faucet_diameter: f32,
+    faucet_flow: Vec2,
+) -> Result<()> {
+    if faucet_pos[0] < 0.0 || faucet_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
+        return Err(Error::OutOfGridBounds(
+            "X-coordinate for particle creation is out of grid bounds!",
+        ));
+    }
     if faucet_pos[1] < 0.0 || faucet_pos[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds(
-			"Y-coordinate for particle creation is out of grid bounds!"
-		));
-	}
+        return Err(Error::OutOfGridBounds(
+            "Y-coordinate for particle creation is out of grid bounds!",
+        ));
+    }
 
-    let faucet = commands.spawn(
-        SimFaucet::new(faucet_pos, surface_direction, faucet_diameter, faucet_flow)
-    ).id();
-	// link_faucet_sprite(commands, &asset_server, faucet, faucet_pos);
-
+    let _faucet = commands
+        .spawn(SimFaucet::new(
+            faucet_pos,
+            surface_direction,
+            faucet_diameter,
+            faucet_flow,
+        ))
+        .id();
+    // link_faucet_sprite(commands, &asset_server, faucet, faucet_pos);
 
     Ok(())
 }
 
 /// Remove a faucet from simulation
 pub fn delete_faucet(
-	commands:		&mut Commands,
-	faucets:		&Query<(Entity, &mut SimFaucet)>,
-	faucet_id:	    Entity) -> Result<()> {
-
-	// Look for the faucet
+    commands: &mut Commands,
+    faucets: &Query<(Entity, &mut SimFaucet)>,
+    faucet_id: Entity,
+) -> Result<()> {
+    // Look for the faucet
     if let Err(_) = faucets.get(faucet_id) {
-	    return Err(Error::InvalidEntityID("Invalid faucet entity ID!"));
+        return Err(Error::InvalidEntityID("Invalid faucet entity ID!"));
     }
 
     commands.entity(faucet_id).despawn();
 
     return Ok(());
-
 }
 
 /// Remove all faucets from the simulation.
-pub fn delete_all_faucets(
-	commands:		&mut Commands,
-	faucets:		&Query<(Entity, &mut SimFaucet)>) {
-
-	// KILL THEM ALL!!!
-	for (faucet_id, _) in faucets.iter() {
-		let _ = delete_faucet(commands, faucets, faucet_id);
-	}
+pub fn delete_all_faucets(commands: &mut Commands, faucets: &Query<(Entity, &mut SimFaucet)>) {
+    // KILL THEM ALL!!!
+    for (faucet_id, _) in faucets.iter() {
+        let _ = delete_faucet(commands, faucets, faucet_id);
+    }
 }
 
-
 pub fn add_drain(
-	commands:			&mut Commands,
-	asset_server:		&AssetServer,
-	grid:				&mut SimGrid,
-    drain_pos:          Vec2,
-    surface_direction:  Option<SimSurfaceDirection>,
-    drain_radius:       f32,
-    drain_pressure:     f32,
-    ) -> Result<()> {
-
-	if drain_pos[0] < 0.0 || drain_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds(
-			"X-coordinate for particle creation is out of grid bounds!"
-		));
-	}
+    commands: &mut Commands,
+    grid: &mut SimGrid,
+    drain_pos: Vec2,
+    surface_direction: Option<SimSurfaceDirection>,
+    drain_radius: f32,
+    drain_pressure: f32,
+) -> Result<()> {
+    if drain_pos[0] < 0.0 || drain_pos[0] > (grid.dimensions.1 * grid.cell_size) as f32 {
+        return Err(Error::OutOfGridBounds(
+            "X-coordinate for particle creation is out of grid bounds!",
+        ));
+    }
     if drain_pos[1] < 0.0 || drain_pos[1] > (grid.dimensions.0 * grid.cell_size) as f32 {
-		return Err(Error::OutOfGridBounds(
-			"Y-coordinate for particle creation is out of grid bounds!"
-		));
-	}
+        return Err(Error::OutOfGridBounds(
+            "Y-coordinate for particle creation is out of grid bounds!",
+        ));
+    }
 
-    let drain = commands.spawn(
-        SimDrain::new(drain_pos, surface_direction, drain_radius, drain_pressure)
-    ).id();
-	// link_drain_sprite(commands, &asset_server, drain, drain_pos);
-
+    let _drain = commands
+        .spawn(SimDrain::new(
+            drain_pos,
+            surface_direction,
+            drain_radius,
+            drain_pressure,
+        ))
+        .id();
+    // link_drain_sprite(commands, &asset_server, drain, drain_pos);
 
     Ok(())
 }
 
 // Delete drain from simulation
 pub fn delete_drain(
-	commands:		&mut Commands,
-	drains:		&Query<(Entity, &mut SimDrain)>,
-	drain_id:	    Entity) -> Result<()> {
-
-	// Look for the drain
-	if let Err(_) = drains.get(drain_id) {
+    commands: &mut Commands,
+    drains: &Query<(Entity, &mut SimDrain)>,
+    drain_id: Entity,
+) -> Result<()> {
+    // Look for the drain
+    if let Err(_) = drains.get(drain_id) {
         return Err(Error::InvalidEntityID("Invalid drain entity ID!"));
-	}
+    }
 
     commands.entity(drain_id).despawn();
 
     return Ok(());
-
 }
 
 /// Remove all drains from the simulation.
-pub fn delete_all_drains(
-	commands:		&mut Commands,
-	drains:		&Query<(Entity, &mut SimDrain)>) {
-
-	// KILL THEM ALL!!!
-	for (drain_id, _) in drains.iter() {
-		let _ = delete_drain(commands, drains, drain_id);
-	}
+pub fn delete_all_drains(commands: &mut Commands, drains: &Query<(Entity, &mut SimDrain)>) {
+    // KILL THEM ALL!!!
+    for (drain_id, _) in drains.iter() {
+        let _ = delete_drain(commands, drains, drain_id);
+    }
 }
 
 pub fn activate_components(
-    commands:		&mut Commands,
-	asset_server:	&AssetServer,
-    constraints:	&mut SimConstraints,
-    particles:      &mut Query<(Entity, &mut SimParticle)>,
-    faucets:        &Query<(Entity, &mut SimFaucet)>,
-    drains:         &Query<(Entity, &mut SimDrain)>,
-    grid:           &mut SimGrid,
-    ) -> Result<()> {
-
+    commands: &mut Commands,
+    constraints: &mut SimConstraints,
+    particles: &mut Query<(Entity, &mut SimParticle)>,
+    faucets: &Query<(Entity, &mut SimFaucet)>,
+    drains: &Query<(Entity, &mut SimDrain)>,
+    grid: &mut SimGrid,
+) -> Result<()> {
     faucets.for_each(|(_, faucet)| {
-        faucet.run(commands, constraints, grid, &asset_server).unwrap();
+        faucet.run(commands, constraints, grid).unwrap();
     });
 
     drains.for_each(|(_, drain)| {
