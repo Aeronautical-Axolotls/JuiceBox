@@ -3,7 +3,6 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy::math::Vec2;
 use crate::error::Error;
-use crate::juice_renderer::{self, link_drain_sprite, link_faucet_sprite, link_particle_sprite};
 
 use super::*;
 
@@ -22,7 +21,7 @@ pub fn add_particles_in_radius(
 	velocity:			Vec2) {
 
 	// Create center particle.
-	let _center_particle = add_particle(commands, constraints, grid, asset_server, center_position, velocity);
+	let _center_particle = add_particle(commands, constraints, grid, center_position, velocity);
 
 	// Density for the rings inside the circle.
 	let ring_density: f32		= particle_density * 2.0;
@@ -46,7 +45,7 @@ pub fn add_particles_in_radius(
 			};
 
 			// If particle_position is outside the grid bounds, this will not create a particle:
-			let _particle = add_particle(commands, constraints, grid, asset_server, particle_position, velocity);
+			let _particle = add_particle(commands, constraints, grid, particle_position, velocity);
 		}
 	}
 }
@@ -72,7 +71,6 @@ pub fn add_particle(
 	commands:		&mut Commands,
 	constraints:	&mut SimConstraints,
 	grid:			&mut SimGrid,
-	asset_server:	&AssetServer,
 	position:		Vec2,
 	velocity:		Vec2) -> Result<()> {
 

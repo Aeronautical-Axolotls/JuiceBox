@@ -10,7 +10,7 @@ use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
-use crate::test::test_state_manager::{construct_new_simulation, construct_simulation_bias_test, construct_test_simulation_layout};
+use crate::test::test_state_manager::construct_new_simulation;
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles};
 
@@ -29,12 +29,7 @@ impl Plugin for Simulation {
 }
 
 /// Simulation state manager initialization.
-fn setup(
-	mut commands:		Commands,
-	mut constraints:	ResMut<SimConstraints>,
-	mut grid:			ResMut<SimGrid>,
-	asset_server:		Res<AssetServer>,
-	mut ev_reset:       EventWriter<ResetEvent>) {
+fn setup(mut ev_reset: EventWriter<ResetEvent>) {
 
 	// construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
 	// construct_simulation_bias_test(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
@@ -172,7 +167,7 @@ fn handle_events(
 					for i in 0..selected_particles.len() {
 
 						// Get the particle as a SimParticle object.
-						let Ok((_, mut particle)) = particles.get(selected_particles[i])
+						let Ok((_, particle)) = particles.get(selected_particles[i])
 						else { continue; };
 
 						// Populate the saved particle list with the now confirmed-valid particle.
@@ -482,12 +477,12 @@ impl Default for SimConstraints {
 
 impl SimConstraints {
 	/// Change the gravity direction and strength constraints within the simulation.
-	fn change_gravity(sim: &mut SimConstraints, gravity: Vec2) {
+	fn _change_gravity(sim: &mut SimConstraints, gravity: Vec2) {
 		sim.gravity = gravity;
 	}
 
 	// Toggle Timestep from defualt and zero value
-	fn toggle_simulation_pause(sim: &mut SimConstraints) {
+	fn _toggle_simulation_pause(sim: &mut SimConstraints) {
 		if sim.incomp_iters_per_frame != 0 {
 			sim.incomp_iters_per_frame = 0;
 		}
@@ -498,12 +493,12 @@ impl SimConstraints {
 	}
 
 	// Changes number of iterations for incompressibility per frame.
-	fn change_incompressibility_timestep(sim: &mut SimConstraints, new_timstep: u8) {
+	fn _change_incompressibility_timestep(sim: &mut SimConstraints, new_timstep: u8) {
 		sim.incomp_iters_per_frame = new_timstep;
 	}
 
 	// Changes number of iterations for particle collision per frame.
-	fn change_collision_timestep(sim: &mut SimConstraints, new_timstep: u8) {
+	fn _change_collision_timestep(sim: &mut SimConstraints, new_timstep: u8) {
 		sim.collision_iters_per_frame = new_timstep;
 	}
 }
@@ -605,7 +600,7 @@ impl SimGrid {
         // `self.velocity_u` and `self.velocity_v`.
 
         let grid_height = self.dimensions.0 * self.cell_size;
-        let grid_length = self.dimensions.1 * self.cell_size;
+        // let grid_length = self.dimensions.1 * self.cell_size;
 
         let offset = (self.cell_size / 2) as f32;
 
@@ -669,7 +664,7 @@ impl SimGrid {
 		let cell_size: f32			= self.cell_size as f32;
 		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
 
-		let mut coordinates: Vec2 = Vec2 {
+		let coordinates: Vec2 = Vec2 {
 			x: f32::floor((grid_upper_bound - position[1]) / cell_size),	// Row
 			y: f32::floor(position[0] / cell_size),							// Column
 		};
@@ -758,7 +753,6 @@ impl SimGrid {
 		// Populate a list of valid cells we are trying to select.
 		let mut cells_in_selection: Vec<Vec2>	= vec![Vec2::ZERO; cells_in_selection_count];
 
-		let mut i: usize = 0;
 		for cell_x_index in 0..x_cell_count {
 			for cell_y_index in 0..y_cell_count {
 
@@ -779,8 +773,6 @@ impl SimGrid {
 				} else {
 					actual_cell_count -= 1;
 				}
-
-				i += 1;
 			}
 		}
 
@@ -956,7 +948,7 @@ impl SimGrid {
 
 		for particle_id in self.spatial_lookup[lookup_index].iter_mut() {
 			// Look for the particle in our particles query.
-			if let Ok(particle) = particles.get(*particle_id) {
+			if let Ok(_particle) = particles.get(*particle_id) {
 
 				/* Despawn particle; since we are already mutably borrowing the lookup table, we
 					can't remove any particles from the lookup table until we are done iterating
@@ -1089,19 +1081,18 @@ impl SimGrid {
 	/// Generate walls around simulation bounds.
 	pub fn force_edge_solids(&mut self) {
 
-		// // Set rows.
-		// for i in 0..(self.dimensions.0 as usize) {
-		// 	self.set_grid_cell_type(i, 0, SimGridCellType::Solid);
-		// 	self.set_grid_cell_type(i, (self.dimensions.0 - 1) as usize, SimGridCellType::Solid);
-		// }
+		// Set rows.
+		for i in 0..(self.dimensions.0 as usize) {
+			let _ = self.set_grid_cell_type(i, 0, SimGridCellType::Solid);
+			let _ = self.set_grid_cell_type(i, (self.dimensions.0 - 1) as usize, SimGridCellType::Solid);
+		}
 
-		// // Set columns.
-		// for i in 0..(self.dimensions.1 as usize) {
-		// 	self.set_grid_cell_type((self.dimensions.0 - 1) as usize, i, SimGridCellType::Solid);
-		// 	self.set_grid_cell_type(0, i, SimGridCellType::Solid);
-		// }
+		// Set columns.
+		for i in 0..(self.dimensions.1 as usize) {
+			let _ = self.set_grid_cell_type((self.dimensions.0 - 1) as usize, i, SimGridCellType::Solid);
+			let _ = self.set_grid_cell_type(0, i, SimGridCellType::Solid);
+		}
 	}
-
 }
 
 #[derive(Component, Default, Reflect)]

@@ -3,19 +3,22 @@
 // TODO: The app crashes when the user closes a file dialog or tries to select a wrong file. Fix this.
 
 use bevy::ecs::query::*;
-use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy_save::*;
 use std;
 use std::path::PathBuf;
 
 use crate::error::Error;
-use crate::juice_renderer::link_particle_sprite;
 use crate::simulation::{
-    reset_simulation_to_default, SimConstraints, SimDrain, SimFaucet, SimGrid, SimGridCellType, SimParticle, SimSurfaceDirection
+    SimConstraints,
+	SimDrain,
+	SimFaucet,
+	SimGrid,
+	SimGridCellType,
+	SimParticle,
+	SimSurfaceDirection,
 };
 use crate::ui::UIStateManager;
-use crate::events::FileEvent;
 
 use std::io::{Read, Write};
 
@@ -81,7 +84,7 @@ impl Default for CurrentFile {
 }
 
 impl CurrentFile {
-    fn new(filepath: String) -> Self {
+    fn _new(filepath: String) -> Self {
         Self { filepath: filepath }
     }
 }
@@ -185,7 +188,7 @@ fn handle_new_scene(world: &mut World) {
     // Creates new file dialog asking the user to create new file.
     let key: String = match create_new_file() {
         Ok(filepath) => filepath,
-        Err(e) => {
+        Err(_e) => {
             println!("{}", Error::FileExplorer("User did not select file."));
             return ()
         },
@@ -205,7 +208,7 @@ fn handle_loading(world: &mut World) {
     // Creates new file dialog asking the user to select an existing file.
     let key: String = match get_file() {
         Ok(filepath) => filepath,
-        Err(e) => {
+        Err(_e) => {
             println!("{}", Error::FileExplorer("User did not select file."));
             return ()
         },
@@ -243,7 +246,7 @@ fn handle_saving_as(world: &mut World) {
     // Creates new file dialog asking the user to create new file.
     let key: String = match create_new_file() {
         Ok(filepath) => filepath,
-        Err(e) => {
+        Err(_e) => {
             println!("{}", Error::FileExplorer("User did not select file."));
             return ()
         },
@@ -268,7 +271,7 @@ fn reset_file_state(mut file_state: ResMut<NextState<JuiceStates>>, mut ui_state
 fn get_file() -> Result<String, Error> {
     let start_path = match std::env::current_dir() {
         Ok(path) => path,
-        Err(e) => {
+        Err(_e) => {
             return Err(Error::FileExplorer(
                 "Invalid starting directory or could not connect to file explorer",
             ))
@@ -286,7 +289,7 @@ fn get_file() -> Result<String, Error> {
 
     let full_key: String = match selected_path.into_os_string().into_string() {
         Ok(path) => path,
-        Err(e) => {
+        Err(_e) => {
             return Err(Error::FileExplorer(
                 "Format of path is invalid, cannot convert to String",
             ))
@@ -306,7 +309,7 @@ fn get_file() -> Result<String, Error> {
 fn create_new_file() -> Result<String, Error> {
     let start_path = match std::env::current_dir() {
         Ok(path) => path,
-        Err(e) => {
+        Err(_e) => {
             return Err(Error::FileExplorer(
                 "Invalid starting directory or could not connect to file explorer",
             ))
@@ -324,7 +327,7 @@ fn create_new_file() -> Result<String, Error> {
 
     let full_key: String = match selected_path.into_os_string().into_string() {
         Ok(path) => path,
-        Err(e) => {
+        Err(_e) => {
             return Err(Error::FileExplorer(
                 "Format of path is invalid, cannot convert to String",
             ))
@@ -341,10 +344,10 @@ fn create_new_file() -> Result<String, Error> {
 /// Initiate new pipeline and load scene to key.
 fn load_scene(key: String, world: &mut World) {
     match world.load(JuicePipeline::new(key)) {
-        Ok(ok) => {
+        Ok(_ok) => {
 
         },
-        Err(e) => {
+        Err(_e) => {
             println!("{}", Error::FileExplorer("Did not load correctly, perhaps filepath was incorrect or file was corrupted?"));
             return ()
         },
@@ -368,10 +371,10 @@ fn load_scene(key: String, world: &mut World) {
 /// Initiate new pipeline and save scene to key.
 fn save_scene(key: String, world: &mut World) {
     match world.save(JuicePipeline::new(key)) {
-        Ok(ok) => {
+        Ok(_ok) => {
 
         },
-        Err(e) => {
+        Err(_e) => {
             println!("{}", Error::FileExplorer("Did not save correctly, perhaps filepath was incorrect?"));
             return ()
         },

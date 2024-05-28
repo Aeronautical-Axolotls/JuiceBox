@@ -1,15 +1,40 @@
 use bevy::{
-	ecs::{ entity::Entity, event::EventReader, query::With, system::{ Commands, NonSend, Query, Res, ResMut } }, gizmos::gizmos::Gizmos, input::{ keyboard::KeyCode, mouse::{MouseButton, MouseMotion}, Input }, math::{ Quat, Vec2, Vec3Swizzles, Vec4 }, prelude::Color, render::camera::{ Camera, OrthographicProjection }, time::Time, transform::components::{GlobalTransform, Transform}, utils::default, window::{ MonitorSelection, PrimaryWindow, Window, WindowMode, WindowPlugin, WindowPosition }, winit::WinitWindows
+	ecs::system::{
+		NonSend,
+		Query,
+	},
+	math::{
+		Quat,
+		Vec2,
+		Vec4,
+	},
+	prelude::Color,
+	render::camera::{
+		Camera,
+		OrthographicProjection,
+	},
+	time::Time,
+	transform::components::{
+		GlobalTransform,
+		Transform
+	},
+	utils::default,
+	window::{
+		MonitorSelection,
+		Window,
+		WindowPlugin,
+		WindowPosition
+	},
+	winit::WinitWindows,
 };
-use bevy_egui::egui::lerp;
 use winit::window::Icon;
 use std::{
 	f32::consts::{FRAC_PI_2, PI},
 	time::SystemTime,
 };
-use image::{DynamicImage, ImageBuffer, RgbImage, RgbaImage};
+use image::RgbaImage;
 
-use crate::{juice_renderer::draw_vector_arrow, simulation::{sim_state_manager, SimConstraints, SimGrid, SimGridCellType, SimParticle}, test::test_state_manager};
+use crate::simulation::{SimConstraints, SimGrid};
 
 pub const WINDOW_WIDTH: f32		= 1440.0;
 pub const WINDOW_HEIGHT: f32	= 1080.0;
@@ -279,7 +304,7 @@ pub fn set_window_icon(windows: NonSend<WinitWindows>)
 		let image_result = image::open("assets/juicebox_logo_256.png");
 		let image = match image_result {
 			Ok(img)		=> img.into_rgba8(),
-			Err(error)	=> {
+			Err(_error)	=> {
 				let rgb_img: RgbaImage = RgbaImage::new(16, 16);
 				rgb_img
 			}

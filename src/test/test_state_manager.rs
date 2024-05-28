@@ -171,7 +171,7 @@ pub fn construct_simulation_bias_test(
 			if x % 5 as usize == 0 && y % 5 as usize == 0 {
 				let grid_top: f32 = (grid.dimensions.0 * grid.cell_size) as f32;
 				let pos: Vec2 = Vec2 { x: x as f32, y: grid_top - y as f32 };
-				let _ = add_particle(commands, constraints, grid, asset_server, pos, Vec2::ZERO);
+				let _ = add_particle(commands, constraints, grid, pos, Vec2::ZERO);
 			}
 		}
 	}

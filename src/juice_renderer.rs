@@ -6,7 +6,7 @@ use bevy::{
 use crate::{
 	events::ModifyVisualizationEvent, simulation::{
 		SimConstraints, SimDrain, SimFaucet, SimGrid, SimGridCellType, SimParticle
-	}, test::test_state_manager::test_select_grid_cells, ui::{SimTool, UIStateManager}, util::{
+	}, ui::{SimTool, UIStateManager}, util::{
 		self, cartesian_to_polar, degrees_to_radians, get_cursor_position, JUICE_BLUE, JUICE_GREEN, JUICE_RED, JUICE_SKY_BLUE, JUICE_YELLOW
 	}
 };

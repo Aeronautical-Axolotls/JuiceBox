@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_save::SavePlugin;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use test::test_state_manager::test_select_grid_cells;
-
 pub mod simulation;
 pub mod util;
 pub mod juice_renderer;
