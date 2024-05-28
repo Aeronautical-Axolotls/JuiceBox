@@ -806,8 +806,17 @@ impl SimGrid {
 	pub fn update_grid_density(&mut self, particle_position: Vec2) {
 
 		/* Select all 9 nearby cells so we can weight their densities; a radius of grid.cell_size
-			automatically clamps to a 3x3 grid of cells surrounding the position vector. */
-		let nearby_cells	= self.select_grid_cells(particle_position, self.cell_size as f32);
+			automatically clamps to a 3x3 grid of cells surrounding the position vector.
+			shrink_to() just in case something goes wrong... */
+		let mut nearby_cells = self.select_grid_cells(particle_position, self.cell_size as f32);
+		nearby_cells.shrink_to(9);
+
+		/* Count the number of in/valid cells, and initialize a value to store density average.  For
+			each invalid cell, we will add the average density of all valid cells in our selection
+			to balance out density values towards the edges of the simulation! */
+		let valid_cell_count	= nearby_cells.len();
+		let invalid_cell_count	= 9 - valid_cell_count;
+		let mut density_sum		= 0.0;
 
 		// For each nearby cell, add weighted density value based on distance to particle_position.
 		for cell in nearby_cells {
@@ -821,10 +830,25 @@ impl SimGrid {
 			};
 
 			/* Weight density based on the particle's distance to neighboring cells.  Distance squared
-				to save ourselves the sqrt(); density is arbitrary here anyways. */
-			let density_weight: f32 = f32::max(1.0, particle_position.distance_squared(current_cell_center));
-			self.density[cell_lookup_index]	+= 1.0 / density_weight;
+				to save ourselves the sqrt(); density is arbitrary here anyways.  Compute the
+				inverse to weight close-by cells heavier and weight far-away cells lighter. */
+			let mut density_weight: f32	= particle_position.distance_squared(current_cell_center);
+			density_weight				= f32::max(1.0, density_weight);
+			let inv_density_weight		= 1.0 / density_weight;
+
+			// Add the inverted density weight to our average and our density lookup array.
+			self.density[cell_lookup_index]	+= inv_density_weight;
+			density_sum						+= inv_density_weight;
 		}
+
+		// Calculate the average density and the lookup index for the cell our particle resides in.
+		let density_avg					= density_sum / (valid_cell_count as f32);
+		let cell_coordinates			= self.get_cell_coordinates_from_position(&particle_position);
+		let center_cell_lookup_index	= self.get_lookup_index(cell_coordinates);
+
+		/* Account for invalid cells by adding the valid density average multiplied by the number
+			of invalid cells! */
+		self.density[center_cell_lookup_index]	+= density_avg * (invalid_cell_count as f32);
 	}
 
 	/// Gets an interpolated density value for a lookup index within the grid's bounds.
