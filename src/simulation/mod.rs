@@ -38,8 +38,8 @@ fn setup(
 
 	// construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
 	// construct_simulation_bias_test(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
-	construct_new_simulation(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
-	// ev_reset.send(ResetEvent);
+	// construct_new_simulation(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
+	ev_reset.send(ResetEvent);
 }
 
 /// Simulation state manager update; handles user interactions with the simulation.
@@ -99,6 +99,8 @@ fn update(
 		&ui_state,
 		fixed_timestep
 	);
+
+	grid.force_edge_solids();
 }
 
 /// Handles incoming events from the UI
@@ -119,7 +121,7 @@ fn handle_events(
     // If there is a reset event sent, we reset the simulation.
     for _ in ev_reset.read() {
         reset_simulation_to_default(&mut commands, constraints, grid, particles, faucets, drains);
-		construct_test_simulation_layout(constraints, grid, &mut commands, asset_server);
+		construct_new_simulation(constraints, grid, &mut commands, asset_server);
 		return;
     }
 
@@ -1083,6 +1085,22 @@ impl SimGrid {
         self.cell_type = cell_types;
 
     }
+
+	/// Generate walls around simulation bounds.
+	pub fn force_edge_solids(&mut self) {
+
+		// // Set rows.
+		// for i in 0..(self.dimensions.0 as usize) {
+		// 	self.set_grid_cell_type(i, 0, SimGridCellType::Solid);
+		// 	self.set_grid_cell_type(i, (self.dimensions.0 - 1) as usize, SimGridCellType::Solid);
+		// }
+
+		// // Set columns.
+		// for i in 0..(self.dimensions.1 as usize) {
+		// 	self.set_grid_cell_type((self.dimensions.0 - 1) as usize, i, SimGridCellType::Solid);
+		// 	self.set_grid_cell_type(0, i, SimGridCellType::Solid);
+		// }
+	}
 
 }
 
