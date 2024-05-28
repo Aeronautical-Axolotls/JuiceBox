@@ -3,19 +3,16 @@
 // TODO: The app crashes when the user closes a file dialog or tries to select a wrong file. Fix this.
 
 use bevy::ecs::query::*;
-use bevy::ecs::system::SystemState;
 use bevy::prelude::*;
 use bevy_save::*;
 use std;
 use std::path::PathBuf;
 
 use crate::error::Error;
-use crate::juice_renderer::link_particle_sprite;
 use crate::simulation::{
-    reset_simulation_to_default, SimConstraints, SimDrain, SimFaucet, SimGrid, SimGridCellType, SimParticle, SimSurfaceDirection
+    SimConstraints, SimDrain, SimFaucet, SimGrid, SimGridCellType, SimParticle, SimSurfaceDirection,
 };
 use crate::ui::UIStateManager;
-use crate::events::FileEvent;
 
 use std::io::{Read, Write};
 
@@ -35,8 +32,8 @@ impl Plugin for FileSystem {
         // Registering SimConstraints
         // All associated types are f32, usize, u8, and Vec2. All already registered
         app.register_type::<SimConstraints>();
-		app.register_type::<(Entity, Vec2)>();
-		app.register_type::<Vec<(Entity, Vec2)>>();
+        app.register_type::<(Entity, Vec2)>();
+        app.register_type::<Vec<(Entity, Vec2)>>();
 
         // Registering SimGrid and it's associated types
         app.register_type::<SimGrid>();
@@ -81,7 +78,7 @@ impl Default for CurrentFile {
 }
 
 impl CurrentFile {
-    fn new(filepath: String) -> Self {
+    fn _new(filepath: String) -> Self {
         Self { filepath: filepath }
     }
 }
@@ -126,7 +123,6 @@ impl Format for JUICEFormat {
     }
 }
 
-
 /// Pipeline for saving and loading files. Contains current key (filepath) and an implementation of bevy_save's Pipeline
 struct JuicePipeline {
     key: String, // The full filepath for the location of the file.
@@ -154,17 +150,17 @@ impl Pipeline for JuicePipeline {
     /// This is the Pipeline's way to save files. Most of the implementation is in bevy_save.
     fn capture(builder: SnapshotBuilder) -> Snapshot {
         builder
-			.deny_all()
-			.allow::<SimGrid>()
-			.allow::<SimConstraints>()
-			.allow::<SimParticle>()
-			// .allow::<SimFaucet>()
-			// .allow::<SimDrain>()
+            .deny_all()
+            .allow::<SimGrid>()
+            .allow::<SimConstraints>()
+            .allow::<SimParticle>()
+            // .allow::<SimFaucet>()
+            // .allow::<SimDrain>()
             .extract_resource::<SimGrid>()
             .extract_resource::<SimConstraints>()
             .extract_entities_matching(|e| e.contains::<SimParticle>())
-			// .extract_entities_matching(|e| e.contains::<SimFaucet>())
-			// .extract_entities_matching(|e| e.contains::<SimDrain>())
+            // .extract_entities_matching(|e| e.contains::<SimFaucet>())
+            // .extract_entities_matching(|e| e.contains::<SimDrain>())
             .build()
     }
 
@@ -181,14 +177,13 @@ impl Pipeline for JuicePipeline {
 }
 
 fn handle_new_scene(world: &mut World) {
-
     // Creates new file dialog asking the user to create new file.
     let key: String = match create_new_file() {
         Ok(filepath) => filepath,
-        Err(e) => {
+        Err(_e) => {
             println!("{}", Error::FileExplorer("User did not select file."));
-            return ()
-        },
+            return ();
+        }
     };
 
     // Setting CurrentFile to new file user just created.
@@ -205,10 +200,10 @@ fn handle_loading(world: &mut World) {
     // Creates new file dialog asking the user to select an existing file.
     let key: String = match get_file() {
         Ok(filepath) => filepath,
-        Err(e) => {
+        Err(_e) => {
             println!("{}", Error::FileExplorer("User did not select file."));
-            return ()
-        },
+            return ();
+        }
     };
 
     // Setting CurrentFile to new file user just created.
@@ -243,10 +238,10 @@ fn handle_saving_as(world: &mut World) {
     // Creates new file dialog asking the user to create new file.
     let key: String = match create_new_file() {
         Ok(filepath) => filepath,
-        Err(e) => {
+        Err(_e) => {
             println!("{}", Error::FileExplorer("User did not select file."));
-            return ()
-        },
+            return ();
+        }
     };
 
     // Setting CurrentFile to new file user just created.
@@ -258,7 +253,10 @@ fn handle_saving_as(world: &mut World) {
 }
 
 /// Sets state back to JuiceStates::Running.
-fn reset_file_state(mut file_state: ResMut<NextState<JuiceStates>>, mut ui_state_manager: ResMut<UIStateManager>) {
+fn reset_file_state(
+    mut file_state: ResMut<NextState<JuiceStates>>,
+    mut ui_state_manager: ResMut<UIStateManager>,
+) {
     println!("RESET FILE STATE RUN!");
     file_state.set(JuiceStates::default());
     ui_state_manager.file_state = JuiceStates::default();
@@ -268,7 +266,7 @@ fn reset_file_state(mut file_state: ResMut<NextState<JuiceStates>>, mut ui_state
 fn get_file() -> Result<String, Error> {
     let start_path = match std::env::current_dir() {
         Ok(path) => path,
-        Err(e) => {
+        Err(_e) => {
             return Err(Error::FileExplorer(
                 "Invalid starting directory or could not connect to file explorer",
             ))
@@ -286,7 +284,7 @@ fn get_file() -> Result<String, Error> {
 
     let full_key: String = match selected_path.into_os_string().into_string() {
         Ok(path) => path,
-        Err(e) => {
+        Err(_e) => {
             return Err(Error::FileExplorer(
                 "Format of path is invalid, cannot convert to String",
             ))
@@ -306,7 +304,7 @@ fn get_file() -> Result<String, Error> {
 fn create_new_file() -> Result<String, Error> {
     let start_path = match std::env::current_dir() {
         Ok(path) => path,
-        Err(e) => {
+        Err(_e) => {
             return Err(Error::FileExplorer(
                 "Invalid starting directory or could not connect to file explorer",
             ))
@@ -324,7 +322,7 @@ fn create_new_file() -> Result<String, Error> {
 
     let full_key: String = match selected_path.into_os_string().into_string() {
         Ok(path) => path,
-        Err(e) => {
+        Err(_e) => {
             return Err(Error::FileExplorer(
                 "Format of path is invalid, cannot convert to String",
             ))
@@ -341,39 +339,46 @@ fn create_new_file() -> Result<String, Error> {
 /// Initiate new pipeline and load scene to key.
 fn load_scene(key: String, world: &mut World) {
     match world.load(JuicePipeline::new(key)) {
-        Ok(ok) => {
-
-        },
-        Err(e) => {
-            println!("{}", Error::FileExplorer("Did not load correctly, perhaps filepath was incorrect or file was corrupted?"));
-            return ()
-        },
+        Ok(_ok) => {}
+        Err(_e) => {
+            println!(
+                "{}",
+                Error::FileExplorer(
+                    "Did not load correctly, perhaps filepath was incorrect or file was corrupted?"
+                )
+            );
+            return ();
+        }
     }
 
-	// Erase the spatial lookup table, this will cause "ghost particles" otherwise.
-	if let Some(mut grid) = world.get_resource_mut::<SimGrid>() {
-		grid.spatial_lookup = vec![vec![Entity::PLACEHOLDER; 0]; grid.dimensions.0 as usize * grid.dimensions.1 as usize];
-	} else {
-		println!("Grid not constructed in time; please reset simulation before continuing!");
-	}
+    // Erase the spatial lookup table, this will cause "ghost particles" otherwise.
+    if let Some(mut grid) = world.get_resource_mut::<SimGrid>() {
+        grid.spatial_lookup = vec![
+            vec![Entity::PLACEHOLDER; 0];
+            grid.dimensions.0 as usize * grid.dimensions.1 as usize
+        ];
+    } else {
+        println!("Grid not constructed in time; please reset simulation before continuing!");
+    }
 
-	// Pause the simulation once we have loaded in!
-	if let Some(mut constraints) = world.get_resource_mut::<SimConstraints>() {
-		constraints.is_paused = true;
-	} else {
-		println!("Constraints not constructed in time; cannot pause!");
-	}
+    // Pause the simulation once we have loaded in!
+    if let Some(mut constraints) = world.get_resource_mut::<SimConstraints>() {
+        constraints.is_paused = true;
+    } else {
+        println!("Constraints not constructed in time; cannot pause!");
+    }
 }
 
 /// Initiate new pipeline and save scene to key.
 fn save_scene(key: String, world: &mut World) {
     match world.save(JuicePipeline::new(key)) {
-        Ok(ok) => {
-
-        },
-        Err(e) => {
-            println!("{}", Error::FileExplorer("Did not save correctly, perhaps filepath was incorrect?"));
-            return ()
-        },
+        Ok(_ok) => {}
+        Err(_e) => {
+            println!(
+                "{}",
+                Error::FileExplorer("Did not save correctly, perhaps filepath was incorrect?")
+            );
+            return ();
+        }
     }
 }

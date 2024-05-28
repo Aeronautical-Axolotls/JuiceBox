@@ -1,42 +1,45 @@
-use bevy::math::Vec2;
-use bevy::prelude::*;
-use crate::simulation::sim_physics_engine::particles_to_grid;
+#[cfg(test)]
 use crate::simulation::util::interpolate_velocity;
-use crate::simulation::{self, SimConstraints, SimGrid, SimParticle};
+#[cfg(test)]
+use crate::simulation::{SimConstraints, SimGrid, SimParticle};
+#[cfg(test)]
 use crate::test::test_state_manager::{test_setup, test_update};
+#[cfg(test)]
+use bevy::math::Vec2;
+#[cfg(test)]
+use bevy::prelude::*;
 
 #[test]
 fn interpolation_test() {
-   let particle_pos = Vec2::new(12.0, 25.0);
+    let particle_pos = Vec2::new(12.0, 25.0);
 
-   let mut grid = SimGrid::default();
+    let mut grid = SimGrid::default();
 
-   for row in 0..(grid.dimensions.1 + 1) as usize {
-       for col in 0..grid.dimensions.0 as usize {
-           grid.velocity_v[row][col] = -9.8;
-       }
-   }
+    for row in 0..(grid.dimensions.1 + 1) as usize {
+        for col in 0..grid.dimensions.0 as usize {
+            grid.velocity_v[row][col] = -9.8;
+        }
+    }
 
-   let goal = Vec2::new(0.0, -9.8);
+    let goal = Vec2::new(0.0, -9.8);
 
-   let interpolated_velocity = interpolate_velocity(particle_pos, &grid);
+    let interpolated_velocity = interpolate_velocity(particle_pos, &grid);
 
-   let within_reason = (interpolated_velocity.y - goal.y).abs() < 0.001;
+    let within_reason = (interpolated_velocity.y - goal.y).abs() < 0.001;
 
-   assert_eq!(within_reason, true);
+    assert_eq!(within_reason, true);
 }
 
 #[test]
 fn velocity_transfer_test() {
-
     //First we setup the test world in bevy
     let mut juicebox_test = App::new();
 
     juicebox_test.insert_resource(SimGrid::default());
     juicebox_test.insert_resource(SimConstraints::default());
 
-	juicebox_test.add_systems(Startup, test_setup);
-	juicebox_test.add_systems(Update, test_update);
+    juicebox_test.add_systems(Startup, test_setup);
+    juicebox_test.add_systems(Update, test_update);
 
     // Then we run 1 step through the simulation with update()
     juicebox_test.update();
@@ -46,7 +49,7 @@ fn velocity_transfer_test() {
 
     // Get component data
     let vel_u = grid.velocity_u.clone();
-    let vel_v =  grid.velocity_v.clone();
+    let vel_v = grid.velocity_v.clone();
 
     // Setup test conditions
     let mut transfer_u = false;
@@ -78,7 +81,11 @@ fn velocity_transfer_test() {
     // Similarly to the grid, if we get a value other than
     // the default value, in this case Vec2::ZERO, we
     // successfully transfered velocities
-    for particle in juicebox_test.world.query::<&SimParticle>().iter(&juicebox_test.world) {
+    for particle in juicebox_test
+        .world
+        .query::<&SimParticle>()
+        .iter(&juicebox_test.world)
+    {
         if particle.velocity != Vec2::ZERO {
             transfer_particle = true;
         }
@@ -91,15 +98,14 @@ fn velocity_transfer_test() {
 
 #[test]
 fn extrapolate_test() {
-
     //First we setup the test world in bevy
     let mut juicebox_test = App::new();
 
     juicebox_test.insert_resource(SimGrid::default());
     juicebox_test.insert_resource(SimConstraints::default());
 
-	juicebox_test.add_systems(Startup, test_setup);
-	juicebox_test.add_systems(Update, test_update);
+    juicebox_test.add_systems(Startup, test_setup);
+    juicebox_test.add_systems(Update, test_update);
 
     // Then we run 1 step through the simulation with update()
     juicebox_test.update();
@@ -111,27 +117,27 @@ fn extrapolate_test() {
 
     // For each particle in the simulation we
     // check the velocities around it
-    for particle in juicebox_test.world.query::<&SimParticle>().iter(&juicebox_test.world) {
-
+    for particle in juicebox_test
+        .world
+        .query::<&SimParticle>()
+        .iter(&juicebox_test.world)
+    {
         let particle_coords = grid.get_cell_coordinates_from_position(&particle.position);
 
-        let offsets: [[i32; 2]; 4] = [
-            [0, 2],
-            [0, -2],
-            [2, 0],
-            [-2, 0],
-        ];
+        let offsets: [[i32; 2]; 4] = [[0, 2], [0, -2], [2, 0], [-2, 0]];
 
         // If there is a velocity that includes INFINITY, we didn't properly
         // extrapolate.
         for offset in offsets {
-            let cell_vel = grid.get_cell_velocity((particle_coords.x as i32 + offset[0]) as usize, (particle_coords.y as i32 + offset[1]) as usize);
+            let cell_vel = grid.get_cell_velocity(
+                (particle_coords.x as i32 + offset[0]) as usize,
+                (particle_coords.y as i32 + offset[1]) as usize,
+            );
 
             if cell_vel.x.abs() == f32::INFINITY || cell_vel.y.abs() == f32::INFINITY {
                 success = false;
             }
         }
-
     }
 
     assert_eq!(true, success);
