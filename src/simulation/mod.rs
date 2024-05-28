@@ -10,7 +10,7 @@ use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
-use crate::test::test_state_manager::{construct_test_simulation_layout};
+use crate::test::test_state_manager::{construct_new_simulation, construct_simulation_bias_test, construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles};
 
@@ -33,13 +33,13 @@ fn setup(
 	mut commands:		Commands,
 	mut constraints:	ResMut<SimConstraints>,
 	mut grid:			ResMut<SimGrid>,
-	asset_server:		Res<AssetServer>) {
+	asset_server:		Res<AssetServer>,
+	mut ev_reset:       EventWriter<ResetEvent>) {
 
-	construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
-	// construct_simulation_bias_test(constraints.as_mut(), grid.as_mut(), &mut commands);
-
-	// TODO: Get saved simulation data from most recently open file OR default file.
-	// TODO: Population constraints, grid, and particles with loaded data.
+	// construct_test_simulation_layout(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
+	// construct_simulation_bias_test(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
+	construct_new_simulation(constraints.as_mut(), grid.as_mut(), &mut commands, &asset_server);
+	// ev_reset.send(ResetEvent);
 }
 
 /// Simulation state manager update; handles user interactions with the simulation.
@@ -662,6 +662,19 @@ impl SimGrid {
 		coordinates
 	}
 
+	/** I shouldn't have written the original function that way... */
+	pub fn get_hypothetical_cell_coordinates_from_position(&self, position: &Vec2) -> Vec2 {
+		let cell_size: f32			= self.cell_size as f32;
+		let grid_upper_bound: f32	= self.dimensions.0 as f32 * cell_size;
+
+		let mut coordinates: Vec2 = Vec2 {
+			x: f32::floor((grid_upper_bound - position[1]) / cell_size),	// Row
+			y: f32::floor(position[0] / cell_size),							// Column
+		};
+
+		coordinates
+	}
+
 
 
 	/** Convert the Vec2 coordinates (row, column) to a position (x, y).  **will return the
@@ -847,7 +860,7 @@ impl SimGrid {
 		let center_cell_lookup_index	= self.get_lookup_index(cell_coordinates);
 
 		/* Account for invalid cells by adding the valid density average multiplied by the number
-			of invalid cells! */
+			of invalid (OOB) cells! */
 		self.density[center_cell_lookup_index]	+= density_avg * (invalid_cell_count as f32);
 	}
 

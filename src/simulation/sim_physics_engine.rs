@@ -549,53 +549,57 @@ fn integrate_particle_with_collisions(
 	target_position:	&Vec2,
 	target_velocity:	&Vec2) {
 
-	// Figure out the coordinates (and type) of the grid cell that the particle is heading towards.
-	let target_coordinates: Vec2	= grid.get_cell_coordinates_from_position(&target_position);
-	let target_cell_type: u8		= grid.get_cell_type_value(
-		target_coordinates.x as usize,
-		target_coordinates.y as usize
-	);
+	// Calculate the cell coords. (even if they are OOB) the particle will be in next frame if unimpeded.
+	let target_coordinates: Vec2 = grid.get_hypothetical_cell_coordinates_from_position(&target_position);
+	if grid.is_position_within_grid(target_position) {
 
-	// If the target position is not inside of a solid cell, move as normal.
-	if target_cell_type != 0 {
-		particle.position = *target_position;
-		particle.velocity = *target_velocity;
+		// Figure out the type of the valid grid cell that the particle is heading towards.
+		let target_cell_type: u8 = grid.get_cell_type_value(
+			target_coordinates.x as usize,
+			target_coordinates.y as usize
+		);
 
-		// While we are headed for a solid cell, collide with it!
+		// If the target position is not inside of a solid cell, move as normal.
+		if target_cell_type != 0 {
+			particle.position = *target_position;
+			particle.velocity = *target_velocity;
+			return;
+		}
+	}
+
+	// If we've gotten here, we are headed for a solid cell (or a boundary); we must collide with it!
+	let cell_center: Vec2 = grid.get_cell_center_position_from_coordinates(&target_coordinates);
+
+	// Check which direction the particle moved into the cell from this frame.
+	let cell_half_size: f32	= (grid.cell_size as f32) / 2.0;
+	let cell_left: f32		= cell_center.x - cell_half_size;// - constraints.particle_radius;
+	let cell_right: f32		= cell_center.x + cell_half_size;// + constraints.particle_radius;
+	let cell_top: f32		= cell_center.y + cell_half_size;// + constraints.particle_radius;
+	let cell_bottom: f32	= cell_center.y - cell_half_size;// - constraints.particle_radius;
+
+	// Set a small collision tolerance so our particles don't get stuck to walls.
+	let tolerance: f32		= 0.1;
+
+	if particle.position.x <= cell_left && target_position.x >= cell_left {
+		particle.position.x = cell_left - tolerance;
+		particle.velocity.x = 0.0;
+	} else if particle.position.x >= cell_right && target_position.x <= cell_right {
+		particle.position.x = cell_right + tolerance;
+		particle.velocity.x = 0.0;
 	} else {
-		let cell_center: Vec2 = grid.get_cell_center_position_from_coordinates(&target_coordinates);
+		particle.velocity.x = target_velocity.x;
+		particle.position.x = target_position.x;
+	}
 
-		// Check which direction the particle moved into the cell from this frame.
-		let cell_half_size: f32	= (grid.cell_size as f32) / 2.0;
-		let cell_left: f32		= cell_center.x - cell_half_size;// - constraints.particle_radius;
-		let cell_right: f32		= cell_center.x + cell_half_size;// + constraints.particle_radius;
-		let cell_top: f32		= cell_center.y + cell_half_size;// + constraints.particle_radius;
-		let cell_bottom: f32	= cell_center.y - cell_half_size;// - constraints.particle_radius;
-
-		// Set a small collision tolerance so our particles don't get stuck to walls.
-		let tolerance: f32		= 0.1;
-
-		if particle.position.x <= cell_left && target_position.x >= cell_left {
-			particle.position.x = cell_left - tolerance;
-			particle.velocity.x = 0.0;
-		} else if particle.position.x >= cell_right && target_position.x <= cell_right {
-			particle.position.x = cell_right + tolerance;
-			particle.velocity.x = 0.0;
-		} else {
-			particle.velocity.x = target_velocity.x;
-			particle.position.x = target_position.x;
-		}
-
-		if particle.position.y <= cell_bottom && target_position.y >= cell_bottom {
-			particle.position.y = cell_bottom - tolerance;
-			particle.velocity.y = 0.0;
-		} else if particle.position.y >= cell_top && target_position.y <= cell_top {
-			particle.position.y = cell_top + tolerance;
-			particle.velocity.y = 0.0;
-		} else {
-			particle.velocity.y = target_velocity.y;
-			particle.position.y = target_position.y;
-		}
+	if particle.position.y <= cell_bottom && target_position.y >= cell_bottom {
+		particle.position.y = cell_bottom - tolerance;
+		particle.velocity.y = 0.0;
+	} else if particle.position.y >= cell_top && target_position.y <= cell_top {
+		particle.position.y = cell_top + tolerance;
+		particle.velocity.y = 0.0;
+	} else {
+		particle.velocity.y = target_velocity.y;
+		particle.position.y = target_position.y;
 	}
 }
 
@@ -802,6 +806,11 @@ pub fn make_grid_velocities_incompressible(
 				grid.velocity_u[row as usize][(col + 1) as usize]	+= momentum * right_solid as f32;
 				grid.velocity_v[row as usize][col as usize]			+= momentum * up_solid as f32;
 				grid.velocity_v[(row + 1) as usize][col as usize]	-= momentum * down_solid as f32;
+
+				// grid.velocity_u[row as usize][col as usize]			*= left_solid as f32;
+				// grid.velocity_u[row as usize][(col + 1) as usize]	*= right_solid as f32;
+				// grid.velocity_v[row as usize][col as usize]			*= up_solid as f32;
+				// grid.velocity_v[(row + 1) as usize][col as usize]	*= down_solid as f32;
 			}
 		}
 	}

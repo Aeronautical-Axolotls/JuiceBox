@@ -25,6 +25,41 @@ use crate::simulation::{
 };
 use crate::util::{cartesian_to_polar, get_cursor_position, polar_to_cartesian};
 
+/// Construct the new simulation file.
+pub fn construct_new_simulation(
+	constraints:	&mut SimConstraints,
+	grid:			&mut SimGrid,
+	mut commands:	&mut Commands,
+	asset_server:	&AssetServer) {
+
+
+	// Generate walls around simulation bounds.
+    for i in 0..50 {
+        grid.set_grid_cell_type(49, i, SimGridCellType::Solid);
+        grid.set_grid_cell_type(0, i, SimGridCellType::Solid);
+        grid.set_grid_cell_type(i, 0, SimGridCellType::Solid);
+        grid.set_grid_cell_type(i, 49, SimGridCellType::Solid);
+    }
+
+	// Spawn a small group of particles at the center of the screen.
+	let grid_center: Vec2 = Vec2 {
+		x: (grid.dimensions.1 * grid.cell_size) as f32 * 0.5,
+		y: (grid.dimensions.0 * grid.cell_size) as f32 * 0.5,
+	};
+
+	let _party_boys = add_particles_in_radius(
+		commands,
+        constraints,
+		grid,
+		asset_server,
+		1.35,
+		50.0,
+		Vec2 { x: grid_center[0], y: grid_center[1] },
+		Vec2::ZERO
+	);
+
+	println!("Constructing the new simulation file with {} particles...", constraints.particle_count);
+}
 /// Create a simulation layout for testing.
 pub fn construct_test_simulation_layout(
 	constraints:	&mut SimConstraints,
