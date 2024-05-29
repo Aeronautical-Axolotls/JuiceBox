@@ -10,7 +10,7 @@
   <p align="center">
     JuiceBox is a 2D PIC/FLIP fluid simulator built in Rust using the Bevy game engine.
     <br />
-    <a href="[https://www.youtube.com/watch?v=czTksCF6X8Y](https://github.com/Aeronautical-Axolotls/JuiceBox/blob/main/.swm/juicebox-dev-docs.efj9m1jy.sw.md)"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/Aeronautical-Axolotls/JuiceBox/blob/main/.swm/juicebox-dev-docs.efj9m1jy.sw.md"><strong>Explore the docs »</strong></a>
     <br />
     <br />
   </p>
