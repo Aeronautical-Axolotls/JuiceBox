@@ -3,10 +3,11 @@ use std::f32::consts::PI;
 
 use bevy::{prelude::*, ui};
 use bevy::input::mouse::MouseMotion;
-use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
+use crate::events::{PlayPauseStepEvent, ResetEvent, ClearEvent, UseToolEvent};
+use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets, delete_all_particles};
 use crate::util::*;
 use crate::ui::UIStateManager;
-use crate::simulation::{change_gravity, SimConstraints, SimGrid};
+use crate::simulation::{change_gravity, SimConstraints, SimDrain, SimFaucet, SimGrid, SimParticle};
 use crate::file_system::JuiceStates;
 
 use super::SimTool;
@@ -20,6 +21,7 @@ pub fn handle_input(
 	cameras:			Query<(&Camera, &GlobalTransform)>,
 	mut ui_state:     	ResMut<UIStateManager>,
     mut ev_reset:       EventWriter<ResetEvent>,
+	mut ev_clear:		EventWriter<ClearEvent>,
     mut ev_tool_use:	EventWriter<UseToolEvent>,
 	mut ev_pause:		EventWriter<PlayPauseStepEvent>,
 	mut file_state:		ResMut<NextState<JuiceStates>>) {
@@ -34,7 +36,6 @@ pub fn handle_input(
 
 	// Reset simulation when we press R or when UI button is pressed.
 	if r_key_pressed { ev_reset.send(ResetEvent); return; }
-	if ui_state.reset { ui_state.reset = false; ev_reset.send(ResetEvent); return; }
 	// Pause/unpause the simulation if Space is pressed.
 	if space_pressed { ev_pause.send(PlayPauseStepEvent::new(false)); return; }
 	// Step once if the F key is pressed.
@@ -74,6 +75,12 @@ pub fn handle_input(
 	ui_state.gravity_direction	= radians_to_degrees(polar_gravity.y + PI);
 
 	file_state.set(ui_state.file_state.clone());
+
+	if (ui_state.clear == true) {
+		ev_clear.send(ClearEvent);
+		ui_state.clear = false;
+		return;
+	}
 }
 
 /// Handle all user input as it relates to the camera!

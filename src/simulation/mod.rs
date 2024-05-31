@@ -11,7 +11,7 @@ use crate::ui::{SimTool, UIStateManager};
 use crate::util::{degrees_to_radians, polar_to_cartesian, cartesian_to_polar};
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{construct_test_simulation_layout};
-use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
+use crate::events::{PlayPauseStepEvent, ResetEvent, ClearEvent, UseToolEvent};
 use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particles_in_radius, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -55,6 +55,7 @@ fn update(
     ui_state:       Res<UIStateManager>,
     ev_tool_use: 	EventReader<UseToolEvent>,
     ev_reset:   	EventReader<ResetEvent>,
+	ev_clear:		EventReader<ClearEvent>,
 	ev_paused:		EventReader<PlayPauseStepEvent>) {
 
 	/* A fixed timestep is generally recommended for fluid simulations like ours.  Unfortunately,
@@ -87,6 +88,7 @@ fn update(
 		they will not be removed from the simulation until the next reset event. */
 	handle_events(
 		ev_reset,
+		ev_clear,
 		ev_tool_use,
 		ev_paused,
 		&mut commands,
@@ -104,6 +106,7 @@ fn update(
 /// Handles incoming events from the UI
 fn handle_events(
     mut ev_reset:       EventReader<ResetEvent>,
+	mut ev_clear:		EventReader<ClearEvent>,
     mut ev_tool_use:    EventReader<UseToolEvent>,
 	mut ev_pause:		EventReader<PlayPauseStepEvent>,
 	mut commands:	    &mut Commands,
@@ -122,6 +125,13 @@ fn handle_events(
 		construct_test_simulation_layout(constraints, grid, &mut commands, asset_server);
 		return;
     }
+
+	for _ in ev_clear.read() {
+		delete_all_particles(commands, constraints, grid, particles);
+		delete_all_drains(commands, drains);
+		delete_all_faucets(commands, faucets);
+		return;
+	}
 
 	// If we receive a play/pause/step event, process it!
 	for ev in ev_pause.read() {

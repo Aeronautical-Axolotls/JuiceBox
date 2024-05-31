@@ -10,7 +10,7 @@ use bevy::prelude::*;
 use crate::file_system::{self, JuiceStates};
 use crate::{events::{ModifyVisualizationEvent, PlayPauseStepEvent}, util};
 use self::interaction::{change_cursor_icon, handle_input, handle_camera_input};
-use crate::events::{ResetEvent, UseToolEvent};
+use crate::events::{ResetEvent, ClearEvent, UseToolEvent};
 
 pub struct JuiceUI;
 impl Plugin for JuiceUI {
@@ -25,6 +25,7 @@ impl Plugin for JuiceUI {
 		app.add_systems(Update, change_cursor_icon);
 
 		app.add_event::<ResetEvent>();
+		app.add_event::<ClearEvent>();
         app.add_event::<UseToolEvent>();
 		app.add_event::<PlayPauseStepEvent>();
 		app.add_event::<ModifyVisualizationEvent>();
@@ -122,11 +123,7 @@ pub struct UIStateManager {
 	pub	show_informational:			bool,
 
 	pub file_state:					JuiceStates,
-	pub reset:						bool,
-	pub new:						bool,
-	pub load:						bool,
-	pub save:						bool,
-	pub save_as:					bool,
+	pub clear:						bool,
 }
 
 impl Default for UIStateManager {
@@ -176,11 +173,7 @@ impl Default for UIStateManager {
 
 			// File and scene stuff.
 			file_state:					JuiceStates::Running,
-			reset:						false,
-			new:						false,
-			load:						false,
-			save:						false,
-			save_as:					false,
+			clear:						false,
 		}
 	}
 }
