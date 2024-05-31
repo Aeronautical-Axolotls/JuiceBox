@@ -1,5 +1,5 @@
-use bevy::math::Vec2;
 use crate::error::Error;
+use bevy::math::Vec2;
 
 use super::SimGrid;
 
@@ -9,11 +9,7 @@ pub type Result<T> = core::result::Result<T, Error>;
     Find the weight of influence of a particle
     to a grid point.
 */
-pub fn find_influence(
-    particle_pos: Vec2,
-    grid_point: Vec2,
-    grid_scale: u16) -> f32 {
-
+pub fn find_influence(particle_pos: Vec2, grid_point: Vec2, grid_scale: u16) -> f32 {
     let diff = grid_point.distance(particle_pos);
 
     let scaled_diff = (diff as f32) / (grid_scale as f32);
@@ -37,7 +33,6 @@ pub fn find_influence(
     the cell.
 */
 pub fn interpolate_velocity(particle_pos: Vec2, grid: &SimGrid) -> Vec2 {
-
     // Grid points 0..3 are the four corners of the bilinear interpolation
     // in order of clockwise rotation around the particle point.
     // https://en.wikipedia.org/wiki/Bilinear_interpolation
@@ -59,13 +54,14 @@ pub fn interpolate_velocity(particle_pos: Vec2, grid: &SimGrid) -> Vec2 {
     let right_u_velocity = grid.velocity_u[row][col + 1];
     let bottom_v_velocity = grid.velocity_v[row + 1][col];
 
-
-    let interp_velocity_u = (((right_u_pos.x - particle_pos.x) / (right_u_pos.x - left_u_pos.x)) * left_u_velocity) + (((particle_pos.x - left_u_pos.x) / (right_u_pos.x - left_u_pos.x)) * right_u_velocity);
-    let interp_velocity_v = ((top_v_pos.y - particle_pos.y) / (top_v_pos.y - bottom_v_pos.y) * bottom_v_velocity) + (((particle_pos.y - bottom_v_pos.y) / (top_v_pos.y - bottom_v_pos.y)) * top_v_velocity);
+    let interp_velocity_u = (((right_u_pos.x - particle_pos.x) / (right_u_pos.x - left_u_pos.x))
+        * left_u_velocity)
+        + (((particle_pos.x - left_u_pos.x) / (right_u_pos.x - left_u_pos.x)) * right_u_velocity);
+    let interp_velocity_v = ((top_v_pos.y - particle_pos.y) / (top_v_pos.y - bottom_v_pos.y)
+        * bottom_v_velocity)
+        + (((particle_pos.y - bottom_v_pos.y) / (top_v_pos.y - bottom_v_pos.y)) * top_v_velocity);
 
     let interp_velocity = Vec2::new(interp_velocity_u, interp_velocity_v);
 
-
     interp_velocity
-
 }
