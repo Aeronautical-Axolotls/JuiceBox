@@ -7,10 +7,9 @@ use bevy::prelude::*;
 use self::sim_state_manager::{
     activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles,
     delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles,
+	delete_all_drains, delete_all_faucets,
 };
 use crate::error::Error;
-use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
 use crate::test::test_state_manager::construct_new_simulation;
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{cartesian_to_polar, degrees_to_radians, polar_to_cartesian};
@@ -18,7 +17,6 @@ use bevy::math::Vec2;
 use sim_physics_engine::*;
 use crate::test::test_state_manager::{construct_test_simulation_layout};
 use crate::events::{PlayPauseStepEvent, ResetEvent, ClearEvent, UseToolEvent};
-use self::sim_state_manager::{activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles, delete_drain, delete_faucet, delete_particles_in_radius, select_particles};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -89,7 +87,6 @@ fn update(
 		ev_tool_use,
 		ev_paused,
 		&mut commands,
-		&asset_server,
 		constraints.as_mut(),
 		grid.as_mut(),
 		&mut particles,

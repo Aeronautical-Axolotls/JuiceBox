@@ -134,6 +134,7 @@ pub struct UIStateManager {
     pub show_informational: bool,
 
 	pub file_state:					JuiceStates,
+	pub reset:						bool,
 	pub clear:						bool,
 }
 
@@ -200,6 +201,7 @@ impl Default for UIStateManager {
 
 			// File and scene stuff.
 			file_state:					JuiceStates::Running,
+			reset:						false,
 			clear:						false,
 		}
 	}
