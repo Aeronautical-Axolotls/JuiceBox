@@ -5,12 +5,12 @@ pub mod util;
 use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use self::sim_state_manager::{
-    activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles,
-    delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles,
+    activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_drains,
+    delete_all_faucets, delete_all_particles, delete_drain, delete_faucet, delete_particle,
+    delete_particles_in_radius, select_particles,
 };
 use crate::error::Error;
-use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
-use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets};
+use crate::events::{ClearEvent, PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use crate::test::test_state_manager::construct_new_simulation;
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{cartesian_to_polar, degrees_to_radians, polar_to_cartesian};
@@ -50,6 +50,7 @@ fn update(
     ui_state: Res<UIStateManager>,
     ev_tool_use: EventReader<UseToolEvent>,
     ev_reset: EventReader<ResetEvent>,
+    ev_clear: EventReader<ClearEvent>,
     ev_paused: EventReader<PlayPauseStepEvent>,
 ) {
     /* A fixed timestep is generally recommended for fluid simulations like ours.  Unfortunately,
@@ -81,6 +82,7 @@ fn update(
     they will not be removed from the simulation until the next reset event. */
     handle_events(
         ev_reset,
+        ev_clear,
         ev_tool_use,
         ev_paused,
         &mut commands,
@@ -92,13 +94,12 @@ fn update(
         &ui_state,
         fixed_timestep,
     );
-
-    grid.force_edge_solids();
 }
 
 /// Handles incoming events from the UI
 fn handle_events(
     mut ev_reset: EventReader<ResetEvent>,
+    mut ev_clear: EventReader<ClearEvent>,
     mut ev_tool_use: EventReader<UseToolEvent>,
     mut ev_pause: EventReader<PlayPauseStepEvent>,
     mut commands: &mut Commands,
@@ -114,6 +115,13 @@ fn handle_events(
     for _ in ev_reset.read() {
         reset_simulation_to_default(&mut commands, constraints, grid, particles, faucets, drains);
         construct_new_simulation(constraints, grid, &mut commands);
+        return;
+    }
+
+    for _ in ev_clear.read() {
+        delete_all_particles(commands, constraints, grid, particles);
+        delete_all_drains(commands, drains);
+        delete_all_faucets(commands, faucets);
         return;
     }
 

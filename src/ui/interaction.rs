@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::events::{PlayPauseStepEvent, ResetEvent, UseToolEvent};
+use crate::events::{ClearEvent, PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use crate::file_system::JuiceStates;
 use crate::simulation::{change_gravity, SimConstraints, SimGrid};
 use crate::ui::UIStateManager;
@@ -19,6 +19,7 @@ pub fn handle_input(
     cameras: Query<(&Camera, &GlobalTransform)>,
     mut ui_state: ResMut<UIStateManager>,
     mut ev_reset: EventWriter<ResetEvent>,
+    mut ev_clear: EventWriter<ClearEvent>,
     mut ev_tool_use: EventWriter<UseToolEvent>,
     mut ev_pause: EventWriter<PlayPauseStepEvent>,
     mut file_state: ResMut<NextState<JuiceStates>>,
@@ -88,6 +89,12 @@ pub fn handle_input(
     ui_state.gravity_direction = radians_to_degrees(polar_gravity.y + PI);
 
     file_state.set(ui_state.file_state.clone());
+
+    if ui_state.clear == true {
+        ev_clear.send(ClearEvent);
+        ui_state.clear = false;
+        return;
+    }
 }
 
 /// Handle all user input as it relates to the camera!

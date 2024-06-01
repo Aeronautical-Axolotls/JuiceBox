@@ -14,7 +14,7 @@ use bevy_egui::{
 };
 
 use self::interaction::{change_cursor_icon, handle_camera_input, handle_input};
-use crate::events::{ResetEvent, UseToolEvent};
+use crate::events::{ResetEvent, ClearEvent, UseToolEvent};
 use crate::file_system::JuiceStates;
 use crate::{
     events::{ModifyVisualizationEvent, PlayPauseStepEvent},
@@ -32,7 +32,8 @@ impl Plugin for JuiceUI {
         app.add_systems(Update, handle_camera_input);
         app.add_systems(Update, change_cursor_icon);
 
-        app.add_event::<ResetEvent>();
+		app.add_event::<ResetEvent>();
+		app.add_event::<ClearEvent>();
         app.add_event::<UseToolEvent>();
         app.add_event::<PlayPauseStepEvent>();
         app.add_event::<ModifyVisualizationEvent>();
@@ -132,12 +133,9 @@ pub struct UIStateManager {
 
     pub show_informational: bool,
 
-    pub file_state: JuiceStates,
-    pub reset: bool,
-    pub new: bool,
-    pub load: bool,
-    pub save: bool,
-    pub save_as: bool,
+	pub file_state:					JuiceStates,
+	pub reset:						bool,
+	pub clear:						bool,
 }
 
 impl Default for UIStateManager {
@@ -201,15 +199,12 @@ impl Default for UIStateManager {
             // Show the informational window at the start of the program?
             show_informational: true,
 
-            // File and scene stuff.
-            file_state: JuiceStates::Running,
-            reset: false,
-            new: false,
-            load: false,
-            save: false,
-            save_as: false,
-        }
-    }
+			// File and scene stuff.
+			file_state:					JuiceStates::Running,
+			reset:						false,
+			clear:						false,
+		}
+	}
 }
 
 pub fn init_ui(

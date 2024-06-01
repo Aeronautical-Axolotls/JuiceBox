@@ -41,6 +41,13 @@ impl UseToolEvent {
 #[derive(Event)]
 pub struct ResetEvent;
 
+/**
+    Deletes all particles, drains, and faucets.
+    Handled by the simulation state manager
+*/
+#[derive(Event)]
+pub struct ClearEvent;
+
 #[derive(Event)]
 pub struct FileEvent {
     pub file_event: file_system::JuiceStates,

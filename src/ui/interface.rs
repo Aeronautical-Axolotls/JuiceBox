@@ -201,7 +201,7 @@ fn show_file_manager_panel(ui_state: &mut UIStateManager, ui: &mut Ui) {
         // Do stuff when selection changes.
         match edit_selection {
             1 => ui_state.file_state = JuiceStates::Reloading,
-            2 => {}
+            2 => { ui_state.clear = true }
             _ => {}
         }
 
