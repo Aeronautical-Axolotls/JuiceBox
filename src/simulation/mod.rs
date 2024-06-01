@@ -5,18 +5,17 @@ pub mod util;
 use bevy::prelude::*;
 //use bevy::prelude::init_state;
 use self::sim_state_manager::{
-    activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_particles,
-    delete_drain, delete_faucet, delete_particle, delete_particles_in_radius, select_particles,
-	delete_all_drains, delete_all_faucets,
+    activate_components, add_drain, add_faucet, add_particles_in_radius, delete_all_drains,
+    delete_all_faucets, delete_all_particles, delete_drain, delete_faucet, delete_particle,
+    delete_particles_in_radius, select_particles,
 };
 use crate::error::Error;
+use crate::events::{ClearEvent, PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use crate::test::test_state_manager::construct_new_simulation;
 use crate::ui::{SimTool, UIStateManager};
 use crate::util::{cartesian_to_polar, degrees_to_radians, polar_to_cartesian};
 use bevy::math::Vec2;
 use sim_physics_engine::*;
-use crate::test::test_state_manager::{construct_test_simulation_layout};
-use crate::events::{PlayPauseStepEvent, ResetEvent, ClearEvent, UseToolEvent};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -51,7 +50,7 @@ fn update(
     ui_state: Res<UIStateManager>,
     ev_tool_use: EventReader<UseToolEvent>,
     ev_reset: EventReader<ResetEvent>,
-	ev_clear:		EventReader<ClearEvent>,
+    ev_clear: EventReader<ClearEvent>,
     ev_paused: EventReader<PlayPauseStepEvent>,
 ) {
     /* A fixed timestep is generally recommended for fluid simulations like ours.  Unfortunately,
@@ -74,57 +73,57 @@ fn update(
         );
     }
 
-	/* Handle all simulation events received through our EventReader<> objects.  IMPORTANT: This
-		*must* happen after we step through the simulation.  If we handle events first, then in the
-		case of a reset event, Bevy will not go through its despawn() schedule in time.  The
-		simulation will then incorrectly label cells as fluid BEFORE the command to despawn the
-		particles has executed.  Because the particles will be despawned before the next update
-		schedule runs, there will never be a change in lookup index for these "ghost" particles, so
-		they will not be removed from the simulation until the next reset event. */
-	handle_events(
-		ev_reset,
-		ev_clear,
-		ev_tool_use,
-		ev_paused,
-		&mut commands,
-		constraints.as_mut(),
-		grid.as_mut(),
-		&mut particles,
-		&faucets,
-		&drains,
-		&ui_state,
-		fixed_timestep
-	);
+    /* Handle all simulation events received through our EventReader<> objects.  IMPORTANT: This
+    *must* happen after we step through the simulation.  If we handle events first, then in the
+    case of a reset event, Bevy will not go through its despawn() schedule in time.  The
+    simulation will then incorrectly label cells as fluid BEFORE the command to despawn the
+    particles has executed.  Because the particles will be despawned before the next update
+    schedule runs, there will never be a change in lookup index for these "ghost" particles, so
+    they will not be removed from the simulation until the next reset event. */
+    handle_events(
+        ev_reset,
+        ev_clear,
+        ev_tool_use,
+        ev_paused,
+        &mut commands,
+        constraints.as_mut(),
+        grid.as_mut(),
+        &mut particles,
+        &faucets,
+        &drains,
+        &ui_state,
+        fixed_timestep,
+    );
 }
 
 /// Handles incoming events from the UI
 fn handle_events(
-    mut ev_reset:       EventReader<ResetEvent>,
-	mut ev_clear:		EventReader<ClearEvent>,
-    mut ev_tool_use:    EventReader<UseToolEvent>,
-	mut ev_pause:		EventReader<PlayPauseStepEvent>,
-	mut commands:	    &mut Commands,
-	constraints:	    &mut SimConstraints,
-	grid:			    &mut SimGrid,
-	particles:		    &mut Query<(Entity, &mut SimParticle)>,
-	faucets:		    &Query<(Entity, &mut SimFaucet)>,
-	drains:		        &Query<(Entity, &mut SimDrain)>,
-    ui_state:			&UIStateManager,
-	timestep:			f32) {
-
+    mut ev_reset: EventReader<ResetEvent>,
+    mut ev_clear: EventReader<ClearEvent>,
+    mut ev_tool_use: EventReader<UseToolEvent>,
+    mut ev_pause: EventReader<PlayPauseStepEvent>,
+    mut commands: &mut Commands,
+    constraints: &mut SimConstraints,
+    grid: &mut SimGrid,
+    particles: &mut Query<(Entity, &mut SimParticle)>,
+    faucets: &Query<(Entity, &mut SimFaucet)>,
+    drains: &Query<(Entity, &mut SimDrain)>,
+    ui_state: &UIStateManager,
+    timestep: f32,
+) {
     // If there is a reset event sent, we reset the simulation.
     for _ in ev_reset.read() {
         reset_simulation_to_default(&mut commands, constraints, grid, particles, faucets, drains);
         construct_new_simulation(constraints, grid, &mut commands);
-		return;
+        return;
     }
 
-	for _ in ev_clear.read() {
-		delete_all_particles(commands, constraints, grid, particles);
-		delete_all_drains(commands, drains);
-		delete_all_faucets(commands, faucets);
+    for _ in ev_clear.read() {
+        delete_all_particles(commands, constraints, grid, particles);
+        delete_all_drains(commands, drains);
+        delete_all_faucets(commands, faucets);
         return;
-	}
+    }
 
     // If we receive a play/pause/step event, process it!
     for ev in ev_pause.read() {

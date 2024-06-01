@@ -1,9 +1,8 @@
 use std::f32::consts::PI;
 
-use crate::events::{PlayPauseStepEvent, ResetEvent, ClearEvent, UseToolEvent};
-use crate::simulation::sim_state_manager::{delete_all_drains, delete_all_faucets, delete_all_particles};
+use crate::events::{ClearEvent, PlayPauseStepEvent, ResetEvent, UseToolEvent};
 use crate::file_system::JuiceStates;
-use crate::simulation::{change_gravity, SimConstraints, SimDrain, SimFaucet, SimGrid, SimParticle};
+use crate::simulation::{change_gravity, SimConstraints, SimGrid};
 use crate::ui::UIStateManager;
 use crate::util::*;
 use bevy::input::mouse::MouseMotion;
@@ -13,25 +12,26 @@ use super::SimTool;
 
 /// Debugging state controller.
 pub fn handle_input(
-	mut constraints:	ResMut<SimConstraints>,
-	keys:				Res<Input<KeyCode>>,
-	mouse:				Res<Input<MouseButton>>,
-	windows:			Query<&Window>,
-	cameras:			Query<(&Camera, &GlobalTransform)>,
-	mut ui_state:     	ResMut<UIStateManager>,
-    mut ev_reset:       EventWriter<ResetEvent>,
-	mut ev_clear:		EventWriter<ClearEvent>,
-    mut ev_tool_use:	EventWriter<UseToolEvent>,
-	mut ev_pause:		EventWriter<PlayPauseStepEvent>,
-	mut file_state:		ResMut<NextState<JuiceStates>>) {
-
-	let left_mouse_pressed: bool	= mouse.pressed(MouseButton::Left);
-	let right_mouse_pressed: bool	= mouse.pressed(MouseButton::Right);
-	let left_right: f32				= (keys.pressed(KeyCode::Right) as i8 - keys.pressed(KeyCode::Left) as i8) as f32;
-	let up_down: f32				= (keys.pressed(KeyCode::Up) as i8 - keys.pressed(KeyCode::Down) as i8) as f32;
-	let r_key_pressed:bool			= keys.just_pressed(KeyCode::R);
-	let f_key_pressed:bool			= keys.just_pressed(KeyCode::F);
-	let space_pressed:bool			= keys.just_pressed(KeyCode::Space);
+    mut constraints: ResMut<SimConstraints>,
+    keys: Res<Input<KeyCode>>,
+    mouse: Res<Input<MouseButton>>,
+    windows: Query<&Window>,
+    cameras: Query<(&Camera, &GlobalTransform)>,
+    mut ui_state: ResMut<UIStateManager>,
+    mut ev_reset: EventWriter<ResetEvent>,
+    mut ev_clear: EventWriter<ClearEvent>,
+    mut ev_tool_use: EventWriter<UseToolEvent>,
+    mut ev_pause: EventWriter<PlayPauseStepEvent>,
+    mut file_state: ResMut<NextState<JuiceStates>>,
+) {
+    let left_mouse_pressed: bool = mouse.pressed(MouseButton::Left);
+    let right_mouse_pressed: bool = mouse.pressed(MouseButton::Right);
+    let left_right: f32 =
+        (keys.pressed(KeyCode::Right) as i8 - keys.pressed(KeyCode::Left) as i8) as f32;
+    let up_down: f32 = (keys.pressed(KeyCode::Up) as i8 - keys.pressed(KeyCode::Down) as i8) as f32;
+    let r_key_pressed: bool = keys.just_pressed(KeyCode::R);
+    let f_key_pressed: bool = keys.just_pressed(KeyCode::F);
+    let space_pressed: bool = keys.just_pressed(KeyCode::Space);
 
     // Reset simulation when we press R or when UI button is pressed.
     if r_key_pressed {
@@ -88,13 +88,13 @@ pub fn handle_input(
     ui_state.gravity_magnitude = f32::sqrt(polar_gravity.x / 4.0);
     ui_state.gravity_direction = radians_to_degrees(polar_gravity.y + PI);
 
-	file_state.set(ui_state.file_state.clone());
+    file_state.set(ui_state.file_state.clone());
 
-	if (ui_state.clear == true) {
-		ev_clear.send(ClearEvent);
-		ui_state.clear = false;
-		return;
-	}
+    if ui_state.clear == true {
+        ev_clear.send(ClearEvent);
+        ui_state.clear = false;
+        return;
+    }
 }
 
 /// Handle all user input as it relates to the camera!
